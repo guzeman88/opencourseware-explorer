@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.university import University
+from app.models.course import Course, CourseLevel
+
+
+@pytest.mark.asyncio
+async def test_admin_login_success(auth_client: AsyncClient):
+    # auth_client already has a valid token; verify a protected endpoint works
+    resp = await auth_client.get("/api/v1/admin/stats")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "total_universities" in body
+    assert "total_courses" in body
+
+
+@pytest.mark.asyncio
+async def test_admin_login_fail(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/admin/auth/login",
+        json={"email": "bad@example.com", "password": "wrong"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_requires_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/admin/stats")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_create_university(auth_client: AsyncClient):
+    resp = await auth_client.post(
+        "/api/v1/admin/universities",
+        json={
+            "name": "Harvard University",
+            "slug": "harvard",
+            "source_key": "harvard",
+            "country": "US",
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["slug"] == "harvard"
+
+
+@pytest.mark.asyncio
+async def test_admin_create_university_duplicate_slug(auth_client: AsyncClient):
+    payload = {"name": "X", "slug": "duplicate-slug", "source_key": "x"}
+    await auth_client.post("/api/v1/admin/universities", json=payload)
+    resp = await auth_client.post("/api/v1/admin/universities", json=payload)
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_admin_stats_counts(auth_client: AsyncClient, db_session: AsyncSession):
+    uni = University(name="Stats Uni", slug="stats-uni", source_key="test")
+    db_session.add(uni)
+    await db_session.commit()
+    await db_session.refresh(uni)
+
+    course = Course(
+        university_id=uni.id,
+        title="Stats Course",
+        slug="stats-course-stats-uni",
+        level=CourseLevel.undergraduate,
+        source_key="test",
+        has_video_lectures=True,
+    )
+    db_session.add(course)
+    await db_session.commit()
+
+    resp = await auth_client.get("/api/v1/admin/stats")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total_universities"] >= 1
+    assert body["total_courses"] >= 1
+    assert body["courses_with_video"] >= 1

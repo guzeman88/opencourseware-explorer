@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ocw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ocwpass}
+      POSTGRES_DB: ${POSTGRES_DB:-opencourseware}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ocw}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ocw}:${POSTGRES_PASSWORD:-ocwpass}@db:5432/${POSTGRES_DB:-opencourseware}
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-use-32-chars-min}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      ENVIRONMENT: production
+      CORS_ORIGINS: '["http://localhost:3001","http://localhost:3000","http://localhost:19006"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+  scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ocw}:${POSTGRES_PASSWORD:-ocwpass}@db:5432/${POSTGRES_DB:-opencourseware}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      OCW_MIT_CSV: /data/MIT Course List Master - MIT Course List Master.csv
+    volumes:
+      - ./scraper:/app
+      - ../:/data
+      - ./backend:/backend
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - scraper
+
+volumes:
+  postgres_data:

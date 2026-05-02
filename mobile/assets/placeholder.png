@@ -1,0 +1,3 @@
+// Mobile placeholder — real PNG assets should be placed in assets/ folder
+// This module just exports an empty object to satisfy require() calls in tests
+module.exports = {};
