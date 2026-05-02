@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -9,14 +9,22 @@ from app.config import settings
 
 
 def _make_engine():
-    url = settings.database_url
-    parsed = urlparse(url)
-    ssl_param = (parse_qs(parsed.query).get("ssl") or [""])[0].lower()
+    raw_url = settings.database_url
+    parsed = urlparse(raw_url)
+    qs = parse_qs(parsed.query)
+
+    # Extract ssl param, remove from URL (pass via connect_args with correct type)
+    ssl_values = qs.pop("ssl", [])
+    ssl_param = ssl_values[0].lower() if ssl_values else ""
+
+    # Rebuild URL without ssl param
+    clean_query = urlencode(qs, doseq=True)
+    url = urlunparse(parsed._replace(query=clean_query))
 
     connect_args: dict = {}
-    if ssl_param == "false":
+    if ssl_param in ("false", "disable", "0"):
         connect_args["ssl"] = False
-    elif ssl_param in ("require", "true"):
+    elif ssl_param in ("require", "true", "1"):
         import ssl as _ssl
         ctx = _ssl.create_default_context()
         ctx.check_hostname = False
