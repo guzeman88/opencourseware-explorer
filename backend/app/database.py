@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl as _ssl
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -23,13 +24,15 @@ def _make_engine():
 
     connect_args: dict = {}
     if ssl_param in ("false", "disable", "0"):
+        # Explicit no-SSL requested
         connect_args["ssl"] = False
-    elif ssl_param in ("require", "true", "1"):
-        import ssl as _ssl
+    else:
+        # Default: use direct TLS (Railway proxy expects TLS at TCP level, not STARTSSL)
         ctx = _ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = _ssl.CERT_NONE
         connect_args["ssl"] = ctx
+        connect_args["direct_tls"] = True
 
     return create_async_engine(
         url,
