@@ -24,11 +24,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    # Bootstrap admin user
+    # Bootstrap admin user (non-fatal – DB may be temporarily unavailable)
     from app.database import AsyncSessionLocal
 
-    async with AsyncSessionLocal() as db:
-        await get_or_create_admin(db)
+    try:
+        async with AsyncSessionLocal() as db:
+            await get_or_create_admin(db)
+    except Exception as _exc:
+        logger.warning("Admin bootstrap failed (non-fatal): %s", _exc)
 
     logger.info("OpenCourseWare API started")
     yield
