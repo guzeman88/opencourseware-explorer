@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ssl as _ssl
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -14,25 +13,15 @@ def _make_engine():
     parsed = urlparse(raw_url)
     qs = parse_qs(parsed.query)
 
-    # Extract ssl param, remove from URL (pass via connect_args with correct type)
-    ssl_values = qs.pop("ssl", [])
-    ssl_param = ssl_values[0].lower() if ssl_values else ""
-
-    # Rebuild URL without ssl param
+    # Strip any ssl= param from the URL (passed via connect_args)
+    qs.pop("ssl", None)
     clean_query = urlencode(qs, doseq=True)
     url = urlunparse(parsed._replace(query=clean_query))
 
-    connect_args: dict = {}
-    if ssl_param in ("false", "disable", "0"):
-        # Explicit no-SSL requested
-        connect_args["ssl"] = False
-    else:
-        # Default: use direct TLS (Railway proxy expects TLS at TCP level, not STARTSSL)
-        ctx = _ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = _ssl.CERT_NONE
-        connect_args["ssl"] = ctx
-        connect_args["direct_tls"] = True
+    # Internal Railway hostname (.railway.internal) uses plain TCP — no SSL needed.
+    # External/public connections with SSL should use a sslmode=require DSN instead.
+    is_internal = ".railway.internal" in (parsed.hostname or "")
+    connect_args: dict = {"ssl": False} if is_internal else {}
 
     return create_async_engine(
         url,
