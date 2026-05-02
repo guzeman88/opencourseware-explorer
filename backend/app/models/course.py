@@ -76,6 +76,9 @@ class Course(Base):
     total_videos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_duration_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Visibility
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Stats
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 

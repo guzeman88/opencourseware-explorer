@@ -1,6 +1,7 @@
 "use client";
 
-import { useFeaturedCourses } from "@/hooks/use-courses";
+import { useQuery } from "@tanstack/react-query";
+import { fetchFeaturedCourses } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Info } from "lucide-react";
@@ -8,7 +9,10 @@ import { cn, levelLabel, levelColor, thumbnailUrl } from "@/lib/utils";
 import { useState } from "react";
 
 export function HeroBanner() {
-  const { data, isLoading } = useFeaturedCourses(20);
+  const { data, isLoading } = useQuery({
+    queryKey: ["row", "featured"],
+    queryFn: () => fetchFeaturedCourses(18),
+  });
   const [active, setActive] = useState(0);
 
   const courses = data?.items ?? [];

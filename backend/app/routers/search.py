@@ -29,6 +29,7 @@ async def search_courses(
         level=CourseLevel(level) if level else None,
         source_key=source_key,
         has_video_lectures=has_video_lectures,
+        is_published=True,
         page=page,
         page_size=page_size,
         sort_by="view_count",

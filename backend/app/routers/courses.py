@@ -91,6 +91,7 @@ async def list_courses_endpoint(
         level=CourseLevel(level) if level else None,
         source_key=source_key,
         has_video_lectures=has_video_lectures,
+        is_published=True,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -110,6 +111,7 @@ async def featured_courses(
     """Return most-viewed courses — used for the hero banner."""
     filters = CourseFilters(
         has_video_lectures=True,
+        is_published=True,
         page=1,
         page_size=page_size,
         sort_by="view_count",

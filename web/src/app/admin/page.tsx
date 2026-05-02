@@ -9,9 +9,11 @@ import {
   Play,
   Tag,
   Video,
+  Clock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sourceLabel } from "@/lib/utils";
+import Link from "next/link";
 
 const SOURCE_TOTALS: Record<string, number | null> = {
   // Verified from source websites (May 2026) — see course-availability-report.csv
@@ -46,15 +48,24 @@ export default function AdminDashboardPage() {
       label: "Universities",
       value: stats?.total_universities,
       icon: GraduationCap,
+      href: undefined,
     },
-    { label: "Total Courses", value: stats?.total_courses, icon: BookOpen },
+    { label: "Total Courses", value: stats?.total_courses, icon: BookOpen, href: undefined },
     {
       label: "Courses with Video",
       value: stats?.courses_with_video,
       icon: Video,
+      href: undefined,
     },
-    { label: "Total Videos", value: stats?.total_videos, icon: Play },
-    { label: "Subjects", value: stats?.total_subjects, icon: Tag },
+    { label: "Total Videos", value: stats?.total_videos, icon: Play, href: undefined },
+    { label: "Subjects", value: stats?.total_subjects, icon: Tag, href: undefined },
+    {
+      label: "Pending Review",
+      value: stats?.pending_review,
+      icon: Clock,
+      href: "/admin/pending-review",
+      highlight: (stats?.pending_review ?? 0) > 0,
+    },
   ];
 
   return (
@@ -67,28 +78,37 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statCards.map(({ label, value, icon: Icon }) => (
-          <Card key={label}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {label}
-                </span>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                <p className="text-3xl font-bold">
-                  {value?.toLocaleString() ?? "—"}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {statCards.map(({ label, value, icon: Icon, href, highlight }) => {
+          const card = (
+            <Card key={label} className={highlight ? "border-amber-500/50 bg-amber-500/5" : undefined}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {label}
+                  </span>
+                  <Icon className={`h-4 w-4 ${highlight ? "text-amber-500" : "text-muted-foreground"}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <p className={`text-3xl font-bold ${highlight ? "text-amber-500" : ""}`}>
+                    {value?.toLocaleString() ?? "—"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+          return href ? (
+            <Link key={label} href={href} className="block hover:opacity-90 transition-opacity">
+              {card}
+            </Link>
+          ) : (
+            <div key={label}>{card}</div>
+          );
+        })}
       </div>
 
       {/* By source */}

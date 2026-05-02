@@ -42,4 +42,5 @@ class StatsResponse(OCWBase):
     total_videos: int
     total_subjects: int
     courses_with_video: int
+    pending_review: int
     sources: list[dict]

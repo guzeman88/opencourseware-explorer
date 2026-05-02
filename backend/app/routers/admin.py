@@ -84,6 +84,12 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     ).scalar_one()
 
+    pending_review = (
+        await db.execute(
+            select(func.count()).select_from(Course).where(Course.is_published == False)
+        )
+    ).scalar_one()
+
     source_rows = await db.execute(
         select(Course.source_key, func.count(Course.id))
         .group_by(Course.source_key)
@@ -97,6 +103,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         total_videos=total_videos,
         total_subjects=total_subjects,
         courses_with_video=courses_with_video,
+        pending_review=pending_review,
         sources=sources,
     )
 
@@ -156,12 +163,48 @@ async def admin_list_courses(
     source_key: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    # Show ALL courses (no is_published filter) in admin list
     filters = CourseFilters(page=page, page_size=page_size, q=q, source_key=source_key)
     courses, total = await list_courses(db, filters)
     pages = max(1, math.ceil(total / page_size))
     from app.routers.courses import _build_summary
     items = [_build_summary(c) for c in courses]
     return CourseList(items=items, total=total, page=page, page_size=page_size, pages=pages)
+
+
+@router.get("/courses/pending-review", response_model=CourseList, dependencies=[Depends(require_admin)])
+async def admin_pending_review_courses(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    q: Optional[str] = Query(None),
+    source_key: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return non-video courses that are hidden from the public site, pending review."""
+    filters = CourseFilters(
+        page=page, page_size=page_size, q=q, source_key=source_key, is_published=False
+    )
+    courses, total = await list_courses(db, filters)
+    pages = max(1, math.ceil(total / page_size))
+    from app.routers.courses import _build_summary
+    items = [_build_summary(c) for c in courses]
+    return CourseList(items=items, total=total, page=page, page_size=page_size, pages=pages)
+
+
+@router.patch("/courses/{course_id}/publish", response_model=CourseRead,
+              dependencies=[Depends(require_admin)])
+async def admin_set_course_published(
+    course_id: uuid.UUID,
+    published: bool = Query(..., description="True to publish, False to unpublish"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Publish or unpublish a single course."""
+    course = await get_course_by_id(db, course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    updated = await update_course(db, course, CourseUpdate(is_published=published))
+    from app.routers.courses import _build_course_read
+    return _build_course_read(updated)
 
 
 @router.post("/courses", response_model=CourseRead, status_code=201,

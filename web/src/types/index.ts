@@ -45,11 +45,15 @@ export interface CourseSummary {
   slug: string;
   level: CourseLevel;
   source_key: string;
+  source_url?: string;
   thumbnail_url?: string;
   instructor?: string;
   year?: number;
   has_video_lectures: boolean;
+  has_lecture_notes: boolean;
+  has_exams: boolean;
   total_videos: number;
+  is_published: boolean;
   university_id: string;
   university_name: string;
   university_slug: string;
@@ -102,6 +106,7 @@ export interface Stats {
   total_videos: number;
   total_subjects: number;
   courses_with_video: number;
+  pending_review: number;
   sources: { source_key: string; count: number }[];
 }
 

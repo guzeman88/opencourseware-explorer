@@ -75,6 +75,7 @@ async def get_university_courses(
         page_size=page_size,
         level=CourseLevel(level) if level else None,
         has_video_lectures=has_video_lectures,
+        is_published=True,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

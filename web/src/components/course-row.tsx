@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CourseCard } from "@/components/course-card";
@@ -33,6 +33,27 @@ export function CourseRow({
   priority = false,
 }: CourseRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Priority rows (above the fold) load immediately; others wait until near-visible.
+  const [isVisible, setIsVisible] = useState(priority);
+
+  useEffect(() => {
+    if (priority) return;
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "300px" } // preload 300px before entering viewport
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [priority]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["row", queryKey],
@@ -48,9 +69,11 @@ export function CourseRow({
         sort_dir: "desc",
       });
     },
+    enabled: isVisible,
   });
 
   const courses = data?.items ?? [];
+  const showSkeleton = !isVisible || isLoading;
 
   function scroll(dir: "left" | "right") {
     if (!rowRef.current) return;
@@ -61,10 +84,10 @@ export function CourseRow({
     });
   }
 
-  if (!isLoading && courses.length === 0) return null;
+  if (!showSkeleton && courses.length === 0) return null;
 
   return (
-    <section className="relative group/row">
+    <section ref={sectionRef} className="relative group/row">
       <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3">
         {title}
       </h2>
@@ -81,7 +104,7 @@ export function CourseRow({
 
         {/* Scroll row */}
         <div ref={rowRef} className="scroll-row">
-          {isLoading
+          {showSkeleton
             ? Array.from({ length: 8 }).map((_, i) => (
                 <CourseCardSkeleton key={i} />
               ))

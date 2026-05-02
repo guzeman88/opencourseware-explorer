@@ -92,6 +92,10 @@ async def list_courses(
             Course.has_video_lectures == filters.has_video_lectures
         )
 
+    if filters.is_published is not None:
+        query = query.where(Course.is_published == filters.is_published)
+        count_query = count_query.where(Course.is_published == filters.is_published)
+
     # Sorting
     sort_col = {
         "title": Course.title,

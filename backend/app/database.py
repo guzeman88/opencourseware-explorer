@@ -32,11 +32,10 @@ def _make_engine():
     url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
 
     hostname = parsed.hostname or ""
-    if ".railway.internal" in hostname:
-        # Private network: plain TCP, no SSL, with a fast connection timeout.
-        connect_args: dict = {"sslmode": "disable", "connect_timeout": 5}
+    if ".railway.internal" in hostname or "rlwy.net" in hostname:
+        # Railway connections (private or public proxy): plain TCP, no SSL.
+        connect_args: dict = {"sslmode": "disable", "connect_timeout": 10}
     else:
-        # Public proxy requires SSL
         connect_args = {"sslmode": "require", "connect_timeout": 10}
 
     return create_async_engine(

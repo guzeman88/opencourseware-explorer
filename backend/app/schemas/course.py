@@ -37,6 +37,7 @@ class CourseBase(OCWBase):
     youtube_playlist_id: Optional[str] = None
     total_videos: int = 0
     total_duration_seconds: int = 0
+    is_published: bool = False
 
 
 class CourseCreate(CourseBase):
@@ -59,6 +60,7 @@ class CourseUpdate(OCWBase):
     lecture_notes_url: Optional[str] = None
     exams_url: Optional[str] = None
     youtube_playlist_id: Optional[str] = None
+    is_published: Optional[bool] = None
     subject_ids: Optional[list[uuid.UUID]] = None
 
 
@@ -80,11 +82,15 @@ class CourseSummary(OCWBase, TimestampMixin):
     slug: str
     level: CourseLevel
     source_key: str
+    source_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     instructor: Optional[str] = None
     year: Optional[int] = None
     has_video_lectures: bool
+    has_lecture_notes: bool = False
+    has_exams: bool = False
     total_videos: int
+    is_published: bool = False
     university_id: uuid.UUID
     university_name: str = ""
     university_slug: str = ""
@@ -108,6 +114,7 @@ class CourseFilters(OCWBase):
     level: Optional[CourseLevel] = None
     source_key: Optional[str] = None
     has_video_lectures: Optional[bool] = None
+    is_published: Optional[bool] = None
     page: int = 1
     page_size: int = 24
     sort_by: str = "title"  # title | view_count | created_at | total_videos

@@ -164,3 +164,25 @@ export async function triggerScraperJob(source: string): Promise<ScraperJob> {
   );
   return data;
 }
+
+export async function fetchPendingReviewCourses(
+  page = 1,
+  page_size = 50,
+  source_key?: string,
+  q?: string
+): Promise<PaginatedList<CourseSummary>> {
+  const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
+    "/admin/courses/pending-review",
+    { params: { page, page_size, source_key, q } }
+  );
+  return data;
+}
+
+export async function setCoursePublished(
+  courseId: string,
+  published: boolean
+): Promise<void> {
+  await apiClient.patch(`/admin/courses/${courseId}/publish`, null, {
+    params: { published },
+  });
+}
