@@ -11,6 +11,8 @@ from app.config import settings
 _SCHEME_MAP = {
     "postgresql+asyncpg": "postgresql+psycopg",
     "postgres+asyncpg": "postgresql+psycopg",
+    "postgresql": "postgresql+psycopg",
+    "postgres": "postgresql+psycopg",
 }
 
 
@@ -19,22 +21,22 @@ def _make_engine():
     parsed = urlparse(raw_url)
     qs = parse_qs(parsed.query)
 
-    hostname = parsed.hostname or ""
-    is_internal = ".railway.internal" in hostname
-
     # Strip SSL-related query params; we pass them via connect_args.
     qs.pop("ssl", None)
     qs.pop("sslmode", None)
     clean_query = urlencode(qs, doseq=True)
 
-    if is_internal:
-        # Private network — keep asyncpg, no SSL needed.
-        url = urlunparse(parsed._replace(query=clean_query))
-        connect_args: dict = {"ssl": False}
+    # Always use psycopg3 (libpq) — handles Railway SSL correctly on both
+    # internal (.railway.internal) and public (proxy) connections.
+    scheme = _SCHEME_MAP.get(parsed.scheme, "postgresql+psycopg")
+    url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
+
+    hostname = parsed.hostname or ""
+    if ".railway.internal" in hostname:
+        # Private network: use sslmode=prefer (tries SSL, falls back to plaintext)
+        connect_args: dict = {"sslmode": "prefer"}
     else:
-        # Public proxy — switch to psycopg3 (libpq handles Railway SSL correctly).
-        scheme = _SCHEME_MAP.get(parsed.scheme, "postgresql+psycopg")
-        url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
+        # Public proxy requires SSL
         connect_args = {"sslmode": "require"}
 
     return create_async_engine(
