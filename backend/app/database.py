@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ssl
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -8,29 +7,35 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import settings
 
+# asyncpg scheme → psycopg3 scheme mapping
+_SCHEME_MAP = {
+    "postgresql+asyncpg": "postgresql+psycopg",
+    "postgres+asyncpg": "postgresql+psycopg",
+}
+
 
 def _make_engine():
     raw_url = settings.database_url
     parsed = urlparse(raw_url)
     qs = parse_qs(parsed.query)
 
-    # Strip any ssl= / sslmode= params from the URL; pass via connect_args instead.
+    hostname = parsed.hostname or ""
+    is_internal = ".railway.internal" in hostname
+
+    # Strip SSL-related query params; we pass them via connect_args.
     qs.pop("ssl", None)
     qs.pop("sslmode", None)
     clean_query = urlencode(qs, doseq=True)
-    url = urlunparse(parsed._replace(query=clean_query))
 
-    hostname = parsed.hostname or ""
-    if ".railway.internal" in hostname:
-        # Private network — plain TCP, no SSL
+    if is_internal:
+        # Private network — keep asyncpg, no SSL needed.
+        url = urlunparse(parsed._replace(query=clean_query))
         connect_args: dict = {"ssl": False}
     else:
-        # Public proxy — Railway requires SSL; skip certificate verification
-        # because Railway's proxy uses a self-signed / internal cert.
-        ssl_ctx = ssl.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = ssl.CERT_NONE
-        connect_args = {"ssl": ssl_ctx}
+        # Public proxy — switch to psycopg3 (libpq handles Railway SSL correctly).
+        scheme = _SCHEME_MAP.get(parsed.scheme, "postgresql+psycopg")
+        url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
+        connect_args = {"sslmode": "require"}
 
     return create_async_engine(
         url,
