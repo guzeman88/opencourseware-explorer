@@ -1,10 +1,28 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from typing import Any
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
+
+
+class _CorsAwareEnvSource(EnvSettingsSource):
+    """Custom env source that parses CORS_ORIGINS as comma-separated or JSON array."""
+
+    def prepare_field_value(
+        self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool
+    ) -> Any:
+        if field_name == "cors_origins" and isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [str(s).strip() for s in parsed if str(s).strip()]
+            except (json.JSONDecodeError, ValueError):
+                pass
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -43,12 +61,29 @@ class Settings(BaseSettings):
     default_page_size: int = 24
     max_page_size: int = 100
 
-    @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors(cls, v: Any) -> list[str]:
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: Any,
+        env_settings: Any,
+        dotenv_settings: Any,
+        file_secret_settings: Any,
+    ) -> tuple[Any, ...]:
+        return (
+            init_settings,
+            _CorsAwareEnvSource(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
 
 
 @lru_cache
