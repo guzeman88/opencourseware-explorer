@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -13,22 +14,30 @@ def _make_engine():
     parsed = urlparse(raw_url)
     qs = parse_qs(parsed.query)
 
-    # Strip any ssl= param from the URL (passed via connect_args)
+    # Strip any ssl= / sslmode= params from the URL; pass via connect_args instead.
     qs.pop("ssl", None)
+    qs.pop("sslmode", None)
     clean_query = urlencode(qs, doseq=True)
     url = urlunparse(parsed._replace(query=clean_query))
 
-    # Internal Railway hostname (.railway.internal) uses plain TCP — no SSL needed.
-    # External/public connections with SSL should use a sslmode=require DSN instead.
-    is_internal = ".railway.internal" in (parsed.hostname or "")
-    connect_args: dict = {"ssl": False} if is_internal else {}
+    hostname = parsed.hostname or ""
+    if ".railway.internal" in hostname:
+        # Private network — plain TCP, no SSL
+        connect_args: dict = {"ssl": False}
+    else:
+        # Public proxy — Railway requires SSL; skip certificate verification
+        # because Railway's proxy uses a self-signed / internal cert.
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        connect_args = {"ssl": ssl_ctx}
 
     return create_async_engine(
         url,
         echo=settings.debug,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=5,
+        max_overflow=10,
         connect_args=connect_args,
     )
 
