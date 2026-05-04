@@ -64,11 +64,12 @@ export async function fetchCourse(slugOrId: string): Promise<Course> {
 export async function fetchUniversities(
   page = 1,
   page_size = 50,
-  q?: string
+  q?: string,
+  is_institution?: boolean,
 ): Promise<PaginatedList<University>> {
   const { data } = await apiClient.get<PaginatedList<University>>(
     "/universities",
-    { params: { page, page_size, q } }
+    { params: { page, page_size, q, is_institution } }
   );
   return data;
 }
@@ -95,7 +96,7 @@ export async function fetchSubjects(
   topLevelOnly = false
 ): Promise<PaginatedList<Subject>> {
   const { data } = await apiClient.get<PaginatedList<Subject>>("/subjects", {
-    params: { top_level_only: topLevelOnly, page_size: 200 },
+    params: { top_level_only: topLevelOnly, page_size: 500 },
   });
   return data;
 }

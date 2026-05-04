@@ -1,18 +1,32 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { CourseCard } from "@/components/course-card";
 import { CourseCardSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCourses } from "@/hooks/use-courses";
-import { useUniversities } from "@/hooks/use-universities";
+import { fetchUniversities } from "@/lib/api";
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { levelLabel } from "@/lib/utils";
 import type { CourseFilters, CourseLevel } from "@/types";
 
 const LEVELS: CourseLevel[] = ["undergraduate", "graduate", "professional", "other"];
+
+const TOP_SUBJECTS = [
+  { name: "Mathematics",      slug: "mathematics" },
+  { name: "Physics",          slug: "physics" },
+  { name: "Computer Science", slug: "computer-science" },
+  { name: "Engineering",      slug: "engineering" },
+  { name: "Biology",          slug: "biology" },
+  { name: "Chemistry",        slug: "chemistry" },
+  { name: "Economics",        slug: "economics" },
+  { name: "Business",         slug: "business" },
+  { name: "History",          slug: "history" },
+  { name: "Philosophy",       slug: "philosophy" },
+];
 
 export default function CoursesPage() {
   return (
@@ -29,11 +43,14 @@ function CoursesContent() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Default to video-only; "all=1" disables the filter to show everything
+  const showAll = searchParams.get("all") === "1";
   const filters: CourseFilters = {
     q: searchParams.get("q") ?? undefined,
     university_slug: searchParams.get("university") ?? undefined,
+    subject_slug: searchParams.get("subject") ?? undefined,
     level: (searchParams.get("level") as CourseLevel) ?? undefined,
-    has_video_lectures: searchParams.get("video") === "1" ? true : undefined,
+    has_video_lectures: showAll ? undefined : true,
     page: Number(searchParams.get("page") ?? "1"),
     page_size: 24,
     sort_by: (searchParams.get("sort") as CourseFilters["sort_by"]) ?? "view_count",
@@ -41,7 +58,14 @@ function CoursesContent() {
   };
 
   const { data, isLoading } = useCourses(filters);
-  const { data: unis } = useUniversities(1, 50);
+
+  const { data: unisData } = useQuery({
+    queryKey: ["universities", "institutions", "sidebar"],
+    queryFn: () => fetchUniversities(1, 200, undefined, true),
+  });
+  const unis = (unisData?.items ?? [])
+    .filter((u) => (u.course_count ?? 0) > 0)
+    .sort((a, b) => (b.course_count ?? 0) - (a.course_count ?? 0));
 
   const courses = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -142,58 +166,33 @@ function CoursesContent() {
             </div>
           </div>
 
-          {/* University */}
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">
-              University
-            </label>
-            <div className="space-y-1">
-              <button
-                onClick={() => updateParam("university", null)}
-                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
-                  !filters.university_slug
-                    ? "bg-primary/20 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
-              >
-                All Universities
-              </button>
-              {unis?.items.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => updateParam("university", u.slug)}
-                  className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
-                    filters.university_slug === u.slug
-                      ? "bg-primary/20 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                  }`}
-                >
-                  {u.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Has video */}
+          {/* Content */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">
               Content
             </label>
-            <button
-              onClick={() =>
-                updateParam(
-                  "video",
-                  filters.has_video_lectures ? null : "1"
-                )
-              }
-              className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
-                filters.has_video_lectures
-                  ? "bg-primary/20 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              }`}
-            >
-              With Video Lectures
-            </button>
+            <div className="space-y-1">
+              <button
+                onClick={() => updateParam("all", null)}
+                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                  !showAll
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                Video Courses Only
+              </button>
+              <button
+                onClick={() => updateParam("all", "1")}
+                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                  showAll
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                All Courses
+              </button>
+            </div>
           </div>
 
           {/* Sort */}
@@ -211,6 +210,70 @@ function CoursesContent() {
               <option value="total_videos">Most Videos</option>
               <option value="title">Title A-Z</option>
             </select>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">
+              Subject
+            </label>
+            <div className="space-y-1">
+              <button
+                onClick={() => updateParam("subject", null)}
+                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                  !filters.subject_slug
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                All Subjects
+              </button>
+              {TOP_SUBJECTS.map((s) => (
+                <button
+                  key={s.slug}
+                  onClick={() => updateParam("subject", s.slug)}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                    filters.subject_slug === s.slug
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* University */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 block">
+              University
+            </label>
+            <div className="space-y-1">
+              <button
+                onClick={() => updateParam("university", null)}
+                className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                  !filters.university_slug
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                All Universities
+              </button>
+              {unis.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => updateParam("university", u.slug)}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors ${
+                    filters.university_slug === u.slug
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  {u.name}
+                </button>
+              ))}
+            </div>
           </div>
         </aside>
 

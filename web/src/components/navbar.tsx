@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/courses", label: "All Courses" },
-  { href: "/browse", label: "Browse" },
   { href: "/universities", label: "Universities" },
   { href: "/subjects", label: "Subjects" },
   { href: "/roadmaps", label: "Roadmaps" },
@@ -37,7 +36,7 @@ export function Navbar() {
           className="flex items-center gap-2 font-bold text-lg text-foreground shrink-0"
         >
           <GraduationCap className="h-6 w-6 text-primary" />
-          <span className="hidden sm:block">OCW Explorer</span>
+          <span className="hidden sm:block">The Commons</span>
         </Link>
 
         {/* Desktop nav links */}

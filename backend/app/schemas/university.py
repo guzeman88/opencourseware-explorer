@@ -17,6 +17,7 @@ class UniversityBase(OCWBase):
     country: Optional[str] = None
     youtube_channel_id: Optional[str] = None
     source_key: str
+    is_institution: bool = False
 
 
 class UniversityCreate(UniversityBase):

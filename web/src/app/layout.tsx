@@ -8,8 +8,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: {
-    default: "OpenCourseWare Explorer",
-    template: "%s | OpenCourseWare Explorer",
+    default: "The Commons",
+    template: "%s | The Commons",
   },
   icons: {
     icon: "/favicon.svg",
@@ -18,10 +18,10 @@ export const metadata: Metadata = {
   },
   description:
     "Browse thousands of free university courses from MIT, Yale, Stanford, Harvard, NPTEL, Berkeley and more.",
-  keywords: ["MIT OCW", "free courses", "university lectures", "open courseware", "NPTEL", "Yale", "Stanford"],
+  keywords: ["free courses", "university lectures", "open courseware", "NPTEL", "Yale", "Stanford", "MIT"],
   openGraph: {
     type: "website",
-    title: "OpenCourseWare Explorer",
+    title: "The Commons",
     description: "Browse thousands of free university courses",
   },
 };
@@ -39,7 +39,7 @@ export default function RootLayout({
           <main className="min-h-[calc(100vh-4rem)]">{children}</main>
           <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
             <p>
-              OpenCourseWare Explorer — Aggregating free university education
+              The Commons — Aggregating free university education
               from MIT, Yale, Stanford, Harvard, NPTEL, Berkeley, and more.
             </p>
             <p className="mt-1">

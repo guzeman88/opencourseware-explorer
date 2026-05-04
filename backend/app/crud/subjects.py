@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.course import CourseSubject
+from app.models.course import Course, CourseSubject
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
 
@@ -27,13 +27,14 @@ async def get_subject_by_slug(db: AsyncSession, slug: str) -> Subject | None:
     return subj
 
 
-# Subquery that counts courses per subject
 def _course_count_subq():
     return (
         select(
             CourseSubject.subject_id,
             func.count(CourseSubject.course_id).label("course_count"),
         )
+        .join(Course, Course.id == CourseSubject.course_id)
+        .where(Course.is_published.is_(True))
         .group_by(CourseSubject.subject_id)
         .subquery()
     )

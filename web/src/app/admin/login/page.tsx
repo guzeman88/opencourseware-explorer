@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
           <GraduationCap className="h-10 w-10 text-primary" />
           <h1 className="text-2xl font-bold">Admin Login</h1>
           <p className="text-sm text-muted-foreground">
-            OpenCourseWare Explorer
+            The Commons
           </p>
         </div>
 

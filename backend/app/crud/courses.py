@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import uuid
 from typing import Any, Optional
 
@@ -97,17 +96,23 @@ async def list_courses(
         count_query = count_query.where(Course.is_published == filters.is_published)
 
     # Sorting
-    sort_col = {
-        "title": Course.title,
-        "view_count": Course.view_count,
-        "created_at": Course.created_at,
-        "total_videos": Course.total_videos,
-    }.get(filters.sort_by, Course.title)
-
-    if filters.sort_dir == "desc":
-        query = query.order_by(sort_col.desc())
+    if filters.sort_by == "relevance" and filters.subject_slug:
+        from sqlalchemy import case
+        term = filters.subject_slug.replace("-", " ")
+        title_match = case((Course.title.ilike(f"%{term}%"), 0), else_=1)
+        query = query.order_by(title_match, Course.view_count.desc())
     else:
-        query = query.order_by(sort_col.asc())
+        sort_col = {
+            "title": Course.title,
+            "view_count": Course.view_count,
+            "created_at": Course.created_at,
+            "total_videos": Course.total_videos,
+        }.get(filters.sort_by, Course.title)
+
+        if filters.sort_dir == "desc":
+            query = query.order_by(sort_col.desc())
+        else:
+            query = query.order_by(sort_col.asc())
 
     # Pagination
     offset = (filters.page - 1) * filters.page_size

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import inspect as sa_inspect
@@ -24,6 +25,39 @@ from app.schemas.course import (
 from app.schemas.subject import SubjectRead, SubjectSummary
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+
+# ── Simple in-process TTL cache ──────────────────────────────────────────────
+_CACHE: dict[str, tuple[float, CourseList]] = {}
+_CACHE_TTL = 60  # seconds
+
+
+def _cache_key(filters: CourseFilters) -> str:
+    return (
+        f"{filters.q}|{filters.university_slug}|{filters.subject_slug}|"
+        f"{filters.level}|{filters.source_key}|{filters.has_video_lectures}|"
+        f"{filters.is_published}|{filters.page}|{filters.page_size}|"
+        f"{filters.sort_by}|{filters.sort_dir}"
+    )
+
+
+def _get_cached(key: str) -> CourseList | None:
+    entry = _CACHE.get(key)
+    if entry and (time.monotonic() - entry[0]) < _CACHE_TTL:
+        return entry[1]
+    _CACHE.pop(key, None)
+    return None
+
+
+def _set_cached(key: str, val: CourseList) -> None:
+    # Evict stale entries if cache grows large
+    if len(_CACHE) > 500:
+        now = time.monotonic()
+        stale = [k for k, (ts, _) in _CACHE.items() if now - ts >= _CACHE_TTL]
+        for k in stale:
+            _CACHE.pop(k, None)
+    _CACHE[key] = (time.monotonic(), val)
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _safe_col_dict(orm_obj) -> dict:
@@ -97,10 +131,15 @@ async def list_courses_endpoint(
         sort_by=sort_by,
         sort_dir=sort_dir,
     )
+    key = _cache_key(filters)
+    if cached := _get_cached(key):
+        return cached
     courses, total = await list_courses(db, filters)
     pages = max(1, math.ceil(total / page_size))
     items = [_build_summary(c) for c in courses]
-    return CourseList(items=items, total=total, page=page, page_size=page_size, pages=pages)
+    result = CourseList(items=items, total=total, page=page, page_size=page_size, pages=pages)
+    _set_cached(key, result)
+    return result
 
 
 @router.get("/featured", response_model=CourseList)
@@ -117,11 +156,14 @@ async def featured_courses(
         sort_by="view_count",
         sort_dir="desc",
     )
+    key = _cache_key(filters)
+    if cached := _get_cached(key):
+        return cached
     courses, total = await list_courses(db, filters)
     items = [_build_summary(c) for c in courses]
-    return CourseList(
-        items=items, total=total, page=1, page_size=page_size, pages=1
-    )
+    result = CourseList(items=items, total=total, page=1, page_size=page_size, pages=1)
+    _set_cached(key, result)
+    return result
 
 
 @router.get("/{slug_or_id}", response_model=CourseRead)
@@ -145,3 +187,4 @@ async def get_course(slug_or_id: str, db: AsyncSession = Depends(get_db)):
         pass
 
     return _build_course_read(course)
+

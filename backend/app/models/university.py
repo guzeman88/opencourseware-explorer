@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Text
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -24,7 +24,7 @@ class University(Base):
     country: Mapped[str | None] = mapped_column(String(100))
     youtube_channel_id: Mapped[str | None] = mapped_column(String(100))
     source_key: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    # e.g. "mit_ocw", "yale_ocw", "stanford_see", "nptel", "berkeley"
+    is_institution: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     departments: Mapped[list[Department]] = relationship(
         "Department", back_populates="university", cascade="all, delete-orphan"

@@ -22,6 +22,7 @@ export interface University {
   country?: string;
   youtube_channel_id?: string;
   source_key: string;
+  is_institution: boolean;
   course_count?: number;
   created_at: string;
   updated_at: string;
@@ -155,6 +156,6 @@ export interface CourseFilters {
   has_video_lectures?: boolean;
   page?: number;
   page_size?: number;
-  sort_by?: "title" | "view_count" | "created_at" | "total_videos";
+  sort_by?: "title" | "view_count" | "created_at" | "total_videos" | "relevance";
   sort_dir?: "asc" | "desc";
 }

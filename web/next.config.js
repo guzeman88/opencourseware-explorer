@@ -22,6 +22,7 @@ const nextConfig = {
       { protocol: "https", hostname: "*.coursera.org" },
       { protocol: "https", hostname: "*.edx.org" },
       { protocol: "https", hostname: "*.3blue1brown.com" },
+      { protocol: "https", hostname: "logo.clearbit.com" },
     ],
   },
   experimental: {
