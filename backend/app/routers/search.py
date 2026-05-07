@@ -1,8 +1,9 @@
-from __future__ import annotations
 
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import list_courses
@@ -12,10 +13,13 @@ from app.schemas.course import CourseFilters, CourseList, CourseSummary
 from app.schemas.subject import SubjectSummary
 
 router = APIRouter(prefix="/search", tags=["search"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=CourseList)
+@limiter.limit("30/minute")
 async def search_courses(
+    request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
     level: str | None = Query(None),
     source_key: str | None = Query(None),

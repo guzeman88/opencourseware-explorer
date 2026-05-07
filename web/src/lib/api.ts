@@ -12,12 +12,17 @@ import type {
   ScraperJob,
 } from "@/types";
 
+// In the browser, use relative URLs so requests go through the Vercel edge proxy
+// (/api/v1/...) which caches responses at Vercel's CDN — much faster than hitting
+// Railway directly. SSR code paths use the full URL via NEXT_PUBLIC_API_URL.
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  typeof window !== "undefined"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 export const apiClient = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
-  timeout: 15000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 

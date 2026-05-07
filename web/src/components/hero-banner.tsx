@@ -6,25 +6,34 @@ import Image from "next/image";
 import Link from "next/link";
 import { Play, Info } from "lucide-react";
 import { cn, levelLabel, levelColor, thumbnailUrl } from "@/lib/utils";
+import type { CourseSummary, PaginatedList } from "@/types";
 import { useState } from "react";
 
-export function HeroBanner() {
+interface HeroBannerProps {
+  initialData?: PaginatedList<CourseSummary>;
+}
+
+export function HeroBanner({ initialData }: HeroBannerProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["row", "featured"],
     queryFn: () => fetchFeaturedCourses(18),
+    initialData,
   });
   const [active, setActive] = useState(0);
 
   const courses = data?.items ?? [];
   const featured = courses[active];
 
-  if (isLoading || !featured) {
+  // Only show the spinner if we have no server data AND client hasn't loaded yet
+  if (isLoading && !featured) {
     return (
       <div className="relative h-[70vh] bg-gradient-to-b from-zinc-900 to-background flex items-center justify-center">
         <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
+
+  if (!featured) return null;
 
   const thumb = thumbnailUrl(featured);
 

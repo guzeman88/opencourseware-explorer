@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const { withSentryConfig } = require("@sentry/nextjs");
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -28,6 +33,42 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600",
+          },
+        ],
+      },
+    ];
+  },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(
+  withBundleAnalyzer(nextConfig),
+  {
+    // Sentry source-map upload — requires SENTRY_AUTH_TOKEN in CI
+    silent: true,
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+  },
+  {
+    // SDK options
+    disableLogger: true,
+    hideSourceMaps: true,
+  }
+);

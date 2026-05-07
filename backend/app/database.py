@@ -32,8 +32,9 @@ def _make_engine():
     url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
 
     hostname = parsed.hostname or ""
-    if ".railway.internal" in hostname or "rlwy.net" in hostname:
-        # Railway connections (private or public proxy): plain TCP, no SSL.
+    _local = hostname in ("localhost", "127.0.0.1", "::1", "db")
+    if ".railway.internal" in hostname or "rlwy.net" in hostname or _local:
+        # Railway connections and local dev: plain TCP, no SSL.
         connect_args: dict = {"sslmode": "disable", "connect_timeout": 10}
     else:
         connect_args = {"sslmode": "require", "connect_timeout": 10}

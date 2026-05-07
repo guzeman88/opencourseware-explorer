@@ -1,12 +1,14 @@
-from __future__ import annotations
 
+import json
+import logging
 import math
-import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import redis.asyncio as aioredis
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.crud import (
     get_course_by_slug,
     get_course_by_id,
@@ -22,17 +24,19 @@ from app.schemas.course import (
     CourseSummary,
     VideoSummary,
 )
-from app.schemas.subject import SubjectRead, SubjectSummary
+from app.schemas.subject import SubjectSummary
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
-# ── Simple in-process TTL cache ──────────────────────────────────────────────
-_CACHE: dict[str, tuple[float, CourseList]] = {}
 _CACHE_TTL = 60  # seconds
+_CACHE_PREFIX = "ocw:courses:"
 
 
 def _cache_key(filters: CourseFilters) -> str:
     return (
+        f"{_CACHE_PREFIX}"
         f"{filters.q}|{filters.university_slug}|{filters.subject_slug}|"
         f"{filters.level}|{filters.source_key}|{filters.has_video_lectures}|"
         f"{filters.is_published}|{filters.page}|{filters.page_size}|"
@@ -40,22 +44,41 @@ def _cache_key(filters: CourseFilters) -> str:
     )
 
 
-def _get_cached(key: str) -> CourseList | None:
-    entry = _CACHE.get(key)
-    if entry and (time.monotonic() - entry[0]) < _CACHE_TTL:
-        return entry[1]
-    _CACHE.pop(key, None)
+async def _get_redis() -> aioredis.Redis | None:
+    try:
+        r = aioredis.from_url(settings.redis_url, socket_connect_timeout=1)
+        await r.ping()
+        return r
+    except Exception:
+        return None
+
+
+async def _get_cached(key: str) -> CourseList | None:
+    r = await _get_redis()
+    if r is None:
+        return None
+    try:
+        raw = await r.get(key)
+        if raw:
+            return CourseList.model_validate_json(raw)
+    except Exception as exc:
+        logger.debug("Redis cache get failed: %s", exc)
+    finally:
+        await r.aclose()
     return None
 
 
-def _set_cached(key: str, val: CourseList) -> None:
-    # Evict stale entries if cache grows large
-    if len(_CACHE) > 500:
-        now = time.monotonic()
-        stale = [k for k, (ts, _) in _CACHE.items() if now - ts >= _CACHE_TTL]
-        for k in stale:
-            _CACHE.pop(k, None)
-    _CACHE[key] = (time.monotonic(), val)
+async def _set_cached(key: str, val: CourseList) -> None:
+    r = await _get_redis()
+    if r is None:
+        return
+    try:
+        await r.setex(key, _CACHE_TTL, val.model_dump_json())
+    except Exception as exc:
+        logger.debug("Redis cache set failed: %s", exc)
+    finally:
+        await r.aclose()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -106,6 +129,7 @@ def _build_summary(course) -> CourseSummary:
 
 @router.get("", response_model=CourseList)
 async def list_courses_endpoint(
+    request: Request,
     q: str | None = Query(None, description="Full-text search"),
     university_slug: str | None = Query(None),
     subject_slug: str | None = Query(None),
@@ -132,18 +156,19 @@ async def list_courses_endpoint(
         sort_dir=sort_dir,
     )
     key = _cache_key(filters)
-    if cached := _get_cached(key):
+    if cached := await _get_cached(key):
         return cached
     courses, total = await list_courses(db, filters)
     pages = max(1, math.ceil(total / page_size))
     items = [_build_summary(c) for c in courses]
     result = CourseList(items=items, total=total, page=page, page_size=page_size, pages=pages)
-    _set_cached(key, result)
+    await _set_cached(key, result)
     return result
 
 
 @router.get("/featured", response_model=CourseList)
 async def featured_courses(
+    request: Request,
     page_size: int = Query(12, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
@@ -157,12 +182,12 @@ async def featured_courses(
         sort_dir="desc",
     )
     key = _cache_key(filters)
-    if cached := _get_cached(key):
+    if cached := await _get_cached(key):
         return cached
     courses, total = await list_courses(db, filters)
     items = [_build_summary(c) for c in courses]
     result = CourseList(items=items, total=total, page=1, page_size=page_size, pages=1)
-    _set_cached(key, result)
+    await _set_cached(key, result)
     return result
 
 

@@ -8,15 +8,17 @@ services:
     region: oregon
     envVars:
       - key: DATABASE_URL
-        value: postgresql+asyncpg://postgres:nfMWCACJCkSCRLgMlDGVSzjCigUIrLHc@tramway.proxy.rlwy.net:11497/railway
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_EMAIL
-        value: guzeman88@yahoo.com
+        sync: false
       - key: ADMIN_PASSWORD
-        value: Iamfree2
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
       - key: DEBUG
         value: "false"
       - key: PORT

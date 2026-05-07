@@ -10,17 +10,21 @@ import {
   fetchCourses,
   fetchUniversityCourses,
 } from "@/lib/api";
-import type { CourseLevel } from "@/types";
+import type { CourseLevel, PaginatedList, CourseSummary } from "@/types";
 
 interface CourseRowProps {
   title: string;
   queryKey: string;
-  fetchType: "featured" | "university" | "subject" | "level";
+  fetchType: "featured" | "university" | "subject" | "level" | "query";
   universitySlug?: string;
   subjectSlug?: string;
   level?: CourseLevel;
+  /** Free-text search query for fetchType="query" rows */
+  queryString?: string;
   /** First visible row — prioritise image loading */
   priority?: boolean;
+  /** Server-fetched data to hydrate immediately without a client request */
+  initialData?: PaginatedList<CourseSummary>;
 }
 
 export function CourseRow({
@@ -30,16 +34,18 @@ export function CourseRow({
   universitySlug,
   subjectSlug,
   level,
+  queryString,
   priority = false,
+  initialData,
 }: CourseRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // Priority rows (above the fold) load immediately; others wait until near-visible.
-  const [isVisible, setIsVisible] = useState(priority);
+  // If we have server data, show immediately; otherwise wait until visible.
+  const [isVisible, setIsVisible] = useState(priority || !!initialData);
 
   useEffect(() => {
-    if (priority) return;
+    if (priority || initialData) return;
     const el = sectionRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -49,27 +55,30 @@ export function CourseRow({
           observer.disconnect();
         }
       },
-      { rootMargin: "300px" } // preload 300px before entering viewport
+      { rootMargin: "600px" } // preload 600px before entering viewport
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [priority]);
+  }, [priority, initialData]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["row", queryKey],
     queryFn: () => {
       if (fetchType === "featured") return fetchFeaturedCourses(18);
       if (fetchType === "university" && universitySlug)
-        return fetchUniversityCourses(universitySlug, { page_size: 18, sort_by: "view_count", sort_dir: "desc" });
+        return fetchUniversityCourses(universitySlug, { page_size: 18, sort_by: "view_count", sort_dir: "desc", has_video_lectures: true });
       return fetchCourses({
         subject_slug: fetchType === "subject" ? subjectSlug : undefined,
         level: fetchType === "level" ? level : undefined,
+        q: fetchType === "query" ? queryString : undefined,
         page_size: 18,
         sort_by: "view_count",
         sort_dir: "desc",
+        has_video_lectures: true,
       });
     },
     enabled: isVisible,
+    initialData,
   });
 
   const courses = data?.items ?? [];

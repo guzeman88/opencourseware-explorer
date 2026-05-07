@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import json
 import math
@@ -7,7 +5,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,12 +46,14 @@ from app.services import authenticate_user, create_access_token, require_admin
 from app.services.deps import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
 
 @router.post("/auth/login", response_model=TokenResponse)
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await authenticate_user(db, data.email, data.password)
     if user is None:
         raise HTTPException(

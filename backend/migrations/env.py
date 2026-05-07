@@ -13,7 +13,13 @@ from app.config import settings
 from app.models import Base  # noqa: F401 – register all models
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+_db_url = settings.database_url
+# Ensure async driver is used (psycopg3); Railway provides postgresql:// without driver suffix
+if _db_url.startswith("postgresql://") or _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1).replace(
+        "postgres://", "postgresql+psycopg://", 1
+    )
+config.set_main_option("sqlalchemy.url", _db_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -51,6 +57,9 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
+    import sys
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(run_async_migrations())
 
 

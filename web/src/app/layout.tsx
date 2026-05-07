@@ -1,10 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
-import { Navbar } from "@/components/navbar";
+import { AppShell } from "@/components/app-shell";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {
@@ -12,13 +20,23 @@ export const metadata: Metadata = {
     template: "%s | The Commons",
   },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", sizes: "192x192", type: "image/png" },
+    ],
     shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    apple: "/apple-icon.png",
   },
   description:
     "Browse thousands of free university courses from MIT, Yale, Stanford, Harvard, NPTEL, Berkeley and more.",
   keywords: ["free courses", "university lectures", "open courseware", "NPTEL", "Yale", "Stanford", "MIT"],
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "The Commons",
+    startupImage: "/apple-icon.png",
+  },
   openGraph: {
     type: "website",
     title: "The Commons",
@@ -35,18 +53,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
         <QueryProvider>
-          <Navbar />
-          <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-          <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-            <p>
-              The Commons — Aggregating free university education
-              from MIT, Yale, Stanford, Harvard, NPTEL, Berkeley, and more.
-            </p>
-            <p className="mt-1">
-              All course content belongs to their respective universities and
-              creators.
-            </p>
-          </footer>
+          <AppShell>{children}</AppShell>
         </QueryProvider>
       </body>
     </html>
