@@ -42,6 +42,11 @@ async function handler(
 
   const resHeaders = new Headers(upstreamRes.headers);
 
+  // Node.js fetch (undici) auto-decompresses gzip/br, so the body is already
+  // plain text — remove Content-Encoding so the browser doesn't try to decompress again.
+  resHeaders.delete("content-encoding");
+  resHeaders.delete("content-length"); // length changed after decompression
+
   // Cache public GET reads at Vercel's CDN edge for 5 min (stale-while-revalidate for 1 hr)
   // Never cache authenticated requests or mutations
   const isPublicRead =
