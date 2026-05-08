@@ -25,12 +25,23 @@ async function handler(
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
 
+  // Buffer the body first — passing req.body (ReadableStream) directly to fetch
+  // can fail in some Node.js versions when the stream hasn't been fully consumed.
+  let bodyBuffer: ArrayBuffer | undefined;
+  if (hasBody) {
+    try {
+      bodyBuffer = await req.arrayBuffer();
+    } catch {
+      bodyBuffer = undefined;
+    }
+  }
+
   let upstreamRes: Response;
   try {
     upstreamRes = await fetch(upstream, {
       method: req.method,
       headers: fwdHeaders,
-      body: hasBody ? req.body : undefined,
+      body: bodyBuffer,
       signal: AbortSignal.timeout(25000),
     });
   } catch {
