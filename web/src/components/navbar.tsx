@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Search, BookOpen, GraduationCap, Menu, X, Bookmark, LogOut, User } from "lucide-react";
+import { Search, BookOpen, GraduationCap, Menu, X, Bookmark, LogOut, User, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -116,8 +116,8 @@ export function Navbar({ onSignInClick }: NavbarProps) {
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50"
                       >
-                        <BookOpen className="h-4 w-4" />
-                        Admin
+                        <Server className="h-4 w-4" />
+                        Backend
                       </Link>
                     )}
                     <button
@@ -187,7 +187,7 @@ export function Navbar({ onSignInClick }: NavbarProps) {
                   onClick={() => setMenuOpen(false)}
                   className="block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 >
-                  Admin
+                  Backend
                 </Link>
               )}
               <button
