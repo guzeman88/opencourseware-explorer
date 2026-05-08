@@ -13,6 +13,7 @@ import {
   X,
   BarChart2,
   Clock,
+  Scissors,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/courses", label: "Courses", icon: BookOpen },
   { href: "/admin/pending-review", label: "Pending Review", icon: Clock },
   { href: "/admin/scraper", label: "Scraper Jobs", icon: Play },
+  { href: "/admin/silence-test", label: "Silence Test", icon: Scissors },
 ];
 
 export default function AdminLayout({
