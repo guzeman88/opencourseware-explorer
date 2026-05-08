@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { SkipForward, Gauge, Puzzle, Clock, Info, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -462,8 +462,9 @@ function OptionA() {
   const lockRef = useRef(false);
 
   function handleProgress({ playedSeconds }: { playedSeconds: number }) {
-    if (lockRef.current) return;
-    const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e - 0.05);
+    // Skip the first 2 seconds to let the player fully initialize before attempting any seeks
+    if (lockRef.current || playedSeconds < 2) return;
+    const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e - 0.1);
     const nowInSilence = !!seg;
     setInSilence(nowInSilence);
     if (seg && playerRef.current) {
@@ -471,8 +472,10 @@ function OptionA() {
       const skip = seg[1] - playedSeconds;
       setSaved((v) => parseFloat((v + skip).toFixed(1)));
       setSkips((v) => v + 1);
-      playerRef.current.seekTo(seg[1] + 0.05, "seconds");
-      setTimeout(() => { lockRef.current = false; }, 600);
+      // Land 0.15s past end of silence to avoid clipping the silence boundary
+      playerRef.current.seekTo(seg[1] + 0.15, "seconds");
+      // Give YouTube 1.2s to buffer/sync after seeking before checking again
+      setTimeout(() => { lockRef.current = false; }, 1200);
     }
   }
 
@@ -510,29 +513,52 @@ function OptionA() {
 
 // ── Option C – Speed Ramp ─────────────────────────────────────────────────────
 const RAMP_SPEED = 5;
+// Restore 1× speed this many video-seconds before the silence ends to avoid
+// the polling window overshooting into the first word of speech
+const RAMP_EXIT_EARLY = 0.45;
 
 function OptionC() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [inSilence, setInSilence] = useState(false);
-  const [silenceEnteredAt, setSilenceEnteredAt] = useState<number | null>(null);
   const [savedApprox, setSavedApprox] = useState(0);
+  // Refs avoid stale-closure problems inside the progress callback
+  const silenceEnteredAtRef = useRef<number | null>(null);
+  const activeEndRef = useRef<number | null>(null);
+  const slowedEarlyRef = useRef(false);
 
   function handleProgress({ playedSeconds }: { playedSeconds: number }) {
-    const silence = SILENCE.some(([s, e]) => playedSeconds >= s && playedSeconds < e);
-    if (silence && !inSilence) {
-      setInSilence(true);
-      setSpeed(RAMP_SPEED);
-      setSilenceEnteredAt(playedSeconds);
-    } else if (!silence && inSilence) {
+    const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e);
+    if (seg) {
+      const [, end] = seg;
+      if (!inSilence) {
+        // Entering a new silence window — ramp up
+        setInSilence(true);
+        setSpeed(RAMP_SPEED);
+        silenceEnteredAtRef.current = playedSeconds;
+        activeEndRef.current = end;
+        slowedEarlyRef.current = false;
+      }
+      // Approaching the end of this silence — restore speed early so the
+      // first word of speech isn't played at 5× due to polling latency
+      if (!slowedEarlyRef.current && playedSeconds >= end - RAMP_EXIT_EARLY) {
+        slowedEarlyRef.current = true;
+        setSpeed(1);
+      }
+    } else if (inSilence) {
+      // Cleanly exited the silence window
       setInSilence(false);
       setSpeed(1);
-      if (silenceEnteredAt !== null) {
-        // wall-clock time saved ≈ duration_played / speed * (speed - 1)
-        const silenceDuration = playedSeconds - silenceEnteredAt;
-        const wallSaved = silenceDuration * (1 - 1 / RAMP_SPEED);
+      slowedEarlyRef.current = false;
+      const enteredAt = silenceEnteredAtRef.current;
+      const activeEnd = activeEndRef.current;
+      if (enteredAt !== null && activeEnd !== null) {
+        // Only count the portion played at fast speed
+        const fastDuration = Math.max(0, activeEnd - RAMP_EXIT_EARLY - enteredAt);
+        const wallSaved = fastDuration * (1 - 1 / RAMP_SPEED);
         setSavedApprox((v) => parseFloat((v + wallSaved).toFixed(1)));
-        setSilenceEnteredAt(null);
+        silenceEnteredAtRef.current = null;
+        activeEndRef.current = null;
       }
     }
   }
@@ -542,13 +568,13 @@ function OptionC() {
       letter="C"
       icon={<Gauge className="h-5 w-5" />}
       title="Speed Ramp"
-      description={`Silent segments play at ${RAMP_SPEED}× speed instead of being cut — inspired by Jumpcutter. Feels more natural than a hard jump.`}
+      description={`Silent segments play at ${RAMP_SPEED}× speed instead of being cut — inspired by Jumpcutter. Restores 1× speed ${RAMP_EXIT_EARLY}s before speech resumes to avoid clipping first words.`}
       accentColor="text-amber-400"
       badgeColor="bg-amber-500/20 border-amber-500/30"
       stats={[
         { label: "Current speed", value: `${speed}×` },
         { label: "Wall-time saved ≈", value: `${savedApprox.toFixed(1)}s` },
-        { label: "Status", value: inSilence ? `🚀 ${RAMP_SPEED}× speed` : "▶ 1× normal" },
+        { label: "Status", value: inSilence ? `🚀 ${speed}× speed` : "▶ 1× normal" },
       ]}
     >
       <ReactPlayer
@@ -562,53 +588,97 @@ function OptionC() {
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
         onProgress={handleProgress}
-        progressInterval={100}
+        progressInterval={75}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
     </OptionCard>
   );
 }
 
-// ── Option D – Browser Extension ──────────────────────────────────────────────
-const EXTENSIONS = [
-  {
-    name: "Silence Remover",
-    store: "Chrome Web Store",
-    url: "https://chromewebstore.google.com/detail/silence-remover/aghkoafplblodgbbkkkmfbkepkjakbao",
-    note: "Detects silence in the browser tab's audio and skips it in real-time. Works on any site.",
-  },
-  {
-    name: "jumpcutter.me",
-    store: "Web App",
-    url: "https://jumpcutter.me",
-    note: "Upload or paste a YouTube URL — produces a downloadable edited video file.",
-  },
-  {
-    name: "Auto Speed (by Lexx)",
-    store: "Chrome Web Store",
-    url: "https://chromewebstore.google.com/detail/auto-speed/omegleonceafjhbimfpbpnihgfijmlbg",
-    note: "Automatically speeds up YouTube when no speech is detected using the Web Audio API on the page's own tab context.",
-  },
-];
-
+// ── Option D – Scheduled Skip (setTimeout) ────────────────────────────────────
 function OptionD() {
+  const playerRef = useRef<any>(null);
   const [playing, setPlaying] = useState(false);
+  const [skips, setSkips] = useState(0);
+  const [saved, setSaved] = useState(0);
+  const [nextSkipLabel, setNextSkipLabel] = useState<string>("—");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playingRef = useRef(false);
+  const seekingRef = useRef(false);
+
+  function clearTimer() {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    setNextSkipLabel("—");
+  }
+
+  function scheduleNextFrom(fromSeconds: number) {
+    clearTimer();
+    // Find the next silence that starts more than 0.3s ahead
+    const seg = SILENCE.find(([s]) => s > fromSeconds + 0.3);
+    if (!seg) return;
+    const [start, end] = seg;
+    const delaySecs = start - fromSeconds;
+    const mm = Math.floor(start / 60).toString().padStart(2, "0");
+    const ss = Math.floor(start % 60).toString().padStart(2, "0");
+    setNextSkipLabel(`${mm}:${ss}`);
+    timerRef.current = setTimeout(() => {
+      if (!playingRef.current || !playerRef.current) return;
+      // Sanity-check: if the player drifted far from expected (user seeked), reschedule
+      const currentTime = playerRef.current.getCurrentTime?.() ?? 0;
+      if (Math.abs(currentTime - start) > 5) {
+        scheduleNextFrom(currentTime);
+        return;
+      }
+      seekingRef.current = true;
+      const duration = end - start;
+      setSaved((v) => parseFloat((v + duration).toFixed(1)));
+      setSkips((v) => v + 1);
+      playerRef.current.seekTo(end + 0.15, "seconds");
+      // Wait for YouTube to buffer/seek, then queue the next segment
+      setTimeout(() => {
+        seekingRef.current = false;
+        scheduleNextFrom(end + 0.15);
+      }, 900);
+    }, Math.max(50, delaySecs * 1000));
+  }
+
+  function handlePlay() {
+    playingRef.current = true;
+    setPlaying(true);
+    const cur = playerRef.current?.getCurrentTime?.() ?? 0;
+    scheduleNextFrom(cur);
+  }
+
+  function handlePause() {
+    playingRef.current = false;
+    setPlaying(false);
+    clearTimer();
+  }
+
+  function handleSeek(seconds: number) {
+    // Ignore seeks we triggered ourselves
+    if (seekingRef.current) return;
+    if (playingRef.current) scheduleNextFrom(seconds);
+  }
+
+  useEffect(() => () => clearTimer(), []);
 
   return (
     <OptionCard
       letter="D"
-      icon={<Puzzle className="h-5 w-5" />}
-      title="Browser Extension"
-      description="No app modifications needed. Extensions hook into the tab's audio context (allowed because they share the same origin as the page) and detect silence in real-time."
+      icon={<Clock className="h-5 w-5" />}
+      title="Scheduled Skip"
+      description="Pre-computed timestamps become JS setTimeout calls. One timer at a time — fires at the silence start, seeks to its end, then queues the next. Zero polling overhead."
       accentColor="text-emerald-400"
       badgeColor="bg-emerald-500/20 border-emerald-500/30"
       stats={[
-        { label: "App changes", value: "None" },
-        { label: "Works on", value: "Any YouTube" },
-        { label: "Setup", value: "Install once" },
+        { label: "Skips made", value: skips },
+        { label: "Time saved", value: `${saved.toFixed(1)}s` },
+        { label: "Next skip at", value: nextSkipLabel },
       ]}
     >
       <ReactPlayer
+        ref={playerRef}
         url={VIDEO_URL}
         width="100%"
         height="100%"
@@ -617,33 +687,11 @@ function OptionD() {
         playing={playing}
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onSeek={handleSeek}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
-      <div className="mt-4 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Compatible extensions
-        </p>
-        {EXTENSIONS.map((ext) => (
-          <a
-            key={ext.name}
-            href={ext.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors group"
-          >
-            <ExternalLink className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0 group-hover:text-foreground" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium group-hover:text-foreground">
-                {ext.name}
-                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                  ({ext.store})
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{ext.note}</p>
-            </div>
-          </a>
-        ))}
-      </div>
     </OptionCard>
   );
 }
