@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { SkipForward, Gauge, Puzzle, Clock, Info, ExternalLink } from "lucide-react";
+import { SkipForward, Gauge, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ReactPlayer = dynamic(() => import("react-player/youtube"), {
@@ -462,21 +462,33 @@ function OptionA() {
   const lockRef = useRef(false);
 
   function handleProgress({ playedSeconds }: { playedSeconds: number }) {
-    // Skip the first 2 seconds to let the player fully initialize before attempting any seeks
-    if (lockRef.current || playedSeconds < 2) return;
+    if (lockRef.current || playedSeconds < 1) return;
     const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e - 0.1);
-    const nowInSilence = !!seg;
-    setInSilence(nowInSilence);
-    if (seg && playerRef.current) {
-      lockRef.current = true;
-      const skip = seg[1] - playedSeconds;
-      setSaved((v) => parseFloat((v + skip).toFixed(1)));
-      setSkips((v) => v + 1);
-      // Land 0.15s past end of silence to avoid clipping the silence boundary
-      playerRef.current.seekTo(seg[1] + 0.15, "seconds");
-      // Give YouTube 1.2s to buffer/sync after seeking before checking again
-      setTimeout(() => { lockRef.current = false; }, 1200);
+    setInSilence(!!seg);
+    if (!seg || !playerRef.current) return;
+
+    lockRef.current = true;
+
+    // Chain through consecutive silences: keep jumping as long as the next
+    // silence starts within 2s of where we would land. This handles clusters
+    // like [1357.73,1358.66] → [1358.66,1359.57] (4ms gap) in one seek.
+    let landAt = seg[1] + 0.15;
+    let totalSaved = seg[1] - playedSeconds;
+    let totalSkips = 1;
+    let cursor: [number, number] = seg;
+    let next = SILENCE.find(([s]) => s > cursor[1] && s <= landAt + 2.0);
+    while (next) {
+      totalSaved += next[1] - next[0];
+      landAt = next[1] + 0.15;
+      totalSkips++;
+      cursor = next;
+      next = SILENCE.find(([s]) => s > cursor[1] && s <= landAt + 2.0);
     }
+
+    setSaved((v) => parseFloat((v + totalSaved).toFixed(1)));
+    setSkips((v) => v + totalSkips);
+    playerRef.current.seekTo(landAt, "seconds");
+    setTimeout(() => { lockRef.current = false; }, 400);
   }
 
   return (
@@ -484,7 +496,7 @@ function OptionA() {
       letter="A"
       icon={<SkipForward className="h-5 w-5" />}
       title="Hard Skip"
-      description="Silence timestamps pre-computed with FFmpeg. During playback, onProgress fires every 200ms and seeks past any silent segment instantly."
+      description="Silence timestamps pre-computed with FFmpeg. onProgress fires every 100ms and seeks past silent segments instantly, chaining consecutive clusters in one jump."
       accentColor="text-blue-400"
       badgeColor="bg-blue-500/20 border-blue-500/30"
       stats={[
@@ -504,7 +516,7 @@ function OptionA() {
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
         onProgress={handleProgress}
-        progressInterval={200}
+        progressInterval={100}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
     </OptionCard>
@@ -522,7 +534,8 @@ function OptionC() {
   const [speed, setSpeed] = useState(1);
   const [inSilence, setInSilence] = useState(false);
   const [savedApprox, setSavedApprox] = useState(0);
-  // Refs avoid stale-closure problems inside the progress callback
+  // Use refs for tracking flags — React state is stale inside the progress closure
+  const inSilenceRef = useRef(false);
   const silenceEnteredAtRef = useRef<number | null>(null);
   const activeEndRef = useRef<number | null>(null);
   const slowedEarlyRef = useRef(false);
@@ -531,29 +544,30 @@ function OptionC() {
     const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e);
     if (seg) {
       const [, end] = seg;
-      if (!inSilence) {
+      if (!inSilenceRef.current) {
         // Entering a new silence window — ramp up
+        inSilenceRef.current = true;
         setInSilence(true);
         setSpeed(RAMP_SPEED);
         silenceEnteredAtRef.current = playedSeconds;
         activeEndRef.current = end;
         slowedEarlyRef.current = false;
       }
-      // Approaching the end of this silence — restore speed early so the
-      // first word of speech isn't played at 5× due to polling latency
+      // Approaching the end — restore 1× speed early so polling latency
+      // doesn't clip the first word of speech
       if (!slowedEarlyRef.current && playedSeconds >= end - RAMP_EXIT_EARLY) {
         slowedEarlyRef.current = true;
         setSpeed(1);
       }
-    } else if (inSilence) {
+    } else if (inSilenceRef.current) {
       // Cleanly exited the silence window
+      inSilenceRef.current = false;
       setInSilence(false);
       setSpeed(1);
       slowedEarlyRef.current = false;
       const enteredAt = silenceEnteredAtRef.current;
       const activeEnd = activeEndRef.current;
       if (enteredAt !== null && activeEnd !== null) {
-        // Only count the portion played at fast speed
         const fastDuration = Math.max(0, activeEnd - RAMP_EXIT_EARLY - enteredAt);
         const wallSaved = fastDuration * (1 - 1 / RAMP_SPEED);
         setSavedApprox((v) => parseFloat((v + wallSaved).toFixed(1)));
@@ -588,7 +602,7 @@ function OptionC() {
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
         onProgress={handleProgress}
-        progressInterval={75}
+        progressInterval={50}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
     </OptionCard>
@@ -623,9 +637,9 @@ function OptionD() {
     setNextSkipLabel(`${mm}:${ss}`);
     timerRef.current = setTimeout(() => {
       if (!playingRef.current || !playerRef.current) return;
-      // Sanity-check: if the player drifted far from expected (user seeked), reschedule
+      // Sanity-check: only reschedule if user manually seeked >15s away
       const currentTime = playerRef.current.getCurrentTime?.() ?? 0;
-      if (Math.abs(currentTime - start) > 5) {
+      if (Math.abs(currentTime - start) > 15) {
         scheduleNextFrom(currentTime);
         return;
       }
@@ -634,11 +648,11 @@ function OptionD() {
       setSaved((v) => parseFloat((v + duration).toFixed(1)));
       setSkips((v) => v + 1);
       playerRef.current.seekTo(end + 0.15, "seconds");
-      // Wait for YouTube to buffer/seek, then queue the next segment
+      // 250ms is enough for YouTube to register the seek before scheduling the next
       setTimeout(() => {
         seekingRef.current = false;
         scheduleNextFrom(end + 0.15);
-      }, 900);
+      }, 250);
     }, Math.max(50, delaySecs * 1000));
   }
 
