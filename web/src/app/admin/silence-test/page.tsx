@@ -452,7 +452,11 @@ const SILENCE: [number, number][] = [
 const TOTAL_SILENCE_S = Math.round(SILENCE.reduce((a, [s, e]) => a + (e - s), 0));
 const SILENCE_PCT = ((TOTAL_SILENCE_S / VIDEO_DURATION) * 100).toFixed(1);
 
-// ── Option A – Hard Skip ──────────────────────────────────────────────────────
+// ── Option A – Pre-emptive Hard Skip ─────────────────────────────────────────
+// YouTube iframe seek takes ~150-250ms to complete. By triggering LEAD_SECS
+// before each silence, the seek lands right as silence begins → zero audible gap.
+const LEAD_SECS = 0.35;
+
 function OptionA() {
   const playerRef = useRef<any>(null);
   const [playing, setPlaying] = useState(false);
@@ -460,35 +464,49 @@ function OptionA() {
   const [skips, setSkips] = useState(0);
   const [inSilence, setInSilence] = useState(false);
   const lockRef = useRef(false);
+  // Track last seek destination so we never re-trigger the same silence
+  const lastLandRef = useRef(-1);
 
   function handleProgress({ playedSeconds }: { playedSeconds: number }) {
-    if (lockRef.current || playedSeconds < 1) return;
-    const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e - 0.1);
-    setInSilence(!!seg);
+    if (lockRef.current) return;
+    // Pre-emptive: detect silence LEAD_SECS before it starts, and skip
+    // silences we haven't seeked past yet.
+    const seg = SILENCE.find(([s, e]) =>
+      playedSeconds >= s - LEAD_SECS &&
+      playedSeconds < e &&
+      e > lastLandRef.current
+    );
+    setInSilence(!!seg && playedSeconds >= (seg?.[0] ?? Infinity));
     if (!seg || !playerRef.current) return;
 
     lockRef.current = true;
 
-    // Chain through consecutive silences: keep jumping as long as the next
-    // silence starts within 2s of where we would land. This handles clusters
-    // like [1357.73,1358.66] → [1358.66,1359.57] (4ms gap) in one seek.
-    let landAt = seg[1] + 0.15;
-    let totalSaved = seg[1] - playedSeconds;
+    // Chain consecutive silences into a single seek — handles clusters
+    // like [1357.73,1358.66]→[1358.66,1359.57] with only a 4ms gap.
+    let landAt = seg[1] + 0.1;
+    let totalSaved = seg[1] - seg[0]; // full silence duration
     let totalSkips = 1;
     let cursor: [number, number] = seg;
     let next = SILENCE.find(([s]) => s > cursor[1] && s <= landAt + 2.0);
     while (next) {
       totalSaved += next[1] - next[0];
-      landAt = next[1] + 0.15;
+      landAt = next[1] + 0.1;
       totalSkips++;
       cursor = next;
       next = SILENCE.find(([s]) => s > cursor[1] && s <= landAt + 2.0);
     }
 
+    lastLandRef.current = landAt;
     setSaved((v) => parseFloat((v + totalSaved).toFixed(1)));
     setSkips((v) => v + totalSkips);
     playerRef.current.seekTo(landAt, "seconds");
-    setTimeout(() => { lockRef.current = false; }, 400);
+    setTimeout(() => { lockRef.current = false; }, 250);
+  }
+
+  function handleUserSeek() {
+    // Reset on manual seek so we re-detect from the new position
+    if (lockRef.current) return; // ignore our own programmatic seeks
+    lastLandRef.current = -1;
   }
 
   return (
@@ -496,7 +514,7 @@ function OptionA() {
       letter="A"
       icon={<SkipForward className="h-5 w-5" />}
       title="Hard Skip"
-      description="Silence timestamps pre-computed with FFmpeg. onProgress fires every 100ms and seeks past silent segments instantly, chaining consecutive clusters in one jump."
+      description={`Seek fires ${LEAD_SECS}s before each silence — YouTube finishes seeking right as silence begins, giving near-zero audible gap. Chains consecutive clusters into one jump.`}
       accentColor="text-blue-400"
       badgeColor="bg-blue-500/20 border-blue-500/30"
       stats={[
@@ -516,6 +534,7 @@ function OptionA() {
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
         onProgress={handleProgress}
+        onSeek={handleUserSeek}
         progressInterval={100}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
@@ -523,66 +542,88 @@ function OptionA() {
   );
 }
 
-// ── Option C – Speed Ramp ─────────────────────────────────────────────────────
+// ── Option C – Speed Ramp (scheduled timer, no polling) ──────────────────────
+// Uses setTimeout instead of onProgress so timing is exact.
+// speedUp timer fires at silence start → 5×. slowDown timer fires
+// fastDuration/RAMP_SPEED wall-seconds later → 1×. No polling overhead.
 const RAMP_SPEED = 5;
-// Restore 1× speed this many video-seconds before the silence ends to avoid
-// the polling window overshooting into the first word of speech
-const RAMP_EXIT_EARLY = 0.45;
+const RAMP_EXIT_EARLY = 0.4; // restore 1× this many video-secs before silence ends
 
 function OptionC() {
+  const playerRef = useRef<any>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [inSilence, setInSilence] = useState(false);
   const [savedApprox, setSavedApprox] = useState(0);
-  // Use refs for tracking flags — React state is stale inside the progress closure
-  const inSilenceRef = useRef(false);
-  const silenceEnteredAtRef = useRef<number | null>(null);
-  const activeEndRef = useRef<number | null>(null);
-  const slowedEarlyRef = useRef(false);
+  const speedUpRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slowDownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playingRef = useRef(false);
+  const seekingRef = useRef(false);
 
-  function handleProgress({ playedSeconds }: { playedSeconds: number }) {
-    const seg = SILENCE.find(([s, e]) => playedSeconds >= s && playedSeconds < e);
-    if (seg) {
-      const [, end] = seg;
-      if (!inSilenceRef.current) {
-        // Entering a new silence window — ramp up
-        inSilenceRef.current = true;
-        setInSilence(true);
-        setSpeed(RAMP_SPEED);
-        silenceEnteredAtRef.current = playedSeconds;
-        activeEndRef.current = end;
-        slowedEarlyRef.current = false;
-      }
-      // Approaching the end — restore 1× speed early so polling latency
-      // doesn't clip the first word of speech
-      if (!slowedEarlyRef.current && playedSeconds >= end - RAMP_EXIT_EARLY) {
-        slowedEarlyRef.current = true;
-        setSpeed(1);
-      }
-    } else if (inSilenceRef.current) {
-      // Cleanly exited the silence window
-      inSilenceRef.current = false;
-      setInSilence(false);
-      setSpeed(1);
-      slowedEarlyRef.current = false;
-      const enteredAt = silenceEnteredAtRef.current;
-      const activeEnd = activeEndRef.current;
-      if (enteredAt !== null && activeEnd !== null) {
-        const fastDuration = Math.max(0, activeEnd - RAMP_EXIT_EARLY - enteredAt);
-        const wallSaved = fastDuration * (1 - 1 / RAMP_SPEED);
-        setSavedApprox((v) => parseFloat((v + wallSaved).toFixed(1)));
-        silenceEnteredAtRef.current = null;
-        activeEndRef.current = null;
-      }
-    }
+  function clearTimers() {
+    if (speedUpRef.current) { clearTimeout(speedUpRef.current); speedUpRef.current = null; }
+    if (slowDownRef.current) { clearTimeout(slowDownRef.current); slowDownRef.current = null; }
   }
+
+  function scheduleFrom(fromSecs: number) {
+    clearTimers();
+    const seg = SILENCE.find(([s]) => s > fromSecs + 0.05);
+    if (!seg || !playingRef.current) return;
+    const [start, end] = seg;
+    // Video-seconds of silence that will play at RAMP_SPEED×
+    const fastVideoSecs = Math.max(0, end - RAMP_EXIT_EARLY - start);
+
+    speedUpRef.current = setTimeout(() => {
+      if (!playingRef.current) return;
+      if (fastVideoSecs < 0.1) {
+        // Silence too short to ramp — advance scheduling to next segment
+        scheduleFrom(end);
+        return;
+      }
+      setSpeed(RAMP_SPEED);
+      setInSilence(true);
+      // At RAMP_SPEED×, fastVideoSecs of video passes in fastVideoSecs/RAMP_SPEED wall-secs
+      slowDownRef.current = setTimeout(() => {
+        setSpeed(1);
+        setInSilence(false);
+        setSavedApprox((v) =>
+          parseFloat((v + fastVideoSecs * (1 - 1 / RAMP_SPEED)).toFixed(1))
+        );
+        // Video is now at end - RAMP_EXIT_EARLY; schedule next silence from there
+        scheduleFrom(end - RAMP_EXIT_EARLY);
+      }, Math.max(20, (fastVideoSecs / RAMP_SPEED) * 1000));
+    }, Math.max(20, (start - fromSecs) * 1000));
+  }
+
+  function handlePlay() {
+    playingRef.current = true;
+    setPlaying(true);
+    scheduleFrom(playerRef.current?.getCurrentTime?.() ?? 0);
+  }
+
+  function handlePause() {
+    playingRef.current = false;
+    setPlaying(false);
+    setSpeed(1);
+    setInSilence(false);
+    clearTimers();
+  }
+
+  function handleSeek(secs: number) {
+    if (seekingRef.current) return;
+    setSpeed(1);
+    setInSilence(false);
+    if (playingRef.current) scheduleFrom(secs);
+  }
+
+  useEffect(() => () => clearTimers(), []);
 
   return (
     <OptionCard
       letter="C"
       icon={<Gauge className="h-5 w-5" />}
       title="Speed Ramp"
-      description={`Silent segments play at ${RAMP_SPEED}× speed instead of being cut — inspired by Jumpcutter. Restores 1× speed ${RAMP_EXIT_EARLY}s before speech resumes to avoid clipping first words.`}
+      description={`Silences play at ${RAMP_SPEED}× — no hard cut, sounds natural. Scheduled timer fires at each silence start (zero polling), restores 1× speed ${RAMP_EXIT_EARLY}s before speech resumes.`}
       accentColor="text-amber-400"
       badgeColor="bg-amber-500/20 border-amber-500/30"
       stats={[
@@ -592,6 +633,7 @@ function OptionC() {
       ]}
     >
       <ReactPlayer
+        ref={playerRef}
         url={VIDEO_URL}
         width="100%"
         height="100%"
@@ -601,8 +643,9 @@ function OptionC() {
         playbackRate={speed}
         light={!playing && POSTER}
         onClickPreview={() => setPlaying(true)}
-        onProgress={handleProgress}
-        progressInterval={50}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onSeek={handleSeek}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
     </OptionCard>
@@ -625,35 +668,36 @@ function OptionD() {
     setNextSkipLabel("—");
   }
 
+  // Pre-emptive: fire LEAD_MS before silence starts so YouTube finishes
+  // seeking right as silence begins — giving near-zero audible gap.
+  const LEAD_MS = 350;
+
   function scheduleNextFrom(fromSeconds: number) {
     clearTimer();
-    // Find the next silence that starts more than 0.3s ahead
-    const seg = SILENCE.find(([s]) => s > fromSeconds + 0.3);
+    const seg = SILENCE.find(([s]) => s > fromSeconds + 0.05);
     if (!seg) return;
     const [start, end] = seg;
     const delaySecs = start - fromSeconds;
     const mm = Math.floor(start / 60).toString().padStart(2, "0");
     const ss = Math.floor(start % 60).toString().padStart(2, "0");
     setNextSkipLabel(`${mm}:${ss}`);
+    // Fire LEAD_MS early so seek completes right as silence starts
     timerRef.current = setTimeout(() => {
       if (!playingRef.current || !playerRef.current) return;
-      // Sanity-check: only reschedule if user manually seeked >15s away
       const currentTime = playerRef.current.getCurrentTime?.() ?? 0;
       if (Math.abs(currentTime - start) > 15) {
         scheduleNextFrom(currentTime);
         return;
       }
       seekingRef.current = true;
-      const duration = end - start;
-      setSaved((v) => parseFloat((v + duration).toFixed(1)));
+      setSaved((v) => parseFloat((v + (end - start)).toFixed(1)));
       setSkips((v) => v + 1);
-      playerRef.current.seekTo(end + 0.15, "seconds");
-      // 250ms is enough for YouTube to register the seek before scheduling the next
+      playerRef.current.seekTo(end + 0.1, "seconds");
       setTimeout(() => {
         seekingRef.current = false;
-        scheduleNextFrom(end + 0.15);
-      }, 250);
-    }, Math.max(50, delaySecs * 1000));
+        scheduleNextFrom(end + 0.1);
+      }, 200);
+    }, Math.max(20, delaySecs * 1000 - LEAD_MS));
   }
 
   function handlePlay() {
