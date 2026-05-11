@@ -778,7 +778,7 @@ function OptionCard({
 const TABS = [
   { id: "A", label: "Option A — Hard Skip" },
   { id: "C", label: "Option C — Speed Ramp" },
-  { id: "D", label: "Option D — Extension" },
+  { id: "D", label: "Option D — Scheduled Skip" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -792,7 +792,7 @@ export default function SilenceTestPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Silence Removal — Test Lab</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Three approaches tested on the same video:{" "}
+          Three universally-compatible approaches — iOS, Android, desktop web — tested on:{" "}
           <span className="text-white/80 font-medium">18.065 — Lecture 1: The Column Space of A</span>
           {" "}(YiqIkSHSmyc)
         </p>
@@ -856,9 +856,9 @@ export default function SilenceTestPage() {
 
       {/* Bottom note */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-muted-foreground space-y-1">
-        <p><span className="text-white/60 font-medium">Option A</span> — Best for eliminating dead air completely. Timestamps computed once per video, stored in DB alongside the video record.</p>
-        <p><span className="text-white/60 font-medium">Option C</span> — More natural feel; no hard jump. Silence still plays but compressed. Works with same timestamps as A.</p>
-        <p><span className="text-white/60 font-medium">Option D</span> — Zero app complexity. Users install an extension once and it works everywhere, not just here.</p>
+        <p><span className="text-white/60 font-medium">Option A — Hard Skip</span> — Best for eliminating dead air completely. Jumps to end of each silence in one seek call. Chains consecutive clusters in a single jump. Works on iOS, Android, desktop.</p>
+        <p><span className="text-white/60 font-medium">Option C — Speed Ramp</span> — Silences play at 5× instead of being cut. Feels more natural. Restores 1× speed slightly before speech resumes to avoid clipping first words. Works on iOS, Android, desktop via YouTube iframe API.</p>
+        <p><span className="text-white/60 font-medium">Option D — Scheduled Skip</span> — No polling. One JS timer queued at a time, fires at the next silence start, seeks to its end, then schedules the next. Zero CPU overhead during speech. Works on iOS, Android, desktop.</p>
       </div>
     </div>
   );
