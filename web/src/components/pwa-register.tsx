@@ -6,17 +6,20 @@ export function PwaRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    // Unregister ALL service workers on this origin.
-    // Previous SW versions caused an iOS PWA crash loop because skipWaiting()
-    // forced an immediate controller change mid-page, which iOS standalone
-    // mode treats as a crash. We've eliminated the SW entirely — caching is
-    // handled by Vercel CDN (ISR + stale-while-revalidate) and React Query.
+    // Unregister every SW and delete every cache — no reloads, no controller
+    // changes. This runs silently after hydration, so iOS WKWebView never
+    // sees a mid-page disruption that it would count as a crash.
     navigator.serviceWorker
       .getRegistrations()
-      .then((registrations) => {
-        registrations.forEach((r) => r.unregister());
-      })
+      .then((registrations) => registrations.forEach((r) => r.unregister()))
       .catch(() => {});
+
+    if ("caches" in window) {
+      caches
+        .keys()
+        .then((keys) => keys.forEach((k) => caches.delete(k)))
+        .catch(() => {});
+    }
   }, []);
 
   return null;
