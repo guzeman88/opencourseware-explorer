@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+// Cache course metadata at the page segment level for 1 hour
+export const revalidate = 3600;
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function generateMetadata({

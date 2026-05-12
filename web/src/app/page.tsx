@@ -3,13 +3,20 @@ import { CourseRow } from "@/components/course-row";
 import { UniversityGrid } from "@/components/university-grid";
 import type { PaginatedList, CourseSummary } from "@/types";
 
+// ISR: full page HTML is generated once and cached at Vercel's edge CDN.
+// After the first render, every visitor gets sub-100ms TTFB from CDN.
+// Background revalidation keeps data fresh without blocking users.
+export const revalidate = 3600;
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {
   try {
     const res = await fetch(`${API}/api/v1${path}`, {
       next: { revalidate: 3600 },
-      signal: AbortSignal.timeout(8000),
+      // Short timeout: if Railway cold-starts during ISR regen, fail fast and
+      // render with skeleton data. Client will fill from Vercel CDN cache.
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return undefined;
     return res.json();

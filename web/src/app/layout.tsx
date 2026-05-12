@@ -4,7 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AppShell } from "@/components/app-shell";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "optional" });
 
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
@@ -51,6 +51,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      {/* Preconnect to YouTube image CDN so thumbnail fetches start immediately */}
+      <head>
+        <link rel="preconnect" href="https://i.ytimg.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://i.ytimg.com" />
+        <link rel="dns-prefetch" href="https://img.youtube.com" />
+      </head>
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
         <QueryProvider>
           <AppShell>{children}</AppShell>

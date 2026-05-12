@@ -5,7 +5,11 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 
 const nextConfig = {
+  compress: true,
+  poweredByHeader: false,
   images: {
+    // Cache optimized images at Vercel's image CDN for 1 hour
+    minimumCacheTTL: 3600,
     remotePatterns: [
       { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "img.youtube.com" },
@@ -38,20 +42,21 @@ const nextConfig = {
       {
         source: "/sw.js",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate",
-          },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
       {
         source: "/manifest.webmanifest",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=3600",
-          },
+          { key: "Cache-Control", value: "public, max-age=3600" },
+        ],
+      },
+      {
+        // Static Next.js build chunks — immutable, cache forever
+        source: "/_next/static/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
     ];

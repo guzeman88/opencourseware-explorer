@@ -68,7 +68,10 @@ async function handler(
   resHeaders.set(
     "Cache-Control",
     isPublicRead
-      ? "public, s-maxage=300, stale-while-revalidate=3600"
+      // s-maxage=3600: Vercel CDN serves from cache for 1 hour (no Railway hit).
+      // stale-while-revalidate=86400: stale cache served while revalidating
+      // in background — users never wait for Railway cold starts.
+      ? "public, s-maxage=3600, stale-while-revalidate=86400"
       : "no-store"
   );
 
