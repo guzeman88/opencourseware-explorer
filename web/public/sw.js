@@ -1,17 +1,14 @@
-const CACHE_NAME = "the-commons-v1";
-const PRECACHE_URLS = ["/", "/browse", "/search"];
+const CACHE_NAME = "the-commons-v2";
 
-// Install: precache the app shell pages
+// Install: activate immediately — no precaching of dynamic pages because
+// those depend on the Railway backend being up. Precaching would cause
+// cache.addAll() to throw on cold-start, failing the SW install and
+// triggering iOS's "a problem repeatedly occurred" loop.
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
-// Activate: remove stale caches from previous versions
+// Activate: clear ALL old caches (including stale v1 chunks) and claim clients immediately
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
