@@ -35,7 +35,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "The Commons",
-    startupImage: "/apple-icon.png",
   },
   openGraph: {
     type: "website",
@@ -51,12 +50,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      {/* Preconnect to YouTube image CDN so thumbnail fetches start immediately */}
-      <head>
-        <link rel="preconnect" href="https://i.ytimg.com" crossOrigin="" />
-        <link rel="dns-prefetch" href="https://i.ytimg.com" />
-        <link rel="dns-prefetch" href="https://img.youtube.com" />
-      </head>
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
         <QueryProvider>
           <AppShell>{children}</AppShell>
