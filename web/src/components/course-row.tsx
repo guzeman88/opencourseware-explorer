@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, memo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CourseCard } from "@/components/course-card";
@@ -27,7 +27,7 @@ interface CourseRowProps {
   initialData?: PaginatedList<CourseSummary>;
 }
 
-export function CourseRow({
+export const CourseRow = memo(function CourseRow({
   title,
   queryKey,
   fetchType,
@@ -96,7 +96,7 @@ export function CourseRow({
   if (!showSkeleton && courses.length === 0) return null;
 
   return (
-    <section ref={sectionRef} className="relative group/row">
+    <section ref={sectionRef} className="relative group/row content-row">
       <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3">
         {title}
       </h2>
@@ -133,4 +133,4 @@ export function CourseRow({
       </div>
     </section>
   );
-}
+});

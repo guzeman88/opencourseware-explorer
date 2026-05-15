@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, BookOpen, Bookmark } from "lucide-react";
@@ -74,7 +75,7 @@ function initials(title: string): string {
     .join("");
 }
 
-export function CourseCard({ course, className, priority = false }: CourseCardProps) {
+export const CourseCard = memo(function CourseCard({ course, className, priority = false }: CourseCardProps) {
   const thumb = thumbnailUrl(course);
   const [gradFrom, gradTo] = universityGradient(course.source_key);
 
@@ -84,7 +85,7 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
       <SaveButton courseId={course.id} />
       <Link
         href={`/courses/${course.slug}`}
-        className="block rounded-lg overflow-hidden bg-card border border-border/50 transition-all duration-300 hover:scale-105 hover:border-primary/50 hover:shadow-2xl hover:shadow-black/50"
+        className="block rounded-lg overflow-hidden bg-card border border-border/50 transition-[border-color,opacity] duration-200 hover:border-primary/50 hover:opacity-90"
       >
         {/* Thumbnail */}
         <div className="relative aspect-video bg-muted">
@@ -94,7 +95,6 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
               alt={course.title}
               fill
               className="object-cover transition-opacity group-hover/card:opacity-90"
-              unoptimized
               sizes="208px"
               priority={priority}
               loading={priority ? "eager" : "lazy"}
@@ -164,5 +164,5 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
       </Link>
     </div>
   );
-}
+});
 

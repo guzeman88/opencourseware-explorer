@@ -84,9 +84,22 @@
     padding-bottom: 0.5rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* iOS momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent triggering page scroll when row reaches its end */
+    overscroll-behavior-x: contain;
+    /* Restrict touch panning to horizontal so page scroll is snappy */
+    touch-action: pan-x;
   }
 
   .scroll-row::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Skip rendering off-screen rows entirely — browser uses contain-intrinsic-size
+     as a placeholder so scroll height stays correct while content is not painted */
+  .content-row {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 290px;
   }
 }
