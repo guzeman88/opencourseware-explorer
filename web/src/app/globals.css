@@ -28,6 +28,15 @@
     @apply border-border;
   }
 
+  /* Set background on html element so iOS WKWebView never shows white:
+     - html element is the compositing root in WKWebView standalone mode
+     - body bg-background doesn't apply until Tailwind CSS loads
+     - Without this, iOS sees a transparent (rendered as white) background
+       during script parse, CSS load, and PWA launch splash generation */
+  html {
+    background-color: #0a0a0a;
+  }
+
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
