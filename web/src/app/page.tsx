@@ -36,12 +36,16 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-0">
-      <HeroBanner initialData={featured} />
+      <div className="hidden md:block">
+        <HeroBanner initialData={featured} />
+      </div>
 
-      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 -mt-32 relative z-10">
+      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 md:-mt-32 relative z-10">
 
         {/* ── Above the fold ─────────────────────────────────────── */}
-        <CourseRow title="Featured Courses"           queryKey="featured"   fetchType="featured"  initialData={featured} priority />
+        <div className="hidden md:block">
+          <CourseRow title="Featured Courses" queryKey="featured" fetchType="featured" initialData={featured} priority />
+        </div>
         <CourseRow title="Computer Science"           queryKey="cs"         fetchType="subject"   subjectSlug="computer-science"  initialData={cs}   priority />
         <CourseRow title="Machine Learning & AI"      queryKey="ml"         fetchType="subject"   subjectSlug="machine-learning"  initialData={ml}   priority />
         <CourseRow title="Artificial Intelligence"     queryKey="ai"         fetchType="subject"   subjectSlug="artificial-intelligence" priority />
