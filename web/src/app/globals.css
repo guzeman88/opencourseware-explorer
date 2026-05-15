@@ -86,10 +86,11 @@
     -ms-overflow-style: none;
     /* iOS momentum scrolling */
     -webkit-overflow-scrolling: touch;
-    /* Prevent triggering page scroll when row reaches its end */
+    /* Prevent the PAGE from scrolling when the row reaches its horizontal end */
     overscroll-behavior-x: contain;
-    /* Restrict touch panning to horizontal so page scroll is snappy */
-    touch-action: pan-x;
+    /* Do NOT set touch-action: pan-x here — that disables vertical page scroll
+       when the user's touch starts on a course row, making the whole page
+       unscrollable on touch devices. Let the browser figure it out. */
   }
 
   .scroll-row::-webkit-scrollbar {
