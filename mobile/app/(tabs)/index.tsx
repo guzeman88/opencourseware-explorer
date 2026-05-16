@@ -104,6 +104,7 @@ export default function BrowseScreen() {
           />
         )}
         contentContainerStyle={styles.list}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -126,7 +127,7 @@ export default function BrowseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#141414" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414", gap: 12 },
-  list: { paddingHorizontal: 8, paddingBottom: 24 },
+  list: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 24 },
   row: { gap: 8, marginBottom: 8 },
   card: {
     flex: 1,
