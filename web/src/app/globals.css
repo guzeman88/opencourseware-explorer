@@ -4,22 +4,24 @@
 
 @layer base {
   :root {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --primary: 0 72% 51%;
+    --background: 220 13% 5%;
+    --foreground: 0 0% 97%;
+    --card: 220 10% 8%;
+    --card-foreground: 0 0% 97%;
+    --primary: 0 78% 56%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 72% 51%;
-    --radius: 0.5rem;
+    --secondary: 220 10% 13%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 220 10% 13%;
+    --muted-foreground: 220 6% 58%;
+    --accent: 220 10% 16%;
+    --accent-foreground: 0 0% 97%;
+    --border: 220 10% 18%;
+    --input: 220 10% 13%;
+    --ring: 0 78% 56%;
+    --radius: 0.625rem;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
   }
 }
 
@@ -34,18 +36,20 @@
      - Without this, iOS sees a transparent (rendered as white) background
        during script parse, CSS load, and PWA launch splash generation */
   html {
-    background-color: #0a0a0a;
+    background-color: hsl(220, 13%, 5%);
   }
 
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   ::-webkit-scrollbar-track {
@@ -53,11 +57,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted rounded-full;
+    background: hsl(220, 10%, 22%);
+    border-radius: 100px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground;
+    background: hsl(220, 6%, 38%);
   }
 }
 
@@ -76,12 +81,7 @@
     overflow: hidden;
   }
 
-  /* iOS/Android PWA safe-area utilities.
-     With viewport-fit=cover + black-translucent status bar the browser
-     renders content edge-to-edge.  These classes push content clear of the
-     status bar (top), home indicator (bottom) and side notches (left/right).
-     The fallback value (0px) means zero extra padding in a normal browser tab
-     or on phones that have no notch. */
+  /* iOS/Android PWA safe-area utilities. */
   .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
   .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
@@ -95,23 +95,79 @@
     padding-bottom: 0.5rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    /* iOS momentum scrolling */
     -webkit-overflow-scrolling: touch;
-    /* Prevent the PAGE from scrolling when the row reaches its horizontal end */
     overscroll-behavior-x: contain;
-    /* Do NOT set touch-action: pan-x here — that disables vertical page scroll
-       when the user's touch starts on a course row, making the whole page
-       unscrollable on touch devices. Let the browser figure it out. */
   }
 
   .scroll-row::-webkit-scrollbar {
     display: none;
   }
 
-  /* Skip rendering off-screen rows entirely — browser uses contain-intrinsic-size
-     as a placeholder so scroll height stays correct while content is not painted */
+  /* Skip rendering off-screen rows entirely */
   .content-row {
     content-visibility: auto;
     contain-intrinsic-size: 0 290px;
   }
+
+  /* Premium card hover — used on course cards */
+  .card-hover {
+    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                box-shadow 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                border-color 0.25s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px) scale(1.025);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px hsl(var(--primary)/0.3);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0, 90%, 72%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Fade edge masks for horizontally scrolling rows */
+  .fade-edges {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 2%,
+      black 98%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      black 2%,
+      black 98%,
+      transparent 100%
+    );
+  }
+
+  /* Glass morphism */
+  .glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
 }
+
+/* Modal / overlay entrance animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in   { animation: fadeIn  0.2s ease forwards; }
+.animate-slide-up  { animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+.animate-slide-down { animation: slideDown 0.2s ease forwards; }

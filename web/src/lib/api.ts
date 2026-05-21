@@ -184,11 +184,44 @@ export async function fetchPendingReviewCourses(
   return data;
 }
 
-export async function setCoursePublished(
+export async function setPendingReview(
   courseId: string,
-  published: boolean
+  pending: boolean
 ): Promise<void> {
   await apiClient.patch(`/admin/courses/${courseId}/publish`, null, {
-    params: { published },
+    params: { published: !pending },
   });
+}
+
+export async function fetchAdminCourse(courseId: string): Promise<Course> {
+  const { data } = await apiClient.get<Course>(`/courses/${courseId}`);
+  return data;
+}
+
+export interface CourseUpdatePayload {
+  title?: string;
+  description?: string;
+  level?: string;
+  instructor?: string;
+  year?: number | null;
+  semester?: string | null;
+  thumbnail_url?: string | null;
+  has_video_lectures?: boolean;
+  has_lecture_notes?: boolean;
+  has_exams?: boolean;
+  lecture_notes_url?: string | null;
+  exams_url?: string | null;
+  youtube_playlist_id?: string | null;
+  is_published?: boolean;
+}
+
+export async function updateCourse(
+  courseId: string,
+  data: CourseUpdatePayload
+): Promise<Course> {
+  const { data: result } = await apiClient.put<Course>(
+    `/admin/courses/${courseId}`,
+    data
+  );
+  return result;
 }

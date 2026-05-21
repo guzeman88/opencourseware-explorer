@@ -97,18 +97,20 @@ export const CourseRow = memo(function CourseRow({
 
   return (
     <section ref={sectionRef} className="relative group/row content-row">
-      <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3">
+      <h2 className="text-base md:text-lg font-semibold text-foreground/90 mb-3 tracking-tight flex items-center gap-2">
+        <span className="h-4 w-0.5 rounded-full bg-primary inline-block" />
         {title}
       </h2>
 
       <div className="relative">
-        {/* Left arrow */}
+        {/* Left gradient + arrow */}
+        <div className="absolute left-0 top-0 bottom-4 w-16 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity" />
         <button
           onClick={() => scroll("left")}
-          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background border border-border rounded-full p-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity shadow-lg"
+          className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-card hover:bg-accent border border-white/[0.1] rounded-full flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all duration-200 shadow-xl hover:scale-110 active:scale-95"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="h-4 w-4" />
         </button>
 
         {/* Scroll row */}
@@ -122,13 +124,14 @@ export const CourseRow = memo(function CourseRow({
               ))}
         </div>
 
-        {/* Right arrow */}
+        {/* Right gradient + arrow */}
+        <div className="absolute right-0 top-0 bottom-4 w-16 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity" />
         <button
           onClick={() => scroll("right")}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background border border-border rounded-full p-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity shadow-lg"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-card hover:bg-accent border border-white/[0.1] rounded-full flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all duration-200 shadow-xl hover:scale-110 active:scale-95"
           aria-label="Scroll right"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     </section>
