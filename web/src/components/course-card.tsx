@@ -89,7 +89,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
               src={thumb}
               alt={course.title}
               fill
-              className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+              className="object-cover transition-transform duration-500 [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:scale-105"
               sizes="220px"
               priority={priority}
               loading={priority ? "eager" : "lazy"}
@@ -113,7 +113,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
 
           {/* Play overlay */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="opacity-0 group-hover/card:opacity-100 transition-all duration-200 bg-primary rounded-full p-2.5 shadow-xl scale-90 group-hover/card:scale-100">
+            <div className="opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:opacity-100 transition-all duration-200 bg-primary rounded-full p-2.5 shadow-xl scale-90 [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:scale-100">
               <Play className="h-4 w-4 fill-white text-white" />
             </div>
           </div>
