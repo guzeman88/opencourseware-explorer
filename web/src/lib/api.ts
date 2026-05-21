@@ -193,6 +193,15 @@ export async function setPendingReview(
   });
 }
 
+export async function setCoursePublished(
+  courseId: string,
+  published: boolean
+): Promise<void> {
+  await apiClient.patch(`/admin/courses/${courseId}/publish`, null, {
+    params: { published },
+  });
+}
+
 export async function fetchAdminCourse(courseId: string): Promise<Course> {
   const { data } = await apiClient.get<Course>(`/courses/${courseId}`);
   return data;
