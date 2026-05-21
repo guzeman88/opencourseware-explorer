@@ -101,6 +101,21 @@
     overscroll-behavior-x: contain;
   }
 
+  /* Each direct child of scroll-row gets a fixed responsive width */
+  .scroll-row > * {
+    flex-shrink: 0;
+    width: 160px;
+  }
+  @media (min-width: 480px) {
+    .scroll-row > * { width: 185px; }
+  }
+  @media (min-width: 640px) {
+    .scroll-row > * { width: 200px; }
+  }
+  @media (min-width: 768px) {
+    .scroll-row > * { width: 220px; }
+  }
+
   .scroll-row::-webkit-scrollbar {
     display: none;
   }

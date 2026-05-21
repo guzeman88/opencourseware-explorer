@@ -76,7 +76,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
   const subject = course.subjects[0]?.name;
 
   return (
-    <div className={cn("group/card relative flex-shrink-0 w-[220px]", className)}>
+    <div className={cn("group/card relative w-full", className)}>
       <SaveButton courseId={course.id} />
       <Link
         href={`/courses/${course.slug}`}

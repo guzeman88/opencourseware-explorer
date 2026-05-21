@@ -17,7 +17,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function CourseCardSkeleton() {
   return (
-    <div className="flex-shrink-0 w-52 rounded-lg overflow-hidden bg-card border border-border/50">
+    <div className="w-full rounded-lg overflow-hidden bg-card border border-border/50">
       <Skeleton className="aspect-video w-full" />
       <div className="p-3 space-y-2">
         <Skeleton className="h-3 w-16 rounded-full" />
