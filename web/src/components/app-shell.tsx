@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-h-[calc(100vh-4rem)]">
           {children}
         </main>
-        <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
+        <footer className="border-t border-border py-8 pb-safe text-center text-sm text-muted-foreground">
           <p>
             The Commons — Aggregating free university education
             from MIT, Yale, Stanford, Harvard, NPTEL, Berkeley, and more.

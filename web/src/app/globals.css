@@ -76,6 +76,17 @@
     overflow: hidden;
   }
 
+  /* iOS/Android PWA safe-area utilities.
+     With viewport-fit=cover + black-translucent status bar the browser
+     renders content edge-to-edge.  These classes push content clear of the
+     status bar (top), home indicator (bottom) and side notches (left/right).
+     The fallback value (0px) means zero extra padding in a normal browser tab
+     or on phones that have no notch. */
+  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
+  .pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }
+
   /* Netflix-style row scroll */
   .scroll-row {
     display: flex;
