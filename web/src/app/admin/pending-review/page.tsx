@@ -221,8 +221,3 @@ function CourseRow({
     </tr>
   );
 }
-
-
-const SOURCE_KEYS = [
-  "mit_ocw", "nptel", "khan", "princeton", "oxford", "cambridge",
-  "cmu", "gatech", "stanford", "freecodecamp", "yale", "harvard",

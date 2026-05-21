@@ -204,24 +204,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-
-const SOURCE_TOTALS: Record<string, number | null> = {
-  // Verified from source websites (May 2026) — see course-availability-report.csv
-  mit_ocw:      2573,  // High: live search ocw.mit.edu/search → '2573 results'
-  nptel:        3200,  // High: homepage stat '3200+ unique courses'
-  yale:         42,    // High: full course listing counted from oyc.yale.edu
-  harvard:      142,   // High: pll.harvard.edu/catalog/free → '142 results for FREE'
-  freecodecamp: 700,   // High: Wikipedia '700+ full-length free-to-watch programming courses'
-  crashcourse:  44,    // High: Wikipedia '44 main series'
-  // Estimated — medium/low confidence
-  khan:         200,
-  stanford:     130,
-  berkeley:     300,
-  cmu:          60,
-  oxford:       100,
-  gatech:       80,
-  simons:       60,
-  cambridge:    60,
-  princeton:    50,
-  mit_youtube:  150,

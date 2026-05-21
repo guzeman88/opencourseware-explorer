@@ -145,14 +145,3 @@ export default function AdminLayout({
     </div>
   );
 }
-
-import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/sources", label: "Sources", icon: BarChart2 },
-  { href: "/admin/universities", label: "Universities", icon: GraduationCap },
-  { href: "/admin/courses", label: "Courses", icon: BookOpen },
-  { href: "/admin/pending-review", label: "Pending Review", icon: Clock },
-  { href: "/admin/scraper", label: "Scraper Jobs", icon: Play },
-  { href: "/admin/silence-test", label: "Silence Test", icon: Scissors },

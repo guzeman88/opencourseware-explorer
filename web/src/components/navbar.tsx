@@ -241,12 +241,3 @@ export function Navbar({ onSignInClick }: NavbarProps) {
     </nav>
   );
 }
-
-
-const navLinks = [
-  { href: "/courses", label: "All Courses" },
-  { href: "/universities", label: "Universities" },
-  { href: "/subjects", label: "Subjects" },
-  { href: "/roadmaps", label: "Roadmaps" },
-];
-
