@@ -18,6 +18,7 @@ import {
   ChevronDown,
   GraduationCap,
   ListVideo,
+  Youtube,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -29,6 +30,13 @@ const ReactPlayer = dynamic(() => import("react-player/youtube"), {
     </div>
   ),
 });
+
+/** Extract a YouTube playlist ID from any URL that contains ?list= or &list= */
+function extractPlaylistId(url?: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  return m?.[1] ?? null;
+}
 
 interface CoursePageProps {
   params: { id: string };
@@ -57,10 +65,27 @@ export default function CoursePage({ params }: CoursePageProps) {
   }
 
   const activeVideo = course.videos[activeVideoIndex];
+
+  // Resolve the best available playlist ID: stored field → extracted from source_url
+  const resolvedPlaylistId =
+    course.youtube_playlist_id ?? extractPlaylistId(course.source_url);
+
   const videoUrl = activeVideo
     ? `https://www.youtube.com/watch?v=${activeVideo.youtube_id}`
-    : course.youtube_playlist_id
-    ? `https://www.youtube.com/playlist?list=${course.youtube_playlist_id}`
+    : resolvedPlaylistId
+    ? `https://www.youtube.com/playlist?list=${resolvedPlaylistId}`
+    : null;
+
+  // Use light-mode (click-to-play poster) only for single videos, not playlists
+  // (react-player can't auto-fetch a playlist thumbnail)
+  const isPlaylist = !activeVideo && !!resolvedPlaylistId;
+
+  // Fallback: YouTube search for courses with no direct video link
+  const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(
+    `${course.title} ${course.university_name} lectures`
+  )}`;
+  const youtubeDirectUrl = resolvedPlaylistId
+    ? `https://www.youtube.com/playlist?list=${resolvedPlaylistId}`
     : null;
 
   // Poster image: prefer stored thumbnail, fall back to YouTube thumbnail of first video
@@ -161,7 +186,7 @@ export default function CoursePage({ params }: CoursePageProps) {
 
               {/* Action buttons */}
               <div className="flex flex-wrap gap-2 pt-1">
-                {videoUrl && (
+                {videoUrl ? (
                   <Button
                     size="sm"
                     className="gap-1.5 bg-primary hover:bg-primary/90"
@@ -169,6 +194,22 @@ export default function CoursePage({ params }: CoursePageProps) {
                   >
                     <Play className="h-4 w-4 fill-current" />
                     Watch Now
+                  </Button>
+                ) : (
+                  // No stored video data — link directly to YouTube search
+                  <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90" asChild>
+                    <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">
+                      <Youtube className="h-4 w-4" />
+                      Find on YouTube
+                    </a>
+                  </Button>
+                )}
+                {youtubeDirectUrl && !activeVideo && (
+                  <Button variant="outline" size="sm" asChild className="gap-1.5 border-white/20 hover:bg-white/10">
+                    <a href={youtubeDirectUrl} target="_blank" rel="noopener noreferrer">
+                      <Youtube className="h-4 w-4" />
+                      YouTube Playlist
+                    </a>
                   </Button>
                 )}
                 {course.source_url && (
@@ -216,19 +257,39 @@ export default function CoursePage({ params }: CoursePageProps) {
                   style={{ aspectRatio: "16/9" }}
                   controls
                   playing={playing}
-                  light={!playing && (poster ?? true)}
+                  light={!playing && !isPlaylist && (poster ?? true)}
                   onClickPreview={() => setPlaying(true)}
                   config={{
-                    playerVars: { modestbranding: 1, rel: 0 },
+                    playerVars: {
+                      modestbranding: 1,
+                      rel: 0,
+                      ...(isPlaylist && resolvedPlaylistId
+                        ? { list: resolvedPlaylistId, listType: "playlist" }
+                        : {}),
+                    },
                   }}
                 />
               </div>
             ) : (
-              <div className="aspect-video bg-card rounded-xl flex items-center justify-center border border-border">
-                <div className="text-center text-muted-foreground space-y-3">
-                  <BookOpen className="h-14 w-14 mx-auto opacity-30" />
-                  <p className="text-sm">No video available</p>
+              <div className="aspect-video bg-card rounded-xl flex flex-col items-center justify-center gap-4 border border-border">
+                <BookOpen className="h-14 w-14 opacity-20" />
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-medium">No embedded video available</p>
+                  <p className="text-xs text-muted-foreground">
+                    {course.has_video_lectures
+                      ? "Lectures exist but aren't indexed yet"
+                      : "This course has no video lectures"}
+                  </p>
                 </div>
+                <a
+                  href={youtubeSearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Youtube className="h-4 w-4" />
+                  Search on YouTube
+                </a>
               </div>
             )}
 
@@ -324,9 +385,24 @@ export default function CoursePage({ params }: CoursePageProps) {
                 )}
               </div>
             ) : (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-sm text-muted-foreground space-y-2">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-sm text-muted-foreground space-y-3">
                 <BookOpen className="h-8 w-8 mx-auto opacity-30" />
-                <p>No lecture videos available</p>
+                <p className="font-medium">
+                  {course.has_video_lectures
+                    ? "Lectures not indexed yet"
+                    : "No lecture videos"}
+                </p>
+                {course.has_video_lectures && (
+                  <a
+                    href={youtubeSearchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <Youtube className="h-3.5 w-3.5" />
+                    Search on YouTube
+                  </a>
+                )}
               </div>
             )}
           </div>
