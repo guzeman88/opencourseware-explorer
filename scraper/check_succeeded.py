@@ -1,5 +1,6 @@
 import psycopg2
-conn = psycopg2.connect(host='127.0.0.1',port=5432,dbname='opencourseware',user='ocw',password='ocwpassword')
+from db_utils import get_connection
+conn = get_connection()
 cur = conn.cursor()
 
 # How did CrashCourse/3b1b get thumbnails?

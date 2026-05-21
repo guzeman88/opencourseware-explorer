@@ -3,8 +3,7 @@
 import uuid
 import psycopg2
 from slugify import slugify
-
-DB = dict(host="127.0.0.1", port=5432, dbname="opencourseware", user="ocw", password="ocwpassword")
+from db_utils import get_connection
 
 COURSES = [
     ("Foundations of Modern Social Theory", "Sociology", "Iván Szelényi", "https://oyc.yale.edu/sociology/socy-151", "undergraduate", ["Sociology", "Social Theory"]),
@@ -29,7 +28,7 @@ def upsert_subject(cur, name, cache):
     cache[name] = row[0] if row else sid
     return cache[name]
 
-conn = psycopg2.connect(**DB)
+conn = get_connection()
 cur = conn.cursor()
 
 # Get Yale university id

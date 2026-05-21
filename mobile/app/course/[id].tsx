@@ -7,33 +7,67 @@ import {
   ActivityIndicator,
   Linking,
 } from "react-native";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourse } from "@/lib/api";
+import { useBookmarks } from "@/lib/useBookmarks";
 import { useEffect, useState } from "react";
 import YoutubeIframe from "react-native-youtube-iframe";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const router = useRouter();
   const [activeVideo, setActiveVideo] = useState(0);
+  const { isBookmarked, toggle } = useBookmarks();
 
-  const { data: course, isLoading } = useQuery({
+  const { data: course, isLoading, isError, refetch } = useQuery({
     queryKey: ["course_mobile", id],
     queryFn: () => fetchCourse(id),
     enabled: !!id,
   });
 
+  const bookmarked = course ? isBookmarked(course.id) : false;
+
   useEffect(() => {
     if (course) {
-      navigation.setOptions({ title: course.title });
+      navigation.setOptions({
+        title: course.title,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => toggle(course)}
+            style={{ marginRight: 16 }}
+          >
+            <Ionicons
+              name={bookmarked ? "bookmark" : "bookmark-outline"}
+              size={22}
+              color={bookmarked ? "#e50914" : "#fff"}
+            />
+          </TouchableOpacity>
+        ),
+      });
     }
-  }, [course, navigation]);
+  }, [course, navigation, bookmarked, toggle]);
 
-  if (isLoading || !course) {
+  if (isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#e50914" />
+      </View>
+    );
+  }
+
+  if (isError || !course) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>Couldn't load this course.</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+          <Text style={styles.retryText}>Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>Go back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -76,8 +110,73 @@ export default function CourseDetailScreen() {
           <Text style={styles.instructor}>by {course.instructor}</Text>
         )}
 
+        {/* Subject tags */}
+        {course.subjects && course.subjects.length > 0 && (
+          <View style={styles.subjects}>
+            {course.subjects.map((s) => (
+              <View key={s.id} style={styles.subjectBadge}>
+                <Text style={styles.subjectText}>{s.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {course.description ? (
           <>
+            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.description}>{course.description}</Text>
+          </>
+        ) : null}
+
+        {/* Stats row */}
+        {(course.total_videos > 0 || course.view_count > 0) && (
+          <View style={styles.statsRow}>
+            {course.total_videos > 0 && (
+              <Text style={styles.stat}>{course.total_videos} lectures</Text>
+            )}
+            {course.view_count > 0 && (
+              <Text style={styles.stat}>{course.view_count.toLocaleString()} views</Text>
+            )}
+          </View>
+        )}
+
+        {/* External link */}
+        {course.source_url && (
+          <TouchableOpacity
+            style={styles.externalBtn}
+            onPress={() => Linking.openURL(course.source_url!)}
+          >
+            <Text style={styles.externalBtnText}>Open Course Page ↗</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Video list */}
+        {course.videos.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>
+              Lectures ({course.videos.length})
+            </Text>
+            {course.videos.map((video, i) => (
+              <TouchableOpacity
+                key={video.id}
+                style={[
+                  styles.videoRow,
+                  i === activeVideo && styles.videoRowActive,
+                ]}
+                onPress={() => setActiveVideo(i)}
+              >
+                <Text style={styles.videoNum}>{i + 1}</Text>
+                <Text style={styles.videoTitle} numberOfLines={2}>
+                  {video.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
             <Text style={styles.sectionTitle}>About</Text>
             <Text style={styles.description}>{course.description}</Text>
           </>
@@ -123,7 +222,7 @@ export default function CourseDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#141414" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414", gap: 12 },
   content: { padding: 16, gap: 12 },
   meta: { flexDirection: "row", alignItems: "center", gap: 8 },
   university: { color: "#e50914", fontWeight: "600", fontSize: 13 },
@@ -136,6 +235,16 @@ const styles = StyleSheet.create({
   levelText: { color: "#aaa", fontSize: 11 },
   title: { color: "#fff", fontSize: 20, fontWeight: "700", lineHeight: 26 },
   instructor: { color: "#aaa", fontSize: 14 },
+  subjects: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  subjectBadge: {
+    backgroundColor: "#1e2a3a",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  subjectText: { color: "#6ab0f5", fontSize: 11 },
+  statsRow: { flexDirection: "row", gap: 16 },
+  stat: { color: "#888", fontSize: 12 },
   sectionTitle: { color: "#fff", fontSize: 16, fontWeight: "600", marginTop: 8 },
   description: { color: "#ccc", fontSize: 14, lineHeight: 20 },
   externalBtn: {
@@ -158,4 +267,14 @@ const styles = StyleSheet.create({
   videoRowActive: { backgroundColor: "#1e0000" },
   videoNum: { color: "#666", width: 24, fontSize: 12, paddingTop: 2 },
   videoTitle: { flex: 1, color: "#ddd", fontSize: 13, lineHeight: 18 },
+  errorText: { color: "#aaa", fontSize: 15 },
+  retryBtn: {
+    backgroundColor: "#e50914",
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  retryText: { color: "#fff", fontWeight: "600" },
+  backBtn: { paddingVertical: 8 },
+  backText: { color: "#888", fontSize: 14 },
 });

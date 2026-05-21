@@ -1,0 +1,75 @@
+# docker-compose.prod.yml — production-grade compose override.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Required env vars (set in a .env file or shell):
+#   SECRET_KEY, ADMIN_EMAIL, ADMIN_PASSWORD, CORS_ORIGINS
+#   YOUTUBE_API_KEY, DATABASE_URL (if using external DB), SENTRY_DSN
+
+version: "3.9"
+
+services:
+  db:
+    restart: always
+    # No port exposure in production — only accessible within the compose network
+    ports: []
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  redis:
+    restart: always
+    # Persist Redis data across restarts
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports: []
+
+  backend:
+    restart: always
+    # Remove dev volume mount — use the built image only
+    volumes: []
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+      --proxy-headers
+      --forwarded-allow-ips='*'
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  web:
+    restart: always
+    volumes: []
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+volumes:
+  postgres_data:
+  redis_data:

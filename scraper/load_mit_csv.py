@@ -11,13 +11,12 @@ import uuid
 import re
 import psycopg2
 from slugify import slugify
+from db_utils import get_connection
 
 CSV_PATH = os.environ.get(
     "OCW_MIT_CSV",
     r"C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\MIT Course List Master - MIT Course List Master.csv"
 )
-
-DB = dict(host="127.0.0.1", port=5432, dbname="opencourseware", user="ocw", password="ocwpassword")
 
 
 def infer_level(level_str: str) -> str:
@@ -117,7 +116,7 @@ def infer_subjects(course_number: str, title: str) -> list[str]:
 
 def load_csv():
     print(f"Loading MIT CSV from: {CSV_PATH}", flush=True)
-    conn = psycopg2.connect(**DB)
+    conn = get_connection()
     cur = conn.cursor()
 
     uni_id = get_or_create_university(cur)
@@ -145,9 +144,9 @@ def load_csv():
         source_url = (row.get("Course URL") or row.get("url") or "").strip()
         level_str = (row.get("Course Level") or row.get("level") or "").strip()
         course_number = (row.get("Course Number") or row.get("course_number") or "").strip()
-        has_video = (row.get("Video Lectures") or "").strip().lower() in ("yes", "true", "1", "y")
-        has_notes = (row.get("Lecture Notes") or "").strip().lower() in ("yes", "true", "1", "y")
-        has_exams = (row.get("Exams") or "").strip().lower() in ("yes", "true", "1", "y")
+        has_video = bool((row.get("Video Lectures") or "").strip())
+        has_notes = bool((row.get("Lecture Notes") or "").strip())
+        has_exams = bool((row.get("Exams") or "").strip())
 
         if not title or not source_url:
             skipped += 1

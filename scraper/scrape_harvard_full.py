@@ -18,8 +18,7 @@ import urllib.request
 import psycopg2
 from bs4 import BeautifulSoup
 from slugify import slugify
-
-DATABASE_URL = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+from db_utils import get_connection
 HARVARD_BASE = "https://pll.harvard.edu"
 
 SUBJECT_MAP = {
@@ -165,7 +164,7 @@ def get_or_create_subject(cur, name: str, cache: dict) -> str:
 
 
 def load_to_db(courses: list[dict]) -> dict:
-    conn = psycopg2.connect(host="127.0.0.1", port=5432, dbname="opencourseware", user="ocw", password="ocwpassword")
+    conn = get_connection()
     cur = conn.cursor()
 
     university_id = get_or_create_university(cur)

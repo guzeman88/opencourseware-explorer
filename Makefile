@@ -1,4 +1,4 @@
-.PHONY: up down build logs scrape scrape-source test test-backend test-scraper test-web migrate shell-backend shell-db
+.PHONY: up down build logs scrape scrape-source test test-backend test-scraper test-web migrate shell-backend shell-db install-backend install-web install-scraper prod-up prod-down prod-migrate prod-seed prod-backup
 
 # ─── Docker Compose ────────────────────────────────────────────────────────────
 
@@ -66,3 +66,42 @@ dev-backend:
 
 dev-web:
 	cd web && npm run dev
+
+# ─── Production (Docker Compose) ──────────────────────────────────────────────
+# Requires .env file with all production variables set.
+
+prod-up:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+prod-down:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+prod-migrate:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm backend alembic upgrade head
+
+prod-seed:
+	@echo "Seeding MIT CSV..."
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm scraper python load_mit_csv.py
+	@echo "Seeding comprehensive catalogue..."
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm scraper python scripts/load_courses.py
+	@echo "Seeding done."
+
+prod-backup:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db \
+		pg_dump -U $${POSTGRES_USER:-ocw} $${POSTGRES_DB:-opencourseware} \
+		| gzip > backups/backup_$$(date +%Y%m%dT%H%M%S).sql.gz
+	@echo "Backup written to backups/"
+
+# ─── Mobile ───────────────────────────────────────────────────────────────────
+
+mobile-build-android:
+	cd mobile && npx eas build --platform android --profile production
+
+mobile-build-ios:
+	cd mobile && npx eas build --platform ios --profile production
+
+mobile-submit-android:
+	cd mobile && npx eas submit --platform android --profile production
+
+mobile-submit-ios:
+	cd mobile && npx eas submit --platform ios --profile production

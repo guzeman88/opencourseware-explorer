@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-"""load_comprehensive8.py — Open University UK, Edinburgh, Glasgow, UNSW, Melbourne, ANU"""
+"""Consolidated course loader — Open University UK, Edinburgh, Glasgow, UNSW, Melbourne, ANU"""
 from __future__ import annotations
+import sys
+import os
 import uuid
 import psycopg2
 from slugify import slugify
-
-DB = dict(host="127.0.0.1", port=5432, dbname="opencourseware", user="ocw", password="ocwpassword")
+# Allow importing db_utils from parent directory when run from scripts/
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_utils import get_connection
 
 CATALOGUE = {
     "open_university_uk": {
@@ -200,7 +203,7 @@ CATALOGUE = {
 
 
 def get_conn():
-    return psycopg2.connect(**DB)
+    return get_connection()
 
 
 def upsert_university(cur, key: str, data: dict) -> str:

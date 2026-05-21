@@ -1,19 +1,21 @@
 """
-fetch_thumbnails_6.py
-For the 33 404ing MIT OCW courses:
+fetch_thumbnails.py
+For courses where thumbnail fetch failed:
   1. Try legacy URL: ocw.mit.edu/courses/{department}/{slug}/
   2. Try MIT OCW search JSON: ocw.mit.edu/api/v2/courses/?q=...
   3. Extract og:image or CDN thumbnail from whatever works
 """
 
 import asyncio
+import os
 import re
+import sys
 import time
 
 import aiohttp
 import psycopg2
-
-CONN_STR = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_utils import get_connection
 CONCURRENCY = 8
 
 HEADERS = {
@@ -137,7 +139,7 @@ async def try_mit_search(session: aiohttp.ClientSession, title: str) -> str | No
 
 
 async def run():
-    conn = psycopg2.connect(CONN_STR)
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(

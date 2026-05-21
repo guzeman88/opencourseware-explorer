@@ -16,9 +16,7 @@ import time
 
 import psycopg2
 import requests
-
-DB = dict(host="127.0.0.1", port=5432, dbname="opencourseware",
-          user="ocw", password="ocwpassword")
+from db_utils import get_connection
 
 SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "Mozilla/5.0 (compatible; OCWExplorer/1.0)"})
@@ -191,7 +189,7 @@ def og_image(page_url: str) -> str | None:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    conn = psycopg2.connect(**DB)
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""

@@ -24,11 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import psycopg2
 import requests
-
-DB = dict(
-    host="127.0.0.1", port=5432, dbname="opencourseware",
-    user="ocw", password="ocwpassword"
-)
+from db_utils import get_connection
 
 # Thread-local HTTP sessions (requests.Session is NOT thread-safe when shared)
 _tl = threading.local()
@@ -215,7 +211,7 @@ def get_thumb_for_course(row: tuple) -> tuple:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    conn = psycopg2.connect(**DB)
+    conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""

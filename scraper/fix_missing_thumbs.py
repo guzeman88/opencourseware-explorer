@@ -1,6 +1,7 @@
 """Debug why some courses still have NULL thumbnails, then fix them directly."""
 import psycopg2
 import re
+from db_utils import get_connection
 
 SUBJECT_MAP = [
     ("machine learning",      "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=640&q=80"),
@@ -89,8 +90,7 @@ def subject_image(title, desc=""):
     return DEFAULT_IMAGE
 
 
-conn = psycopg2.connect(host='127.0.0.1', port=5432, dbname='opencourseware',
-                        user='ocw', password='ocwpassword')
+conn = get_connection()
 cur = conn.cursor()
 
 cur.execute("SELECT id, title, description FROM courses WHERE thumbnail_url IS NULL ORDER BY title")

@@ -1,5 +1,6 @@
 import psycopg2
-conn = psycopg2.connect(host='127.0.0.1',port=5432,dbname='opencourseware',user='ocw',password='ocwpassword')
+from db_utils import get_connection
+conn = get_connection()
 cur = conn.cursor()
 
 # Check videos table for NULL-thumbnail courses that have YouTube video IDs

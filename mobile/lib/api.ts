@@ -6,7 +6,7 @@ import type {
   PaginatedList,
   Subject,
   University,
-} from "./types";
+} from "@/types";
 
 // Update this to your machine's LAN IP or deployed URL when testing on device
 const BASE_URL =

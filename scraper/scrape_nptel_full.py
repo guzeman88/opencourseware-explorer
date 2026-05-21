@@ -21,6 +21,7 @@ import psycopg2.extras
 import urllib.request
 from bs4 import BeautifulSoup
 from slugify import slugify
+from db_utils import get_connection
 
 DATABASE_URL = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
 
@@ -170,10 +171,7 @@ def get_or_create_subject(cur, subject_name: str) -> str:
 
 
 def load_courses_to_db(courses: list[dict]) -> dict:
-    conn = psycopg2.connect(
-        host="127.0.0.1", port=5432, dbname="opencourseware",
-        user="ocw", password="ocwpassword"
-    )
+    conn = get_connection()
     conn.autocommit = False
     cur = conn.cursor()
     
