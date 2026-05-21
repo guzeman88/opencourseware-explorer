@@ -549,10 +549,6 @@ export default function AdminCoursesPage() {
 }
 
 
-export default function AdminCoursesPage() {
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState("");
-
   const { data, isLoading } = useCourses({
     q: q || undefined,
     page,

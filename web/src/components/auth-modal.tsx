@@ -144,12 +144,6 @@ export function AuthModal({ onClose }: AuthModalProps) {
   );
 }
 
-
-interface AuthModalProps {
-  onClose: () => void;
-}
-
-export function AuthModal({ onClose }: AuthModalProps) {
   const { signIn, register } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
