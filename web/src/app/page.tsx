@@ -8,12 +8,12 @@ import type { PaginatedList, CourseSummary } from "@/types";
 // Background revalidation keeps data fresh without blocking users.
 export const revalidate = 3600;
 
-// In production (on Vercel), call our own CDN-cached proxy instead of Render directly.
-// The proxy has s-maxage=3600,stale-while-revalidate=86400 so responses are always
-// served from Vercel's edge — never hitting a cold Render instance.
-// In dev, fall back to the backend directly.
+// In production, call our own CDN-cached proxy so SSR never hits a cold Render instance.
+// Vercel sets VERCEL_URL; Netlify sets URL (with https://). Dev falls back to localhost.
 const SSR_BASE = process.env.VERCEL_URL
   ? "https://opencourseware-explorer.vercel.app/api/v1"
+  : process.env.URL
+  ? `${process.env.URL}/api/v1`
   : `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001"}/api/v1`;
 
 async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {

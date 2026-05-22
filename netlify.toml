@@ -1,0 +1,11 @@
+[build]
+  base    = "web"
+  command = "npm run build"
+  publish = "web/.next"
+
+[build.environment]
+  # Backend proxy target — same Render instance as Vercel uses
+  API_UPSTREAM = "https://opencourseware-api.onrender.com"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
