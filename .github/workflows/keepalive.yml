@@ -1,0 +1,22 @@
+name: Keepalive — Render API
+
+on:
+  schedule:
+    # Ping every 10 minutes (well within free-tier 2,000 min/month limit)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Ping health endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 55 \
+            "https://opencourseware-api.onrender.com/health")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Warning: unexpected status $STATUS"
+          fi
