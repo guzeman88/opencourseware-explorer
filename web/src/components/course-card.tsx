@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Bookmark, Eye } from "lucide-react";
@@ -72,6 +72,7 @@ function initials(title: string): string {
 
 export const CourseCard = memo(function CourseCard({ course, className, priority = false }: CourseCardProps) {
   const thumb = thumbnailUrl(course);
+  const [imgError, setImgError] = useState(false);
   const [gradFrom, gradTo] = universityGradient(course.source_key);
   const subject = course.subjects[0]?.name;
 
@@ -84,7 +85,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
       >
         {/* Thumbnail */}
         <div className="relative aspect-video bg-muted overflow-hidden">
-          {thumb ? (
+          {thumb && !imgError ? (
             <Image
               src={thumb}
               alt={course.title}
@@ -93,6 +94,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
               sizes="220px"
               priority={priority}
               loading={priority ? "eager" : "lazy"}
+              onError={() => setImgError(true)}
             />
           ) : (
             <div
@@ -141,7 +143,7 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
             )}
           </div>
 
-          <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-[1.35] tracking-tight">
+          <h3 className="text-sm font-semibold text-foreground leading-[1.35] tracking-tight">
             {course.title}
           </h3>
 
