@@ -2,8 +2,8 @@ name: Keepalive — Render API
 
 on:
   schedule:
-    # Ping every 10 minutes (well within free-tier 2,000 min/month limit)
-    - cron: "*/10 * * * *"
+    # Ping every 5 minutes to ensure Render never cold-starts during ISR regeneration
+    - cron: "*/5 * * * *"
   workflow_dispatch: # allow manual trigger
 
 jobs:

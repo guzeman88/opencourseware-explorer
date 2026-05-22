@@ -88,6 +88,9 @@ export const CourseRow = memo(function CourseRow({
     },
     enabled: isVisible,
     initialData,
+    // SSR rows: keep data forever — never background-refetch and cause top rows to shuffle.
+    // Client-only rows: keep fresh for 2 min.
+    staleTime: hadSSRData ? Infinity : 2 * 60 * 1000,
   });
 
   const courses = data?.items ?? [];
@@ -114,7 +117,7 @@ export const CourseRow = memo(function CourseRow({
   return (
     <section
       ref={sectionRef}
-      className={`relative group/row content-row${loaded && !hadSSRData ? " row-revealed" : ""}`}
+      className={`relative group/row content-row${loaded && !hadSSRData && !priority ? " row-revealed" : ""}`}
     >
       <h2 className="text-base md:text-lg font-semibold text-foreground/90 mb-3 tracking-tight flex items-center gap-2">
         <span className="h-4 w-0.5 rounded-full bg-primary inline-block" />
