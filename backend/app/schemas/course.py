@@ -15,6 +15,7 @@ class VideoSummary(OCWBase, TimestampMixin):
     thumbnail_url: Optional[str] = None
     duration_seconds: Optional[int] = None
     order: int
+    silence_segments: Optional[list[list[float]]] = None
 
 
 class CourseBase(OCWBase):
