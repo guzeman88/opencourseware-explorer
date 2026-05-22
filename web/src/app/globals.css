@@ -190,3 +190,41 @@
 .animate-fade-in   { animation: fadeIn  0.2s ease forwards; }
 .animate-slide-up  { animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
 .animate-slide-down { animation: slideDown 0.2s ease forwards; }
+
+/* ── Row reveal — staggered card slide-up when data loads ─────────────── */
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* All cards in a revealed row animate in */
+.row-revealed .scroll-row > * {
+  animation: cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Stagger — each card starts 50ms after the previous */
+.row-revealed .scroll-row > *:nth-child(1)  { animation-delay:   0ms; }
+.row-revealed .scroll-row > *:nth-child(2)  { animation-delay:  50ms; }
+.row-revealed .scroll-row > *:nth-child(3)  { animation-delay: 100ms; }
+.row-revealed .scroll-row > *:nth-child(4)  { animation-delay: 150ms; }
+.row-revealed .scroll-row > *:nth-child(5)  { animation-delay: 200ms; }
+.row-revealed .scroll-row > *:nth-child(6)  { animation-delay: 250ms; }
+.row-revealed .scroll-row > *:nth-child(7)  { animation-delay: 300ms; }
+.row-revealed .scroll-row > *:nth-child(8)  { animation-delay: 350ms; }
+.row-revealed .scroll-row > *:nth-child(n+9){ animation-delay: 400ms; }
+
+/* Skeleton shimmer — richer than plain pulse */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted) / 0.5) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+}

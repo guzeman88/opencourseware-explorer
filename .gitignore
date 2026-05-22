@@ -24,3 +24,5 @@ htmlcov/
 *.db
 postgres_data/
 .turbo/
+.vercel
+.env*.local

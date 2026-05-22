@@ -18,12 +18,12 @@ export function Skeleton({ className }: SkeletonProps) {
 export function CourseCardSkeleton() {
   return (
     <div className="w-full rounded-lg overflow-hidden bg-card border border-border/50">
-      <Skeleton className="aspect-video w-full" />
+      <div className="aspect-video w-full skeleton-shimmer rounded-none" />
       <div className="p-3 space-y-2">
-        <Skeleton className="h-3 w-16 rounded-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
+        <div className="h-3 w-16 rounded-full skeleton-shimmer" />
+        <div className="h-4 w-full rounded skeleton-shimmer" />
+        <div className="h-4 w-3/4 rounded skeleton-shimmer" />
+        <div className="h-3 w-1/2 rounded skeleton-shimmer" />
       </div>
     </div>
   );

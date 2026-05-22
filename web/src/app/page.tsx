@@ -27,11 +27,15 @@ async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> |
 
 export default async function HomePage() {
   // Fetch above-the-fold rows server-side so they appear instantly
-  const [featured, cs, ml, math] = await Promise.all([
+  const [featured, cs, ml, math, ai, algo, physics, ds] = await Promise.all([
     serverFetch("/courses/featured?page_size=18&has_video_lectures=true"),
     serverFetch("/courses?subject_slug=computer-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
     serverFetch("/courses?subject_slug=machine-learning&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
     serverFetch("/courses?subject_slug=mathematics&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=artificial-intelligence&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=algorithms&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=physics&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=data-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
   ]);
 
   return (
@@ -48,11 +52,11 @@ export default async function HomePage() {
         </div>
         <CourseRow title="Computer Science"           queryKey="cs"         fetchType="subject"   subjectSlug="computer-science"  initialData={cs}   priority />
         <CourseRow title="Machine Learning & AI"      queryKey="ml"         fetchType="subject"   subjectSlug="machine-learning"  initialData={ml}   priority />
-        <CourseRow title="Artificial Intelligence"     queryKey="ai"         fetchType="subject"   subjectSlug="artificial-intelligence" priority />
+        <CourseRow title="Artificial Intelligence"     queryKey="ai"         fetchType="subject"   subjectSlug="artificial-intelligence" initialData={ai} priority />
         <CourseRow title="Mathematics"                queryKey="math"       fetchType="subject"   subjectSlug="mathematics"       initialData={math} priority />
 
         {/* ── CS Deep Dives ──────────────────────────────────────── */}
-        <CourseRow title="Algorithms & Data Structures"    queryKey="algo"        fetchType="subject" subjectSlug="algorithms" />
+        <CourseRow title="Algorithms & Data Structures"    queryKey="algo"        fetchType="subject" subjectSlug="algorithms" initialData={algo} />
         <CourseRow title="Deep Learning & Neural Networks" queryKey="dl"          fetchType="subject" subjectSlug="deep-learning" />
         <CourseRow title="Natural Language Processing"     queryKey="nlp"         fetchType="subject" subjectSlug="natural-language-processing" />
         <CourseRow title="Computer Vision"                 queryKey="cv"          fetchType="subject" subjectSlug="computer-vision" />
@@ -75,6 +79,7 @@ export default async function HomePage() {
         <CourseRow title="Robotics"                        queryKey="robotics"    fetchType="subject" subjectSlug="robotics" />
         <CourseRow title="Python Programming"              queryKey="python"      fetchType="subject" subjectSlug="python" />
         <CourseRow title="Web Development"                 queryKey="web"         fetchType="query"   queryString="web development" />
+        <CourseRow title="Data Science"                    queryKey="ds"          fetchType="subject" subjectSlug="data-science" initialData={ds} />
 
         {/* ── Math Deep Dives ────────────────────────────────────── */}
         <CourseRow title="Calculus"                    queryKey="calc"        fetchType="query"   queryString="calculus" />
@@ -98,7 +103,7 @@ export default async function HomePage() {
         <CourseRow title="Fourier Analysis"            queryKey="fourier"     fetchType="query"   queryString="fourier" />
 
         {/* ── Physics ────────────────────────────────────────────── */}
-        <CourseRow title="Physics"                     queryKey="physics"     fetchType="subject" subjectSlug="physics" />
+        <CourseRow title="Physics"                     queryKey="physics"     fetchType="subject" subjectSlug="physics" initialData={physics} />
         <CourseRow title="Quantum Physics"             queryKey="qm"          fetchType="subject" subjectSlug="quantum-physics" />
         <CourseRow title="Quantum Mechanics"           queryKey="qmech"       fetchType="query"   queryString="quantum mechanics" />
         <CourseRow title="Quantum Field Theory"        queryKey="qft"         fetchType="query"   queryString="quantum field theory" />

@@ -44,6 +44,13 @@ export const CourseRow = memo(function CourseRow({
   // If we have server data, show immediately; otherwise wait until visible.
   const [isVisible, setIsVisible] = useState(priority || !!initialData);
 
+  // Once real cards arrive, mark as loaded so the reveal animation plays.
+  // Initialise to true when we already have initialData with items so SSR rows
+  // animate in on first paint instead of sitting static.
+  const [loaded, setLoaded] = useState(
+    !!(initialData && initialData.items.length > 0)
+  );
+
   useEffect(() => {
     if (priority || initialData) return;
     const el = sectionRef.current;
@@ -55,7 +62,8 @@ export const CourseRow = memo(function CourseRow({
           observer.disconnect();
         }
       },
-      { rootMargin: "600px" } // preload 600px before entering viewport
+      // 300px pre-load margin — enough to feel instant without firing 20+ requests at once
+      { rootMargin: "300px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -84,6 +92,13 @@ export const CourseRow = memo(function CourseRow({
   const courses = data?.items ?? [];
   const showSkeleton = !isVisible || isLoading;
 
+  // Trigger reveal animation the moment real cards replace skeletons
+  useEffect(() => {
+    if (!isLoading && courses.length > 0 && !loaded) {
+      setLoaded(true);
+    }
+  }, [isLoading, courses.length, loaded]);
+
   function scroll(dir: "left" | "right") {
     if (!rowRef.current) return;
     const amount = rowRef.current.clientWidth * 0.75;
@@ -96,7 +111,10 @@ export const CourseRow = memo(function CourseRow({
   if (!showSkeleton && courses.length === 0) return null;
 
   return (
-    <section ref={sectionRef} className="relative group/row content-row">
+    <section
+      ref={sectionRef}
+      className={`relative group/row content-row${loaded ? " row-revealed" : ""}`}
+    >
       <h2 className="text-base md:text-lg font-semibold text-foreground/90 mb-3 tracking-tight flex items-center gap-2">
         <span className="h-4 w-0.5 rounded-full bg-primary inline-block" />
         {title}
