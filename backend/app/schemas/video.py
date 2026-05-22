@@ -16,6 +16,7 @@ class VideoBase(OCWBase):
     order: int = 0
     published_at: Optional[datetime] = None
     view_count: Optional[int] = None
+    silence_segments: Optional[list[list[float]]] = None
 
 
 class VideoCreate(VideoBase):

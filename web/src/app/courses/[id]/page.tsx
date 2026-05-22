@@ -1,11 +1,12 @@
 "use client";
 
 import { useCourse } from "@/hooks/use-courses";
+import { useSilenceSkip } from "@/hooks/use-silence-skip";
 import { CourseDetailSkeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { levelLabel, levelColor, formatDuration, thumbnailUrl, cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import {
   Play,
@@ -18,6 +19,7 @@ import {
   GraduationCap,
   ListVideo,
   Youtube,
+  Scissors,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -46,6 +48,8 @@ export default function CoursePage({ params }: CoursePageProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [skipSilence, setSkipSilence] = useState(false);
+  const playerRef = useRef<any>(null);
 
   if (isLoading) {
     return (
@@ -64,6 +68,9 @@ export default function CoursePage({ params }: CoursePageProps) {
   }
 
   const activeVideo = course.videos[activeVideoIndex];
+  const silenceSegments = activeVideo?.silence_segments ?? null;
+  const hasSilenceData = !!(silenceSegments && silenceSegments.length > 0);
+  const { handleProgress, handleSeek } = useSilenceSkip(silenceSegments, skipSilence);
 
   // Resolve the best available playlist ID: stored field → extracted from source_url
   const resolvedPlaylistId =
@@ -248,26 +255,52 @@ export default function CoursePage({ params }: CoursePageProps) {
           <div className="lg:col-span-2 space-y-6" id="player-section">
             {/* Video player */}
             {videoUrl ? (
-              <div className="rounded-xl overflow-hidden shadow-2xl bg-black border border-white/10">
-                <ReactPlayer
-                  url={videoUrl}
-                  width="100%"
-                  height="100%"
-                  style={{ aspectRatio: "16/9" }}
-                  controls
-                  playing={playing}
-                  light={!playing && !isPlaylist && (poster ?? true)}
-                  onClickPreview={() => setPlaying(true)}
-                  config={{
-                    playerVars: {
-                      modestbranding: 1,
-                      rel: 0,
-                      ...(isPlaylist && resolvedPlaylistId
-                        ? { list: resolvedPlaylistId, listType: "playlist" }
-                        : {}),
-                    },
-                  }}
-                />
+              <div className="space-y-2">
+                <div className="rounded-xl overflow-hidden shadow-2xl bg-black border border-white/10">
+                  <ReactPlayer
+                    ref={playerRef}
+                    url={videoUrl}
+                    width="100%"
+                    height="100%"
+                    style={{ aspectRatio: "16/9" }}
+                    controls
+                    playing={playing}
+                    light={!playing && !isPlaylist && (poster ?? true)}
+                    onClickPreview={() => setPlaying(true)}
+                    onProgress={(s) =>
+                      handleProgress(s, (t) => playerRef.current?.seekTo(t, "seconds"))
+                    }
+                    onSeek={handleSeek}
+                    progressInterval={100}
+                    config={{
+                      playerVars: {
+                        modestbranding: 1,
+                        rel: 0,
+                        ...(isPlaylist && resolvedPlaylistId
+                          ? { list: resolvedPlaylistId, listType: "playlist" }
+                          : {}),
+                      },
+                    }}
+                  />
+                </div>
+
+                {/* Skip-silence toggle — only shown when silence data is available */}
+                {hasSilenceData && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setSkipSilence((v) => !v)}
+                      className={cn(
+                        "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors",
+                        skipSilence
+                          ? "bg-primary/15 border-primary/40 text-primary"
+                          : "border-white/10 text-white/40 hover:text-white/70 hover:border-white/20"
+                      )}
+                    >
+                      <Scissors className="h-3 w-3" />
+                      {skipSilence ? "Silence skipping on" : "Skip silence"}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="aspect-video bg-card/60 rounded-xl flex flex-col items-center justify-center gap-5 border border-white/10">

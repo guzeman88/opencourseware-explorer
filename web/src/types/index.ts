@@ -35,6 +35,8 @@ export interface VideoSummary {
   thumbnail_url?: string;
   duration_seconds?: number;
   order: number;
+  /** Pre-computed silence segments as [[start_secs, end_secs], ...]. Null = not yet generated. */
+  silence_segments?: [number, number][] | null;
   created_at: string;
   updated_at: string;
 }
