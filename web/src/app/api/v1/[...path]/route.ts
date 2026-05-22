@@ -1,12 +1,16 @@
 /**
- * Proxy for Railway API.
- * Routes /api/v1/* → Railway backend with Vercel CDN caching for GET requests.
- * This turns 100+ slow browser→Railway round-trips into fast Vercel edge hits.
+ * Proxy for Render API.
+ * Routes /api/v1/* → Render backend with Vercel CDN caching for GET requests.
+ * This turns 100+ slow browser→Render round-trips into fast edge hits.
  *
- * Note: using Node.js runtime (not edge) to avoid the 15s edge execution limit
- * in local dev and to support Railway cold-start latency in production.
- * Vercel CDN still caches based on Cache-Control headers with either runtime.
+ * Note: using Node.js runtime (not edge) to avoid the 15s edge execution limit.
+ * Vercel CDN caches based on Cache-Control headers with either runtime.
+ * Netlify CDN is told not to cache (Netlify-CDN-Cache-Control: no-store) so
+ * it doesn't incorrectly share a single cached response across different query params.
  */
+
+// Always dynamic — never statically pre-rendered or cached in the Next.js build.
+export const dynamic = "force-dynamic";
 
 const UPSTREAM =
   process.env.API_UPSTREAM ??
@@ -68,12 +72,16 @@ async function handler(
   resHeaders.set(
     "Cache-Control",
     isPublicRead
-      // s-maxage=3600: Vercel CDN serves from cache for 1 hour (no Railway hit).
-      // stale-while-revalidate=86400: stale cache served while revalidating
-      // in background — users never wait for Railway cold starts.
+      // s-maxage=3600: Vercel CDN serves from cache for 1 hour.
+      // stale-while-revalidate=86400: stale cache served while revalidating.
       ? "public, s-maxage=3600, stale-while-revalidate=86400"
       : "no-store"
   );
+
+  // Netlify's CDN must not cache API responses — it ignores query params in
+  // its cache key, causing every subject slug to serve the same response.
+  // This header overrides s-maxage for Netlify only; Vercel CDN ignores it.
+  resHeaders.set("Netlify-CDN-Cache-Control", "no-store");
 
   return new Response(upstreamRes.body, {
     status: upstreamRes.status,
