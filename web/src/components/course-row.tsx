@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, memo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { useQuery } from "@tanstack/react-query";
 import { CourseCard } from "@/components/course-card";
 import { CourseCardSkeleton } from "@/components/ui/skeleton";
@@ -103,15 +103,6 @@ export const CourseRow = memo(function CourseRow({
     }
   }, [isLoading, courses.length, loaded]);
 
-  function scroll(dir: "left" | "right") {
-    if (!rowRef.current) return;
-    const amount = rowRef.current.clientWidth * 0.75;
-    rowRef.current.scrollBy({
-      left: dir === "left" ? -amount : amount,
-      behavior: "smooth",
-    });
-  }
-
   if (!showSkeleton && courses.length === 0) return null;
 
   return (
@@ -124,37 +115,14 @@ export const CourseRow = memo(function CourseRow({
         {title}
       </h2>
 
-      <div className="relative">
-        {/* Left gradient + arrow */}
-        <div className="absolute left-0 top-0 bottom-4 w-16 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity" />
-        <button
-          onClick={() => scroll("left")}
-          className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-card hover:bg-accent border border-white/[0.1] rounded-full flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all duration-200 shadow-xl hover:scale-110 active:scale-95"
-          aria-label="Scroll left"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-
-        {/* Scroll row */}
-        <div ref={rowRef} className="scroll-row">
-          {showSkeleton
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <CourseCardSkeleton key={i} />
-              ))
-            : courses.map((course, i) => (
-                <CourseCard key={course.id} course={course} priority={priority && i < 4} />
-              ))}
-        </div>
-
-        {/* Right gradient + arrow */}
-        <div className="absolute right-0 top-0 bottom-4 w-16 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity" />
-        <button
-          onClick={() => scroll("right")}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 bg-card hover:bg-accent border border-white/[0.1] rounded-full flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-all duration-200 shadow-xl hover:scale-110 active:scale-95"
-          aria-label="Scroll right"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+      <div ref={rowRef} className="scroll-row">
+        {showSkeleton
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <CourseCardSkeleton key={i} />
+            ))
+          : courses.map((course, i) => (
+              <CourseCard key={course.id} course={course} priority={priority && i < 4} />
+            ))}
       </div>
     </section>
   );
