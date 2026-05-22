@@ -66,8 +66,11 @@ export default function CoursePage({ params }: CoursePageProps) {
 
   if (error || !course) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Course not found.
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+        <p className="text-base font-semibold text-white/70">Course not found</p>
+        <p className="text-sm">
+          {error instanceof Error ? error.message : "No course exists with this ID."}
+        </p>
       </div>
     );
   }
@@ -305,21 +308,15 @@ export default function CoursePage({ params }: CoursePageProps) {
                 )}
               </div>
             ) : (
-              <div className="aspect-video bg-card/60 rounded-xl flex flex-col items-center justify-center gap-5 border border-white/10">
-                {poster ? (
-                  <div className="relative w-32 h-18 rounded-lg overflow-hidden opacity-40">
-                    <Image src={poster} alt="" fill className="object-cover" unoptimized />
-                  </div>
-                ) : (
-                  <Youtube className="h-14 w-14 opacity-20" />
-                )}
-                <div className="text-center space-y-1">
+              <div className="aspect-video bg-card/60 rounded-xl flex flex-col items-center justify-center gap-4 border border-white/10">
+                <Youtube className="h-12 w-12 text-muted-foreground/30" />
+                <div className="text-center space-y-1 px-6">
                   <p className="text-sm font-semibold">
-                    {course.has_video_lectures ? "Watch on YouTube" : "No video lectures"}
+                    {course.has_video_lectures ? "No lectures indexed yet" : "No video lectures"}
                   </p>
                   <p className="text-xs text-muted-foreground max-w-xs">
                     {course.has_video_lectures
-                      ? "Individual lectures aren't embedded yet — watch the full course on YouTube."
+                      ? "Video lectures exist for this course but haven't been imported yet."
                       : "This course provides notes, readings, and exams but no video content."}
                   </p>
                 </div>
@@ -331,7 +328,7 @@ export default function CoursePage({ params }: CoursePageProps) {
                     className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-lg"
                   >
                     <Youtube className="h-4 w-4" />
-                    Find on YouTube
+                    Search on YouTube
                   </a>
                 )}
               </div>
@@ -431,44 +428,38 @@ export default function CoursePage({ params }: CoursePageProps) {
             ) : (
               <div className="rounded-xl border border-white/10 overflow-hidden">
                 <div className="bg-white/5 px-4 py-3 border-b border-white/10">
-                  <h2 className="font-semibold text-sm flex items-center gap-2">
-                    <Youtube className="h-4 w-4 text-red-400" />
-                    {isPlaylist ? "Full Playlist" : "Watch Lectures"}
+                  <h2 className="font-semibold text-sm flex items-center gap-2 text-white/50">
+                    <ListVideo className="h-4 w-4" />
+                    Episodes not indexed
                   </h2>
                 </div>
-                <div className="p-4 space-y-3 text-sm text-muted-foreground">
-                  {isPlaylist ? (
-                    <>
-                      <p className="text-xs leading-relaxed">
-                        The full lecture playlist is playing in the video player above. Individual lecture navigation isn&apos;t available yet.
-                      </p>
-                      <a
-                        href={youtubeDirectUrl!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center gap-2 bg-red-600/15 hover:bg-red-600/25 border border-red-600/30 text-red-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-                      >
-                        <Youtube className="h-3.5 w-3.5" />
-                        Open Playlist on YouTube
-                      </a>
-                    </>
-                  ) : course.has_video_lectures ? (
-                    <>
-                      <p className="text-xs leading-relaxed">
-                        Individual lectures aren&apos;t embedded yet. Find the full course on YouTube.
-                      </p>
-                      <a
-                        href={youtubeSearchUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center gap-2 bg-red-600/15 hover:bg-red-600/25 border border-red-600/30 text-red-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-                      >
-                        <Youtube className="h-3.5 w-3.5" />
-                        Search on YouTube
-                      </a>
-                    </>
-                  ) : (
-                    <p className="text-xs text-center py-2">No video lectures for this course.</p>
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {course.has_video_lectures
+                      ? "Lecture videos for this course haven't been imported yet."
+                      : "No video lectures for this course."}
+                  </p>
+                  {youtubeDirectUrl && (
+                    <a
+                      href={youtubeDirectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 bg-red-600/15 hover:bg-red-600/25 border border-red-600/30 text-red-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <Youtube className="h-3.5 w-3.5" />
+                      Open Playlist on YouTube
+                    </a>
+                  )}
+                  {course.has_video_lectures && (
+                    <a
+                      href={youtubeSearchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <Youtube className="h-3.5 w-3.5" />
+                      Search on YouTube
+                    </a>
                   )}
                 </div>
               </div>
