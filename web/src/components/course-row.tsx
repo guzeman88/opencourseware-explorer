@@ -44,12 +44,13 @@ export const CourseRow = memo(function CourseRow({
   // If we have server data, show immediately; otherwise wait until visible.
   const [isVisible, setIsVisible] = useState(priority || !!initialData);
 
-  // Once real cards arrive, mark as loaded so the reveal animation plays.
-  // Initialise to true when we already have initialData with items so SSR rows
-  // animate in on first paint instead of sitting static.
-  const [loaded, setLoaded] = useState(
-    !!(initialData && initialData.items.length > 0)
-  );
+  // Whether this row started with real SSR data (never show animation for these).
+  // Rows that begin as skeletons and later receive client data should animate in.
+  const hadSSRData = !!(initialData && (initialData.items?.length ?? 0) > 0);
+
+  // `loaded` just means "we have real cards now" — animation class only applied
+  // when we transitioned from skeleton→data (i.e. !hadSSRData)
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (priority || initialData) return;
@@ -113,7 +114,7 @@ export const CourseRow = memo(function CourseRow({
   return (
     <section
       ref={sectionRef}
-      className={`relative group/row content-row${loaded ? " row-revealed" : ""}`}
+      className={`relative group/row content-row${loaded && !hadSSRData ? " row-revealed" : ""}`}
     >
       <h2 className="text-base md:text-lg font-semibold text-foreground/90 mb-3 tracking-tight flex items-center gap-2">
         <span className="h-4 w-0.5 rounded-full bg-primary inline-block" />

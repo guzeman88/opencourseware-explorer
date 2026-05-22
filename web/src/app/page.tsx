@@ -16,7 +16,7 @@ async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> |
       next: { revalidate: 3600 },
       // Short timeout: if Railway cold-starts during ISR regen, fail fast and
       // render with skeleton data. Client will fill from Vercel CDN cache.
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return undefined;
     return res.json();
