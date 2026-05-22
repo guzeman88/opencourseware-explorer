@@ -51,6 +51,11 @@ export default function CoursePage({ params }: CoursePageProps) {
   const [skipSilence, setSkipSilence] = useState(false);
   const playerRef = useRef<any>(null);
 
+  // Derive silence data before any early returns (Rules of Hooks)
+  const silenceSegments = course?.videos[activeVideoIndex]?.silence_segments ?? null;
+  const hasSilenceData = !!(silenceSegments && silenceSegments.length > 0);
+  const { handleProgress, handleSeek } = useSilenceSkip(silenceSegments, skipSilence);
+
   if (isLoading) {
     return (
       <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-8">
@@ -68,9 +73,6 @@ export default function CoursePage({ params }: CoursePageProps) {
   }
 
   const activeVideo = course.videos[activeVideoIndex];
-  const silenceSegments = activeVideo?.silence_segments ?? null;
-  const hasSilenceData = !!(silenceSegments && silenceSegments.length > 0);
-  const { handleProgress, handleSeek } = useSilenceSkip(silenceSegments, skipSilence);
 
   // Resolve the best available playlist ID: stored field → extracted from source_url
   const resolvedPlaylistId =
