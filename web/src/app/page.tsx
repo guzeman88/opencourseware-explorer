@@ -8,15 +8,19 @@ import type { PaginatedList, CourseSummary } from "@/types";
 // Background revalidation keeps data fresh without blocking users.
 export const revalidate = 3600;
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+// In production (on Vercel), call our own CDN-cached proxy instead of Render directly.
+// The proxy has s-maxage=3600,stale-while-revalidate=86400 so responses are always
+// served from Vercel's edge — never hitting a cold Render instance.
+// In dev, fall back to the backend directly.
+const SSR_BASE = process.env.VERCEL_URL
+  ? "https://opencourseware-explorer.vercel.app/api/v1"
+  : `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001"}/api/v1`;
 
 async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {
   try {
-    const res = await fetch(`${API}/api/v1${path}`, {
+    const res = await fetch(`${SSR_BASE}${path}`, {
       next: { revalidate: 3600 },
-      // Short timeout: if Railway cold-starts during ISR regen, fail fast and
-      // render with skeleton data. Client will fill from Vercel CDN cache.
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return undefined;
     return res.json();
