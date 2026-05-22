@@ -10,7 +10,7 @@
 
 const UPSTREAM =
   process.env.API_UPSTREAM ??
-  "https://api-production-801c.up.railway.app";
+  "https://opencourseware-api.onrender.com";
 
 async function handler(
   req: Request,
