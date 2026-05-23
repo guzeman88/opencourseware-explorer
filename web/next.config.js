@@ -41,6 +41,17 @@ const nextConfig = {
       { protocol: "https", hostname: "*.openculture.com" },
       { protocol: "https", hostname: "*.wikimedia.org" },
       { protocol: "https", hostname: "upload.wikimedia.org" },
+      // Udacity course thumbnails
+      { protocol: "https", hostname: "video.udacity-data.com" },
+      // edX / edx-cdn course thumbnails
+      { protocol: "https", hostname: "prod-discovery.edx-cdn.org" },
+      { protocol: "https", hostname: "*.edx-cdn.org" },
+      // ImgBB (used for some MIT thumbnails)
+      { protocol: "https", hostname: "i.ibb.co" },
+      // Sanity CDN (used for some GaTech thumbnails)
+      { protocol: "https", hostname: "cdn.sanity.io" },
+      // AWS S3 (used for some course thumbnails)
+      { protocol: "https", hostname: "*.amazonaws.com" },
     ],
   },
   experimental: {
