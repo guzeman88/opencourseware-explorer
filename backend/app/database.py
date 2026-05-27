@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -20,6 +21,19 @@ def _make_engine():
     raw_url = settings.database_url
     parsed = urlparse(raw_url)
     qs = parse_qs(parsed.query)
+    hostname = parsed.hostname or ""
+
+    # Some Render runtimes fail to reach DB hosts when DNS resolves to IPv6.
+    # When an IPv4 A-record exists, pin libpq to it via hostaddr.
+    if hostname and hostname not in ("localhost", "127.0.0.1", "::1", "db"):
+        try:
+            infos = socket.getaddrinfo(hostname, parsed.port or 5432, socket.AF_INET, socket.SOCK_STREAM)
+            if infos:
+                ipv4 = infos[0][4][0]
+                qs["hostaddr"] = [ipv4]
+        except Exception:
+            # If DNS lookup fails here, let SQLAlchemy/psycopg handle it later.
+            pass
 
     # Strip SSL-related query params; we pass them via connect_args.
     qs.pop("ssl", None)
@@ -31,7 +45,6 @@ def _make_engine():
     scheme = _SCHEME_MAP.get(parsed.scheme, "postgresql+psycopg")
     url = urlunparse(parsed._replace(scheme=scheme, query=clean_query))
 
-    hostname = parsed.hostname or ""
     _local = hostname in ("localhost", "127.0.0.1", "::1", "db")
     if ".railway.internal" in hostname or "rlwy.net" in hostname or _local:
         # Railway connections and local dev: plain TCP, no SSL.
