@@ -5,6 +5,8 @@ import math
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +31,7 @@ from app.schemas.subject import SubjectSummary
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+limiter = Limiter(key_func=get_remote_address)
 
 _CACHE_TTL = 60  # seconds
 _CACHE_PREFIX = "ocw:courses:"
@@ -39,7 +42,7 @@ def _cache_key(filters: CourseFilters) -> str:
         f"{_CACHE_PREFIX}"
         f"{filters.q}|{filters.university_slug}|{filters.subject_slug}|"
         f"{filters.level}|{filters.source_key}|{filters.has_video_lectures}|"
-        f"{filters.is_published}|{filters.page}|{filters.page_size}|"
+        f"{filters.page}|{filters.page_size}|"
         f"{filters.sort_by}|{filters.sort_dir}"
     )
 
@@ -149,7 +152,6 @@ async def list_courses_endpoint(
         level=CourseLevel(level) if level else None,
         source_key=source_key,
         has_video_lectures=has_video_lectures,
-        is_published=True,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -175,7 +177,6 @@ async def featured_courses(
     """Return most-viewed courses — used for the hero banner."""
     filters = CourseFilters(
         has_video_lectures=True,
-        is_published=True,
         page=1,
         page_size=page_size,
         sort_by="view_count",
@@ -192,7 +193,8 @@ async def featured_courses(
 
 
 @router.get("/{slug_or_id}", response_model=CourseRead)
-async def get_course(slug_or_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("60/minute")
+async def get_course(request: Request, slug_or_id: str, db: AsyncSession = Depends(get_db)):
     import uuid as _uuid
 
     course = None

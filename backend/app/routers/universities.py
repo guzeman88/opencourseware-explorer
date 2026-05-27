@@ -38,12 +38,9 @@ async def list_universities_endpoint(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     q: str | None = Query(None),
-    is_institution: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    unis, total = await list_universities(
-        db, page=page, page_size=page_size, q=q, is_institution=is_institution
-    )
+    unis, total = await list_universities(db, page=page, page_size=page_size, q=q)
     pages = max(1, math.ceil(total / page_size))
     counts = await _get_course_counts(db, [u.id for u in unis])
     items = [_enrich_uni(u, counts.get(u.id, 0)) for u in unis]
@@ -77,7 +74,6 @@ async def get_university_courses(
         page_size=page_size,
         level=CourseLevel(level) if level else None,
         has_video_lectures=has_video_lectures,
-        is_published=True,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

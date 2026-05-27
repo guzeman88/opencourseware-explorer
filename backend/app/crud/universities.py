@@ -34,7 +34,6 @@ async def list_universities(
     page: int = 1,
     page_size: int = 50,
     q: str | None = None,
-    is_institution: bool | None = None,
 ) -> tuple[list[University], int]:
     query = select(University)
     count_query = select(func.count()).select_from(University)
@@ -43,10 +42,6 @@ async def list_universities(
         search = f"%{q}%"
         query = query.where(University.name.ilike(search))
         count_query = count_query.where(University.name.ilike(search))
-
-    if is_institution is not None:
-        query = query.where(University.is_institution.is_(is_institution))
-        count_query = count_query.where(University.is_institution.is_(is_institution))
 
     query = query.order_by(University.name.asc())
     query = query.offset((page - 1) * page_size).limit(page_size)

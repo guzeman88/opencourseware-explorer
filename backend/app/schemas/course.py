@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+from pydantic import field_validator
 from app.models.course import CourseLevel
 from app.schemas.base import OCWBase, TimestampMixin
 from app.schemas.subject import SubjectRead, SubjectSummary
@@ -38,7 +39,6 @@ class CourseBase(OCWBase):
     youtube_playlist_id: Optional[str] = None
     total_videos: int = 0
     total_duration_seconds: int = 0
-    is_published: bool = False
 
 
 class CourseCreate(CourseBase):
@@ -61,7 +61,6 @@ class CourseUpdate(OCWBase):
     lecture_notes_url: Optional[str] = None
     exams_url: Optional[str] = None
     youtube_playlist_id: Optional[str] = None
-    is_published: Optional[bool] = None
     subject_ids: Optional[list[uuid.UUID]] = None
 
 
@@ -91,7 +90,6 @@ class CourseSummary(OCWBase, TimestampMixin):
     has_lecture_notes: bool = False
     has_exams: bool = False
     total_videos: int
-    is_published: bool = False
     university_id: uuid.UUID
     university_name: str = ""
     university_slug: str = ""
@@ -115,8 +113,29 @@ class CourseFilters(OCWBase):
     level: Optional[CourseLevel] = None
     source_key: Optional[str] = None
     has_video_lectures: Optional[bool] = None
-    is_published: Optional[bool] = None
     page: int = 1
     page_size: int = 24
     sort_by: str = "title"  # title | view_count | created_at | total_videos | relevance
     sort_dir: str = "asc"   # asc | desc
+
+    @field_validator("q")
+    @classmethod
+    def _clamp_q(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 200:
+            raise ValueError("Search query must not exceed 200 characters")
+        return v
+
+    @field_validator("sort_by")
+    @classmethod
+    def _valid_sort_by(cls, v: str) -> str:
+        allowed = {"title", "view_count", "created_at", "total_videos", "relevance"}
+        if v not in allowed:
+            return "title"
+        return v
+
+    @field_validator("sort_dir")
+    @classmethod
+    def _valid_sort_dir(cls, v: str) -> str:
+        if v not in {"asc", "desc"}:
+            return "asc"
+        return v

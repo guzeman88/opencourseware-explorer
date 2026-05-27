@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select
@@ -42,6 +42,7 @@ from app.schemas.admin import (
 from app.schemas.course import CourseCreate, CourseFilters, CourseList, CourseRead, CourseUpdate
 from app.schemas.subject import SubjectRead
 from app.schemas.university import UniversityCreate, UniversityList, UniversityRead, UniversityUpdate
+from app.config import settings
 from app.services import authenticate_user, create_access_token, require_admin
 from app.services.deps import get_current_user
 
@@ -53,7 +54,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/auth/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(request: Request, response: Response, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await authenticate_user(db, data.email, data.password)
     if user is None:
         raise HTTPException(
@@ -61,7 +62,26 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
             detail="Invalid credentials",
         )
     token = create_access_token({"sub": user.email})
+    # Set an httpOnly cookie so XSS cannot steal the session token.
+    # The JS client also receives the token in the JSON body for Bearer auth.
+    _is_prod = getattr(settings, "environment", "production") == "production"
+    response.set_cookie(
+        key="ocw_session",
+        value=token,
+        httponly=True,
+        secure=_is_prod,
+        samesite="strict",
+        path="/",
+        max_age=settings.access_token_expire_minutes * 60,
+    )
     return TokenResponse(access_token=token)
+
+
+@router.post("/auth/logout")
+async def logout(response: Response):
+    """Clear the httpOnly session cookie."""
+    response.delete_cookie("ocw_session", path="/", httponly=True, samesite="strict")
+    return {"ok": True}
 
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
@@ -88,7 +108,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
 
     pending_review = (
         await db.execute(
-            select(func.count()).select_from(Course).where(Course.is_published == False)
+            select(func.count()).select_from(Course).where(Course.has_video_lectures == False)
         )
     ).scalar_one()
 
@@ -182,9 +202,9 @@ async def admin_pending_review_courses(
     source_key: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return non-video courses that are hidden from the public site, pending review."""
+    """Return non-video courses pending enrichment/review."""
     filters = CourseFilters(
-        page=page, page_size=page_size, q=q, source_key=source_key, is_published=False
+        page=page, page_size=page_size, q=q, source_key=source_key, has_video_lectures=False
     )
     courses, total = await list_courses(db, filters)
     pages = max(1, math.ceil(total / page_size))
@@ -200,11 +220,11 @@ async def admin_set_course_published(
     published: bool = Query(..., description="True to publish, False to unpublish"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Publish or unpublish a single course."""
+    """Legacy endpoint retained for compatibility; publication flag is no longer stored."""
     course = await get_course_by_id(db, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Not found")
-    updated = await update_course(db, course, CourseUpdate(is_published=published))
+    updated = await update_course(db, course, CourseUpdate())
     from app.routers.courses import _build_course_read
     return _build_course_read(updated)
 

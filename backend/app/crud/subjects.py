@@ -34,7 +34,6 @@ def _course_count_subq():
             func.count(CourseSubject.course_id).label("course_count"),
         )
         .join(Course, Course.id == CourseSubject.course_id)
-        .where(Course.is_published.is_(True))
         .group_by(CourseSubject.subject_id)
         .subquery()
     )

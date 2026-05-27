@@ -20,7 +20,7 @@ limiter = Limiter(key_func=get_remote_address)
 @limiter.limit("30/minute")
 async def search_courses(
     request: Request,
-    q: str = Query(..., min_length=1, description="Search query"),
+    q: str = Query(..., min_length=1, max_length=200, description="Search query"),
     level: str | None = Query(None),
     source_key: str | None = Query(None),
     has_video_lectures: bool | None = Query(None),
@@ -33,7 +33,6 @@ async def search_courses(
         level=CourseLevel(level) if level else None,
         source_key=source_key,
         has_video_lectures=has_video_lectures,
-        is_published=True,
         page=page,
         page_size=page_size,
         sort_by="view_count",

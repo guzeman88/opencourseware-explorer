@@ -91,10 +91,6 @@ async def list_courses(
             Course.has_video_lectures == filters.has_video_lectures
         )
 
-    if filters.is_published is not None:
-        query = query.where(Course.is_published == filters.is_published)
-        count_query = count_query.where(Course.is_published == filters.is_published)
-
     # Sorting
     if filters.sort_by == "relevance" and filters.subject_slug:
         from sqlalchemy import case
