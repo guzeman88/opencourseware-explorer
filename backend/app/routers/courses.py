@@ -42,6 +42,7 @@ def _cache_key(filters: CourseFilters) -> str:
         f"{_CACHE_PREFIX}"
         f"{filters.q}|{filters.university_slug}|{filters.subject_slug}|"
         f"{filters.level}|{filters.source_key}|{filters.has_video_lectures}|"
+        f"{filters.has_thumbnail}|"
         f"{filters.page}|{filters.page_size}|"
         f"{filters.sort_by}|{filters.sort_dir}"
     )
@@ -139,6 +140,7 @@ async def list_courses_endpoint(
     level: str | None = Query(None),
     source_key: str | None = Query(None),
     has_video_lectures: bool | None = Query(None),
+    has_thumbnail: bool | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(24, ge=1, le=100),
     sort_by: str = Query("title"),
@@ -152,6 +154,7 @@ async def list_courses_endpoint(
         level=CourseLevel(level) if level else None,
         source_key=source_key,
         has_video_lectures=has_video_lectures,
+        has_thumbnail=has_thumbnail,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -177,6 +180,7 @@ async def featured_courses(
     """Return most-viewed courses — used for the hero banner."""
     filters = CourseFilters(
         has_video_lectures=True,
+        has_thumbnail=True,
         page=1,
         page_size=page_size,
         sort_by="view_count",

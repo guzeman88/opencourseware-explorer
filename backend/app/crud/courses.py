@@ -91,6 +91,13 @@ async def list_courses(
             Course.has_video_lectures == filters.has_video_lectures
         )
 
+    if filters.has_thumbnail is True:
+        query = query.where(Course.thumbnail_url.isnot(None))
+        count_query = count_query.where(Course.thumbnail_url.isnot(None))
+    elif filters.has_thumbnail is False:
+        query = query.where(Course.thumbnail_url.is_(None))
+        count_query = count_query.where(Course.thumbnail_url.is_(None))
+
     # Sorting
     if filters.sort_by == "relevance" and filters.subject_slug:
         from sqlalchemy import case

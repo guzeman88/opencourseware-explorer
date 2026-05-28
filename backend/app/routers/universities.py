@@ -62,6 +62,7 @@ async def get_university_courses(
     page_size: int = Query(24, ge=1, le=100),
     level: str | None = Query(None),
     has_video_lectures: bool | None = Query(None),
+    has_thumbnail: bool | None = Query(None),
     sort_by: str = Query("title"),
     sort_dir: str = Query("asc"),
     db: AsyncSession = Depends(get_db),
@@ -74,6 +75,7 @@ async def get_university_courses(
         page_size=page_size,
         level=CourseLevel(level) if level else None,
         has_video_lectures=has_video_lectures,
+        has_thumbnail=has_thumbnail,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

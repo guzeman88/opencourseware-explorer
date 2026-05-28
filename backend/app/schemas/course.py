@@ -113,6 +113,7 @@ class CourseFilters(OCWBase):
     level: Optional[CourseLevel] = None
     source_key: Optional[str] = None
     has_video_lectures: Optional[bool] = None
+    has_thumbnail: Optional[bool] = None
     page: int = 1
     page_size: int = 24
     sort_by: str = "title"  # title | view_count | created_at | total_videos | relevance
