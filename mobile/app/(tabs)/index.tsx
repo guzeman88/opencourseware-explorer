@@ -4,11 +4,12 @@ import {
   FlatList,
   ActivityIndicator,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
 } from "react-native";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fetchCourses } from "@/lib/api";
 import type { CourseSummary } from "@/types";
 
@@ -24,12 +25,11 @@ function CourseCard({
     `https://i.ytimg.com/vi/${course.university_slug}/hqdefault.jpg`;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <Pressable style={styles.card} onPress={onPress} android_ripple={{ color: "#333" }}>
       <Image
         source={{ uri: thumb }}
         style={styles.thumbnail}
         resizeMode="cover"
-        defaultSource={require("../../assets/placeholder.png")}
       />
       <View style={styles.cardInfo}>
         <Text style={styles.cardTitle} numberOfLines={2}>
@@ -39,12 +39,13 @@ function CourseCard({
           {course.university_name} · {course.total_videos} lectures
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 export default function BrowseScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const {
     data,
@@ -83,9 +84,9 @@ export default function BrowseScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>Couldn't load courses.</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+        <Pressable style={styles.retryBtn} onPress={() => refetch()}>
           <Text style={styles.retryText}>Try again</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -103,8 +104,7 @@ export default function BrowseScreen() {
             onPress={() => router.push(`/course/${item.slug}`)}
           />
         )}
-        contentContainerStyle={styles.list}
-        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -127,7 +127,7 @@ export default function BrowseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#141414" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414", gap: 12 },
-  list: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 24 },
+  list: { paddingHorizontal: 8, paddingTop: 8 },
   row: { gap: 8, marginBottom: 8 },
   card: {
     flex: 1,

@@ -56,8 +56,41 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    scrollRestoration: true,
   },
   async headers() {
+    const ContentSecurityPolicy = [
+      "default-src 'self'",
+      // Next.js App Router requires unsafe-inline for hydration; unsafe-eval for dev tools
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://browser.sentry-cdn.com https://js.sentry-cdn.com",
+      "style-src 'self' 'unsafe-inline'",
+      // Allow YouTube embeds (course detail pages)
+      "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+      // Images served from many university/CDN sources
+      [
+        "img-src 'self' data: blob:",
+        "https://i.ytimg.com https://img.youtube.com",
+        "https://i.ibb.co https://lh3.googleusercontent.com",
+        "https://logo.clearbit.com https://upload.wikimedia.org",
+        "https://video.udacity-data.com https://prod-discovery.edx-cdn.org",
+        "https://cdn.sanity.io https://cdn.freecodecamp.org",
+        "https://*.amazonaws.com https://ocw.mit.edu https://archive.org",
+        "https://*.ytimg.com https://*.googleusercontent.com",
+      ].join(" "),
+      "media-src 'self' https://www.youtube.com",
+      "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io https://*.onrender.com",
+      "font-src 'self' data:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      // frame-ancestors replaces X-Frame-Options for modern browsers
+      "frame-ancestors 'none'",
+    ].join("; ");
+
+    const securityHeaders = [
+      { key: "Content-Security-Policy", value: ContentSecurityPolicy },
+    ];
+
     return [
       {
         source: "/sw.js",
@@ -78,6 +111,11 @@ const nextConfig = {
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
+      },
+      {
+        // Apply security headers to all routes
+        source: "/(.*)",
+        headers: securityHeaders,
       },
     ];
   },

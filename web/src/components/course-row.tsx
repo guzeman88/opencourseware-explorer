@@ -70,40 +70,49 @@ export const CourseRow = memo(function CourseRow({
     return () => observer.disconnect();
   }, [priority, initialData]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["row", queryKey],
     queryFn: () => {
-      if (fetchType === "featured") return fetchFeaturedCourses(18);
+      if (fetchType === "featured") return fetchFeaturedCourses(36);
       if (fetchType === "university" && universitySlug)
-        return fetchUniversityCourses(universitySlug, { page_size: 18, sort_by: "view_count", sort_dir: "desc", has_video_lectures: true });
+        return fetchUniversityCourses(universitySlug, { page_size: 36, sort_by: "view_count", sort_dir: "desc", has_video_lectures: true, has_thumbnail: true });
       return fetchCourses({
         subject_slug: fetchType === "subject" ? subjectSlug : undefined,
         level: fetchType === "level" ? level : undefined,
         q: fetchType === "query" ? queryString : undefined,
-        page_size: 18,
+        page_size: 36,
         sort_by: "view_count",
         sort_dir: "desc",
         has_video_lectures: true,
+        has_thumbnail: true,
       });
     },
     enabled: isVisible,
     initialData,
+    // Retry with increasing delays to give the Render backend time to wake from sleep.
+    retry: 4,
+    retryDelay: (attempt) => [5000, 10000, 20000, 30000][attempt] ?? 30000,
     // SSR rows: keep data forever — never background-refetch and cause top rows to shuffle.
     // Client-only rows: keep fresh for 2 min.
     staleTime: hadSSRData ? Infinity : 2 * 60 * 1000,
   });
 
-  const courses = data?.items ?? [];
+  const courses = (data?.items ?? []).filter((c) => c.total_videos > 0);
+  // Show skeletons while loading OR while React Query is still retrying after a failure.
   const showSkeleton = !isVisible || isLoading;
 
-  // Trigger reveal animation the moment real cards replace skeletons
+  // Trigger reveal animation the moment real cards replace skeletons.
+  // Must also check isVisible so we don't fire while skeletons are still showing
+  // (cached data can arrive before the IntersectionObserver makes the row visible,
+  // which would waste the animation on hidden skeletons and leave real cards un-animated).
   useEffect(() => {
-    if (!isLoading && courses.length > 0 && !loaded) {
+    if (isVisible && !isLoading && courses.length > 0 && !loaded) {
       setLoaded(true);
     }
-  }, [isLoading, courses.length, loaded]);
+  }, [isVisible, isLoading, courses.length, loaded]);
 
-  if (!showSkeleton && courses.length === 0) return null;
+  // Hide row permanently only when all retries are exhausted OR we genuinely have no courses.
+  if (!showSkeleton && (isError || courses.length === 0)) return null;
 
   return (
     <section

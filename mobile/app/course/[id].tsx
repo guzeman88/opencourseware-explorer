@@ -3,21 +3,21 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   Linking,
 } from "react-native";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCourse } from "@/lib/api";
 import { useBookmarks } from "@/lib/useBookmarks";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import YoutubeIframe from "react-native-youtube-iframe";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const navigation = useNavigation();
   const router = useRouter();
   const [activeVideo, setActiveVideo] = useState(0);
   const { isBookmarked, toggle } = useBookmarks();
@@ -29,26 +29,6 @@ export default function CourseDetailScreen() {
   });
 
   const bookmarked = course ? isBookmarked(course.id) : false;
-
-  useEffect(() => {
-    if (course) {
-      navigation.setOptions({
-        title: course.title,
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => toggle(course)}
-            style={{ marginRight: 16 }}
-          >
-            <Ionicons
-              name={bookmarked ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={bookmarked ? "#e50914" : "#fff"}
-            />
-          </TouchableOpacity>
-        ),
-      });
-    }
-  }, [course, navigation, bookmarked, toggle]);
 
   if (isLoading) {
     return (
@@ -104,7 +84,16 @@ export default function CourseDetailScreen() {
           </View>
         </View>
 
-        <Text style={styles.title}>{course.title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{course.title}</Text>
+          <Pressable onPress={() => toggle(course)} hitSlop={8}>
+            <Ionicons
+              name={bookmarked ? "bookmark" : "bookmark-outline"}
+              size={24}
+              color={bookmarked ? "#e50914" : "#888"}
+            />
+          </Pressable>
+        </View>
 
         {course.instructor && (
           <Text style={styles.instructor}>by {course.instructor}</Text>
@@ -177,48 +166,6 @@ export default function CourseDetailScreen() {
     </ScrollView>
   );
 }
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.description}>{course.description}</Text>
-          </>
-        ) : null}
-
-        {/* External link */}
-        {course.source_url && (
-          <TouchableOpacity
-            style={styles.externalBtn}
-            onPress={() => Linking.openURL(course.source_url!)}
-          >
-            <Text style={styles.externalBtnText}>Open Course Page</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Video list */}
-        {course.videos.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>
-              Lectures ({course.videos.length})
-            </Text>
-            {course.videos.map((video, i) => (
-              <TouchableOpacity
-                key={video.id}
-                style={[
-                  styles.videoRow,
-                  i === activeVideo && styles.videoRowActive,
-                ]}
-                onPress={() => setActiveVideo(i)}
-              >
-                <Text style={styles.videoNum}>{i + 1}</Text>
-                <Text style={styles.videoTitle} numberOfLines={2}>
-                  {video.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-      </View>
-    </ScrollView>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#141414" },
@@ -233,7 +180,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   levelText: { color: "#aaa", fontSize: 11 },
-  title: { color: "#fff", fontSize: 20, fontWeight: "700", lineHeight: 26 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  title: { flex: 1, color: "#fff", fontSize: 20, fontWeight: "700", lineHeight: 26 },
   instructor: { color: "#aaa", fontSize: 14 },
   subjects: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   subjectBadge: {

@@ -23,7 +23,7 @@ from bs4 import BeautifulSoup
 from slugify import slugify
 from db_utils import get_connection
 
-DATABASE_URL = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware")
 
 NPTEL_COURSES_URL = "https://nptel.ac.in/courses"
 NPTEL_BASE = "https://nptel.ac.in"

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Accept both asyncpg and plain postgresql:// URLs
 _RAW = os.environ.get(
     "DATABASE_URL",
-    "postgresql://ocw:ocwpassword@localhost:5432/opencourseware",
+    "postgresql://ocw:ocwpass@localhost:5432/opencourseware",
 )
 DATABASE_URL = _RAW.replace("postgresql+asyncpg://", "postgresql://")
 

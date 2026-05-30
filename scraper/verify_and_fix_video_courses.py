@@ -57,7 +57,7 @@ else:
             port=int(os.environ.get("POSTGRES_PORT", "5432")),
             dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
             user=os.environ.get("POSTGRES_USER", "ocw"),
-            password=os.environ.get("POSTGRES_PASSWORD", "ocwpassword"),
+            password=os.environ.get("POSTGRES_PASSWORD", ""),
         )
 
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

@@ -1,7 +1,9 @@
 """Wait for Railway DB to come back online, then restart the backfill."""
 import os, subprocess, sys, time
 
-os.environ.setdefault('DATABASE_URL', 'postgresql://postgres:nfMWCACJCkSCRLgMlDGVSzjCigUIrLHc@tramway.proxy.rlwy.net:11497/railway')
+if not os.environ.get("DATABASE_URL"):
+    print("ERROR: DATABASE_URL env var is required", flush=True)
+    sys.exit(1)
 os.environ['PYTHONUNBUFFERED'] = '1'
 os.environ['PYTHONUTF8'] = '1'
 os.environ['PYTHONIOENCODING'] = 'utf-8'

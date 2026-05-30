@@ -619,7 +619,7 @@ def infer_level(title: str) -> str:
 # ── DB connection ──────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if DATABASE_URL:
-    conn = psycopg2.connect(DATABASE_URL, sslmode="disable")
+    conn = psycopg2.connect(DATABASE_URL)
 else:
     try:
         conn = psycopg2.connect(
@@ -631,8 +631,9 @@ else:
         )
     except Exception:
         conn = psycopg2.connect(
-            host="127.0.0.1", port=5432,
-            dbname="opencourseware", user="ocw", password="ocwpassword",
+            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"), port=int(os.environ.get("POSTGRES_PORT", "5432")),
+            dbname=os.environ.get("POSTGRES_DB", "opencourseware"), user=os.environ.get("POSTGRES_USER", "ocw"),
+            password=os.environ.get("POSTGRES_PASSWORD", ""),
         )
 
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

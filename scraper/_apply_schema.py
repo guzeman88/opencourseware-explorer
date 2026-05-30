@@ -1,7 +1,8 @@
 """Apply schema to Neon and check tables."""
 import psycopg2
 
-NEON_URL = "postgresql://neondb_owner:npg_GbATRcy2v8Fo@ep-gentle-cherry-an1c9y9a-pooler.c-6.us-east-1.aws.neon.tech/opencourseware?channel_binding=require&sslmode=require"
+import os
+NEON_URL = os.environ["DATABASE_URL"]
 
 conn = psycopg2.connect(NEON_URL, connect_timeout=15)
 conn.autocommit = True

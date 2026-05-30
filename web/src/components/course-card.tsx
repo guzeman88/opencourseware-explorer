@@ -31,9 +31,10 @@ function AuthSaveButton({ courseId }: { courseId: string }) {
       title={saved ? "Remove from library" : "Save to library"}
       className={cn(
         "absolute top-2 right-2 z-10 p-1.5 rounded-full transition-all duration-200 shadow-lg",
-        "opacity-0 group-hover/card:opacity-100 focus:opacity-100",
+        "opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:opacity-100 focus:opacity-100",
+        "pointer-events-none [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:pointer-events-auto focus:pointer-events-auto",
         saved
-          ? "opacity-100 bg-primary text-primary-foreground scale-110"
+          ? "opacity-100 pointer-events-auto bg-primary text-primary-foreground scale-110"
           : "bg-black/60 text-white hover:bg-primary hover:text-primary-foreground backdrop-blur-sm"
       )}
     >
@@ -51,7 +52,7 @@ function SaveButton({ courseId }: { courseId: string }) {
       <button
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); openAuthModal(); }}
         title="Save to library"
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-all duration-200 opacity-0 group-hover/card:opacity-100 bg-black/60 text-white hover:bg-primary hover:text-primary-foreground backdrop-blur-sm shadow-lg"
+        className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-all duration-200 opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:opacity-100 pointer-events-none [@media(hover:hover)_and_(pointer:fine)]:group-hover/card:pointer-events-auto bg-black/60 text-white hover:bg-primary hover:text-primary-foreground backdrop-blur-sm shadow-lg"
       >
         <Bookmark className="h-3.5 w-3.5" />
       </button>
@@ -75,6 +76,9 @@ export const CourseCard = memo(function CourseCard({ course, className, priority
   const [imgError, setImgError] = useState(false);
   const [gradFrom, gradTo] = universityGradient(course.source_key);
   const subject = course.subjects[0]?.name;
+
+  // Never show a placeholder gradient — if the image fails or is missing, hide the card entirely.
+  if (!thumb || imgError) return null;
 
   return (
     <div className={cn("group/card relative w-full", className)}>

@@ -1,5 +1,6 @@
 import os
-os.environ['DATABASE_URL'] = 'postgresql://postgres:nfMWCACJCkSCRLgMlDGVSzjCigUIrLHc@tramway.proxy.rlwy.net:11497/railway'
+if not os.environ.get("DATABASE_URL"):
+    raise SystemExit("ERROR: DATABASE_URL env var is required")
 from db_utils import get_connection
 conn = get_connection()
 cur = conn.cursor()

@@ -51,6 +51,7 @@ function CoursesContent() {
     subject_slug: searchParams.get("subject") ?? undefined,
     level: (searchParams.get("level") as CourseLevel) ?? undefined,
     has_video_lectures: showAll ? undefined : true,
+    has_thumbnail: showAll ? undefined : true,
     page: Number(searchParams.get("page") ?? "1"),
     page_size: 24,
     sort_by: (searchParams.get("sort") as CourseFilters["sort_by"]) ?? "view_count",
@@ -80,13 +81,14 @@ function CoursesContent() {
       params.set(key, value);
     }
     params.delete("page");
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function setPage(p: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(p));
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    document.getElementById("courses-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -278,7 +280,7 @@ function CoursesContent() {
         </aside>
 
         {/* Course grid */}
-        <div className="flex-1 min-w-0">
+        <div id="courses-grid" className="flex-1 min-w-0">
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {Array.from({ length: 24 }).map((_, i) => (

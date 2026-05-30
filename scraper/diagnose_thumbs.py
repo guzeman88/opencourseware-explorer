@@ -1,8 +1,9 @@
+import os
 import psycopg2
 import requests
 import re
 
-conn = psycopg2.connect(host='127.0.0.1', port=5432, dbname='opencourseware', user='ocw', password='ocwpassword')
+conn = psycopg2.connect(os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware"))
 cur = conn.cursor()
 
 # How many unsplash courses have videos stored?

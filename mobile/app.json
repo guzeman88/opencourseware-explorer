@@ -10,7 +10,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#141414"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ocwexplorer.app"
@@ -26,7 +28,10 @@
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "@sentry/react-native/expo"],
+    "plugins": [
+      "expo-router",
+      "@sentry/react-native/expo"
+    ],
     "scheme": "ocw",
     "experiments": {
       "typedRoutes": true
@@ -34,8 +39,17 @@
     "extra": {
       "sentryDsn": "",
       "eas": {
-        "projectId": ""
+        "projectId": "204fe9c4-cb8e-4bf5-8040-8165e2d641ec"
+      },
+      "router": {
+        "origin": false
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/204fe9c4-cb8e-4bf5-8040-8165e2d641ec"
     }
   }
 }

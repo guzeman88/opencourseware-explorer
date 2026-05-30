@@ -2,11 +2,13 @@
 
 import { useCourse } from "@/hooks/use-courses";
 import { useSilenceSkip } from "@/hooks/use-silence-skip";
+import { useDynamicSilence } from "@/hooks/use-dynamic-silence";
 import { CourseDetailSkeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { levelLabel, levelColor, formatDuration, thumbnailUrl, cn } from "@/lib/utils";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Play,
@@ -20,7 +22,12 @@ import {
   ListVideo,
   Youtube,
   Scissors,
+  Bookmark,
+  ArrowLeft,
 } from "lucide-react";
+import { useLibraryStatus, useLibraryToggle } from "@/hooks/use-library";
+import { useAuth } from "@/providers/auth-provider";
+import { useAuthModal } from "@/providers/auth-modal-provider";
 import dynamic from "next/dynamic";
 
 const ReactPlayer = dynamic(() => import("react-player/youtube"), {
@@ -39,11 +46,44 @@ function extractPlaylistId(url?: string | null): string | null {
   return m?.[1] ?? null;
 }
 
+function SaveDetailButton({ courseId }: { courseId: string }) {
+  const { token } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const { data: saved } = useLibraryStatus(courseId);
+  const toggle = useLibraryToggle(courseId);
+
+  if (!token) {
+    return (
+      <button
+        onClick={openAuthModal}
+        title="Save to library"
+        className="shrink-0 mt-1 p-1.5 rounded-full text-white/50 hover:text-white transition-colors"
+      >
+        <Bookmark className="h-5 w-5" />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => toggle.mutate(saved ?? false)}
+      title={saved ? "Remove from library" : "Save to library"}
+      className={cn(
+        "shrink-0 mt-1 p-1.5 rounded-full transition-colors",
+        saved ? "text-primary" : "text-white/50 hover:text-white"
+      )}
+    >
+      <Bookmark className={cn("h-5 w-5", saved && "fill-current")} />
+    </button>
+  );
+}
+
 interface CoursePageProps {
   params: { id: string };
 }
 
 export default function CoursePage({ params }: CoursePageProps) {
+  const router = useRouter();
   const { data: course, isLoading, error } = useCourse(params.id);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [showAllVideos, setShowAllVideos] = useState(false);
@@ -52,7 +92,16 @@ export default function CoursePage({ params }: CoursePageProps) {
   const playerRef = useRef<any>(null);
 
   // Derive silence data before any early returns (Rules of Hooks)
-  const silenceSegments = course?.videos[activeVideoIndex]?.silence_segments ?? null;
+  const activeVideo = course?.videos[activeVideoIndex];
+  const dbSilenceSegments = activeVideo?.silence_segments ?? null;
+  const activeYoutubeId = activeVideo?.youtube_id ?? null;
+
+  // Fetch silence dynamically from YouTube captions (0.3s threshold, no DB needed).
+  // This is the primary source; DB data is the fallback when dynamic fetch hasn't resolved yet.
+  const { data: dynamicSegments } = useDynamicSilence(activeYoutubeId);
+  const silenceSegments =
+    dynamicSegments !== undefined ? dynamicSegments : dbSilenceSegments;
+
   const hasSilenceData = !!(silenceSegments && silenceSegments.length > 0);
   const { handleProgress, handleSeek } = useSilenceSkip(silenceSegments, skipSilence);
 
@@ -74,8 +123,6 @@ export default function CoursePage({ params }: CoursePageProps) {
       </div>
     );
   }
-
-  const activeVideo = course.videos[activeVideoIndex];
 
   // Resolve the best available playlist ID: stored field → extracted from source_url
   const resolvedPlaylistId =
@@ -130,23 +177,24 @@ export default function CoursePage({ params }: CoursePageProps) {
           </div>
         )}
         <div className="relative max-w-screen-xl mx-auto px-4 md:px-8 py-8 md:py-12">
+          {/* Back button */}
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors mb-5"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start">
-            {/* Thumbnail */}
-            {poster && (
-              <div className="shrink-0 w-full md:w-56 rounded-xl overflow-hidden shadow-2xl border border-white/10">
-                <Image
-                  src={poster}
-                  alt={course.title}
-                  width={224}
-                  height={126}
-                  className="w-full object-cover"
-                  unoptimized
-                />
-              </div>
-            )}
-
             {/* Info */}
             <div className="flex-1 space-y-3">
+              <div className="flex items-start gap-3">
+                <h1 className="flex-1 text-2xl md:text-4xl font-bold leading-tight tracking-tight">
+                  {course.title}
+                </h1>
+                <SaveDetailButton courseId={course.id} />
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-semibold", levelColor(course.level))}>
                   {levelLabel(course.level)}
@@ -158,15 +206,17 @@ export default function CoursePage({ params }: CoursePageProps) {
                 ))}
               </div>
 
-              <h1 className="text-2xl md:text-4xl font-bold leading-tight tracking-tight">
-                {course.title}
-              </h1>
-
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span className="font-semibold text-white/90 flex items-center gap-1.5">
                   <GraduationCap className="h-4 w-4 text-primary" />
                   {course.university_name}
                 </span>
+                {course.source_url && (
+                  <a href={course.source_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-white/50 hover:text-white/80 transition-colors text-xs">
+                    <ExternalLink className="h-3 w-3" />
+                    Course Page
+                  </a>
+                )}
                 {course.instructor && <span>by <span className="text-white/80">{course.instructor}</span></span>}
                 {course.year && (
                   <span>{course.semester ? `${course.semester} ` : ""}{course.year}</span>
@@ -197,16 +247,7 @@ export default function CoursePage({ params }: CoursePageProps) {
 
               {/* Action buttons */}
               <div className="flex flex-wrap gap-2 pt-1">
-                {videoUrl ? (
-                  <Button
-                    size="sm"
-                    className="gap-1.5 bg-primary hover:bg-primary/90"
-                    onClick={() => { setPlaying(true); document.getElementById("player-section")?.scrollIntoView({ behavior: "smooth" }); }}
-                  >
-                    <Play className="h-4 w-4 fill-current" />
-                    Watch Now
-                  </Button>
-                ) : (
+                {!videoUrl && (
                   // No stored video data — link directly to YouTube search
                   <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90" asChild>
                     <a href={youtubeSearchUrl} target="_blank" rel="noopener noreferrer">
@@ -220,14 +261,6 @@ export default function CoursePage({ params }: CoursePageProps) {
                     <a href={youtubeDirectUrl} target="_blank" rel="noopener noreferrer">
                       <Youtube className="h-4 w-4" />
                       YouTube Playlist
-                    </a>
-                  </Button>
-                )}
-                {course.source_url && (
-                  <Button variant="outline" size="sm" asChild className="gap-1.5 border-white/20 hover:bg-white/10">
-                    <a href={course.source_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                      Course Page
                     </a>
                   </Button>
                 )}
@@ -273,10 +306,13 @@ export default function CoursePage({ params }: CoursePageProps) {
                     light={!playing && !isPlaylist && (poster ?? true)}
                     onClickPreview={() => setPlaying(true)}
                     onProgress={(s) =>
-                      handleProgress(s, (t) => playerRef.current?.seekTo(t, "seconds"))
+                      handleProgress(s, (t) => {
+                        const ip = playerRef.current?.getInternalPlayer();
+                        if (ip?.seekTo) { ip.seekTo(t, true); } else { playerRef.current?.seekTo(t, "seconds"); }
+                      })
                     }
                     onSeek={handleSeek}
-                    progressInterval={100}
+                    progressInterval={50}
                     config={{
                       playerVars: {
                         modestbranding: 1,
@@ -344,15 +380,7 @@ export default function CoursePage({ params }: CoursePageProps) {
               </div>
             )}
 
-            {/* Description */}
-            {course.description && (
-              <div className="rounded-xl bg-white/5 border border-white/10 p-5 space-y-2">
-                <h2 className="text-base font-semibold">About this course</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {course.description}
-                </p>
-              </div>
-            )}
+
           </div>
 
           {/* Sidebar */}

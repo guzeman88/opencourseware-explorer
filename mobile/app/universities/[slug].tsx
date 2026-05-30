@@ -2,7 +2,7 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   Image,
@@ -44,7 +44,7 @@ export default function UniversityCoursesScreen() {
       columnWrapperStyle={styles.row}
       contentContainerStyle={styles.list}
       renderItem={({ item }) => (
-        <TouchableOpacity
+        <Pressable
           style={styles.card}
           onPress={() => router.push(`/course/${item.slug}`)}
         >
@@ -63,7 +63,7 @@ export default function UniversityCoursesScreen() {
             </Text>
             <Text style={styles.meta}>{item.total_videos} lectures</Text>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       )}
     />
   );

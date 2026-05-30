@@ -18,10 +18,11 @@ Run:
   py -3.13 -u match_roadmap_entries.py
 """
 
+import os
 import re
 import psycopg2
 
-CONN = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+CONN = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware")
 
 def normalize(s: str) -> str:
     """Lowercase, strip punctuation for fuzzy title matching."""

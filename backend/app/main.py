@@ -83,6 +83,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await engine.dispose()
 
 
+_is_prod = settings.environment == "production"
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
@@ -90,8 +92,10 @@ app = FastAPI(
         "API for browsing thousands of free university courses from MIT OCW, "
         "Yale, Stanford, NPTEL, Berkeley, and more."
     ),
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Disable interactive docs in production to reduce attack surface
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
     lifespan=lifespan,
 )
 
@@ -110,12 +114,18 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def request_id_middleware(request: Request, call_next):
-    """Attach a unique request ID to every request for tracing."""
+async def security_headers_middleware(request: Request, call_next):
+    """Attach security headers and a unique request ID to every response."""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    if settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -172,7 +182,9 @@ async def readiness_check():
         async with AsyncSessionLocal() as db:
             await db.execute(text("SELECT 1"))
     except Exception as exc:
-        errors["database"] = str(exc)
+        # Log full error internally; never expose connection strings to callers
+        logger.error("Health check — database unavailable: %s", exc)
+        errors["database"] = "unavailable"
 
     # Check Redis
     try:
@@ -181,7 +193,8 @@ async def readiness_check():
         await r.ping()
         await r.aclose()
     except Exception as exc:
-        errors["redis"] = str(exc)
+        logger.error("Health check — Redis unavailable: %s", exc)
+        errors["redis"] = "unavailable"
 
     if errors:
         return JSONResponse(

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """
 Generate silence timestamps for YouTube videos and store them in the DB.
 
@@ -35,13 +35,11 @@ load_dotenv()
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_GbATRcy2v8Fo@ep-gentle-cherry-an1c9y9a-pooler.c-6.us-east-1.aws.neon.tech/opencourseware?sslmode=require",
-)
+DATABASE_URL = os.environ.get("DATABASE_URL") or exit("ERROR: DATABASE_URL env var is required")
 
-# Minimum gap between caption segments to count as "silence" (seconds)
-SILENCE_MIN_S = 1.5
+# Minimum gap between caption segments to count as "silence" (seconds).
+# 0.3 s catches nearly all audible pauses while avoiding mid-word stutters.
+SILENCE_MIN_S = 0.1
 
 # ── DB ─────────────────────────────────────────────────────────────────────────
 

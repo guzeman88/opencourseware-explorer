@@ -27,7 +27,7 @@ from slugify import slugify
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware",
+    "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware",
 )
 
 WORKERS = 4          # parallel yt-dlp workers

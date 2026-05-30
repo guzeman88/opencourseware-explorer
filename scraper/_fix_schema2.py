@@ -3,7 +3,7 @@ Full schema sync: add missing columns and create missing tables in Neon.
 """
 import psycopg2
 
-DB = "postgresql://neondb_owner:npg_GbATRcy2v8Fo@ep-gentle-cherry-an1c9y9a-pooler.c-6.us-east-1.aws.neon.tech/opencourseware?sslmode=require"
+import os as _os; DB = _os.environ.get("DATABASE_URL") or exit("ERROR: DATABASE_URL env var is required")
 conn = psycopg2.connect(DB)
 conn.autocommit = True
 cur = conn.cursor()

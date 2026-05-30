@@ -181,8 +181,7 @@ def main() -> None:
             c.youtube_playlist_id,
             c.total_videos
         FROM courses c
-        WHERE c.is_published = TRUE
-          AND (
+        WHERE (
               c.youtube_playlist_id IS NOT NULL
               OR c.source_url ILIKE '%%list=%%'
           )

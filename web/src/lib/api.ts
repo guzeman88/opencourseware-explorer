@@ -290,29 +290,21 @@ apiClient.interceptors.request.use((config) => {
 export async function fetchCourses(
   filters: CourseFilters = {}
 ): Promise<PaginatedList<CourseSummary>> {
-  try {
-    const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
-      "/courses",
-      { params: filters, timeout: PUBLIC_LIST_TIMEOUT_MS }
-    );
-    return data;
-  } catch {
-    return fallbackCourses(filters.page_size ?? 24);
-  }
+  const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
+    "/courses",
+    { params: filters, timeout: PUBLIC_LIST_TIMEOUT_MS }
+  );
+  return data;
 }
 
 export async function fetchFeaturedCourses(
   limit = 12
 ): Promise<PaginatedList<CourseSummary>> {
-  try {
-    const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
-      "/courses/featured",
-      { params: { page_size: limit }, timeout: PUBLIC_LIST_TIMEOUT_MS }
-    );
-    return data;
-  } catch {
-    return fallbackCourses(limit);
-  }
+  const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
+    "/courses/featured",
+    { params: { page_size: limit }, timeout: PUBLIC_LIST_TIMEOUT_MS }
+  );
+  return data;
 }
 
 export async function fetchCourse(slugOrId: string): Promise<Course> {
@@ -351,15 +343,11 @@ export async function fetchUniversityCourses(
   slug: string,
   filters: CourseFilters = {}
 ): Promise<PaginatedList<CourseSummary>> {
-  try {
-    const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
-      `/universities/${slug}/courses`,
-      { params: filters, timeout: PUBLIC_LIST_TIMEOUT_MS }
-    );
-    return data;
-  } catch {
-    return fallbackCourses(filters.page_size ?? 24);
-  }
+  const { data } = await apiClient.get<PaginatedList<CourseSummary>>(
+    `/universities/${slug}/courses`,
+    { params: filters, timeout: PUBLIC_LIST_TIMEOUT_MS }
+  );
+  return data;
 }
 
 // ─── Subjects ─────────────────────────────────────────────────────────────────

@@ -1,14 +1,28 @@
 from __future__ import annotations
 
+import re
 from typing import Optional
+
+from pydantic import EmailStr, field_validator
 
 from app.schemas.base import OCWBase, TimestampMixin
 from app.models.scraper_job import JobStatus
+
+_SOURCE_RE = re.compile(r"^[a-z0-9_-]{1,100}$")
 
 
 class ScraperJobCreate(OCWBase):
     source: str
     config_json: Optional[str] = None
+
+    @field_validator("source")
+    @classmethod
+    def _valid_source(cls, v: str) -> str:
+        if not _SOURCE_RE.match(v):
+            raise ValueError(
+                "source must be 1–100 lowercase alphanumeric characters, underscores, or hyphens"
+            )
+        return v
 
 
 class ScraperJobRead(OCWBase, TimestampMixin):
@@ -32,7 +46,7 @@ class TokenResponse(OCWBase):
 
 
 class LoginRequest(OCWBase):
-    email: str
+    email: EmailStr
     password: str
 
 

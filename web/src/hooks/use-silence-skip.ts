@@ -5,10 +5,11 @@ export type SilenceSegment = [number, number];
 
 /**
  * How many seconds BEFORE a silence starts to trigger the seek.
- * YouTube iframe seeks take ~150–250 ms, so firing 350 ms early means
+ * YouTube iframe seeks take ~150–250 ms, so firing 150 ms early means
  * the seek lands right as the silence begins → zero audible gap.
+ * Segments are now >= 200 ms, so 150 ms lead won't fire before silence starts.
  */
-const LEAD_SECS = 0.35;
+const LEAD_SECS = 0.15;
 
 /**
  * Hook that drives the hard-skip silence engine.
@@ -28,10 +29,18 @@ export function useSilenceSkip(
 ) {
   const lockRef = useRef(false);
   const lastLandRef = useRef(-1);
+  /**
+   * Timestamp (ms) of the last programmatic seekTo() call.
+   * YouTube's iframe fires onSeek 300–600 ms after seekTo() completes —
+   * often long after the 250 ms lock expires — so we can't use lockRef here.
+   * Instead we ignore any onSeek that arrives within 1 s of our own seek.
+   */
+  const lastSeekAtRef = useRef(0);
 
   /** Call from ReactPlayer's onSeek to reset state after a manual user seek. */
   const handleSeek = useCallback(() => {
-    if (lockRef.current) return; // our own programmatic seek — ignore
+    // Ignore the delayed onSeek event that YouTube fires after our own seekTo().
+    if (Date.now() - lastSeekAtRef.current < 1000) return;
     lastLandRef.current = -1;
   }, []);
 
@@ -61,7 +70,9 @@ export function useSilenceSkip(
       // Handles clusters like [20.8, 23.5] → [24.3, 25.1] with only a 0.8s gap.
       let landAt = seg[1] + 0.05;
       let cursor: SilenceSegment = seg;
-      let next = segments.find(([s]) => s > cursor[1] && s <= landAt + 2.0);
+      // Small chain window — only merge segments that are essentially adjacent.
+      // A large window (2 s) would chain ALL word-level segments, skipping the whole video.
+      let next = segments.find(([s]) => s > cursor[1] && s <= landAt + 0.2);
       while (next) {
         landAt = next[1] + 0.05;
         cursor = next;
@@ -69,12 +80,14 @@ export function useSilenceSkip(
       }
 
       lastLandRef.current = landAt;
+      lastSeekAtRef.current = Date.now(); // record BEFORE calling seekTo
       seekTo(landAt);
 
-      // Release lock after seek completes (~250 ms)
+      // Keep lock on for 500 ms — longer than YouTube's typical seek latency
+      // (150–300 ms) so a rapid second progress tick can't re-trigger.
       setTimeout(() => {
         lockRef.current = false;
-      }, 250);
+      }, 500);
     },
     [enabled, segments]
   );

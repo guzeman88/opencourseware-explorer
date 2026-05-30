@@ -5,10 +5,11 @@ keyword rules matched against the course title (case-insensitive).
 Existing tags are preserved; only new ones are inserted.
 """
 
+import os
 import psycopg2
 import re
 
-CONN_STR = "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+CONN_STR = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware")
 
 # Rules: list of (subject_slug, [keywords_that_match_in_title])
 # Order matters only for readability. A course can match multiple subjects.
@@ -267,6 +268,112 @@ RULES = [
                                    "pandemic", "infectious disease"]),
     ("history",                  ["columbus", "colonial", "civilization", "war ",
                                    "revolution", "empire", "dynasty"]),
+
+    # ── Specific physics subjects missing from hierarchy ─────────────────────
+    ("classical-mechanics",      ["classical mechanics", "newtonian mechanics",
+                                   "lagrangian", "hamiltonian mechanics"]),
+    ("optics",                   ["optics", "optical physics", "photonics",
+                                   "laser physics", "geometrical optics", "wave optics",
+                                   "light and matter"]),
+    ("solid-state-physics",      ["solid state physics", "solid-state physics",
+                                   "condensed matter", "band theory", "crystal structure"]),
+    ("nuclear-physics",          ["nuclear physics", "nuclear reaction", "radioactivity",
+                                   "fission", "fusion physics"]),
+    ("general-relativity",       ["general relativity", "general theory of relativity",
+                                   "einstein equations", "curved spacetime", "spacetime"]),
+    ("cosmology",                ["cosmology", "cosmological", "dark matter", "dark energy",
+                                   "big bang"]),
+    ("theoretical-physics",      ["theoretical physics", "string theory", "gauge theory",
+                                   "quantum field theory", "field theory",
+                                   "mathematical physics"]),
+    ("planetary-science",        ["planetary science", "solar system", "exoplanet",
+                                   "planet formation", "astrobiology"]),
+    ("fluid-dynamics",           ["fluid dynamics", "fluid mechanics", "aerodynamics",
+                                   "hydrodynamics", "turbulence"]),
+
+    # ── Specific math subjects ────────────────────────────────────────────────
+    ("real-analysis",            ["real analysis", "analysis i", "analysis ii",
+                                   "advanced calculus", "metric space", "measure theory",
+                                   "riemann integral", "lebesgue"]),
+    ("functional-analysis",      ["functional analysis", "hilbert space", "banach space",
+                                   "operator theory"]),
+    ("graph-theory",             ["graph theory", "graph algorithms", "network flow"]),
+    ("set-theory",               ["set theory", "axiomatic set theory", "zermelo"]),
+    ("trigonometry",             ["trigonometry", "trigonometric", " trig "]),
+    ("precalculus",              ["precalculus", "pre-calculus", "college algebra",
+                                   "algebra and trigonometry", "functions and graphs"]),
+    ("applied-mathematics",      ["applied mathematics", "applied math",
+                                   "mathematical methods", "mathematical modeling",
+                                   "math for engineers", "engineering mathematics"]),
+    ("numerical-methods",        ["numerical methods", "numerical analysis",
+                                   "computational mathematics", "finite element",
+                                   "numerical linear algebra", "scientific computing"]),
+
+    # ── Specific engineering ──────────────────────────────────────────────────
+    ("aerospace-engineering",    ["aerospace engineering", "aeronautics",
+                                   "flight mechanics", "spacecraft", "rocket propulsion",
+                                   "orbital mechanics"]),
+    ("heat-transfer",            ["heat transfer", "thermal engineering",
+                                   "conduction", "convection", "radiation heat"]),
+    ("vibrations",               ["vibrations", "vibration analysis", "structural dynamics",
+                                   "mechanical vibrations"]),
+    ("manufacturing",            ["manufacturing", "manufacturing processes",
+                                   "industrial engineering", "production engineering"]),
+    ("vlsi",                     ["vlsi", "very large scale integration",
+                                   "chip design", "cmos design", "asic design"]),
+    ("digital-electronics",      ["digital electronics", "digital circuit",
+                                   "logic circuit", "boolean logic"]),
+    ("electronics",              ["electronics", "electronic circuits",
+                                   "analog circuits", "transistor"]),
+
+    # ── Specific biology/health ───────────────────────────────────────────────
+    ("computational-biology",    ["computational biology", "bioinformatics",
+                                   "genomics algorithms", "sequence alignment"]),
+    ("computational-neuroscience", ["computational neuroscience", "neural computation",
+                                    "neural modeling", "spiking neuron"]),
+    ("mental-health",            ["mental health", "psychiatry", "depression",
+                                   "anxiety disorder", "psychiatric"]),
+    ("clinical-trials",          ["clinical trial", "randomized controlled",
+                                   "clinical research", "drug trial"]),
+    ("atmospheric-science",      ["atmospheric science", "meteorology",
+                                   "climatology", "weather"]),
+
+    # ── Social sciences ───────────────────────────────────────────────────────
+    ("cognitive-psychology",     ["cognitive psychology", "cognitive science",
+                                   "memory and cognition", "attention and perception"]),
+    ("developmental-psychology", ["developmental psychology", "child development",
+                                   "developmental science", "lifespan development"]),
+    ("criminal-justice",         ["criminal justice", "criminology", "crime and",
+                                   "criminal law", "penology"]),
+    ("global-politics",          ["global politics", "world politics",
+                                   "international security", "foreign policy"]),
+    ("ancient-philosophy",       ["ancient philosophy", "greek philosophy", "plato",
+                                   "aristotle", "stoicism", "epicurean",
+                                   "pre-socratic", "socrates"]),
+    ("art-history",              ["art history", "history of art", "western art",
+                                   "art movements"]),
+    ("western-civilization",     ["western civilization", "history of western",
+                                   "european civilization"]),
+    ("literary-theory",          ["literary theory", "critical theory", "narratology",
+                                   "structuralism", "poststructuralism"]),
+    ("animation",                ["animation", "3d animation", "computer animation",
+                                   "motion graphics"]),
+    ("human-resources",          ["human resources", "hr management",
+                                   "talent management", "workforce"]),
+
+    # ── Final targeted rules ─────────────────────────────────────────────────
+    ("social-psychology",        ["social psychology", "social cognition",
+                                   "attitudes and behavior", "group dynamics"]),
+    ("political-philosophy",     ["political philosophy", "political theory",
+                                   "justice and equality", "rawls", "political thought"]),
+    ("data-management",          ["database management", "data management",
+                                   "information management", "data governance"]),
+    ("atmospheric-science",      ["atmospheric science", "atmospheric chemistry",
+                                   "atmospheric physics", "atmosphere and climate",
+                                   "meteorology", "climatology"]),
+    ("human-rights",             ["human rights", "international human rights"]),
+    ("biological-engineering",   ["biological engineering", "bioengineering",
+                                   "bio engineering"]),
 ]
 
 

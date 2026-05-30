@@ -3,7 +3,7 @@ import {
   Text,
   TextInput,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -100,7 +100,7 @@ export default function SearchScreen() {
           data={courses}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity
+            <Pressable
               style={styles.result}
               onPress={() => router.push(`/course/${item.slug}`)}
             >
@@ -123,7 +123,7 @@ export default function SearchScreen() {
                   <Text style={styles.level}>{item.level}</Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           )}
           contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
         />

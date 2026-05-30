@@ -1,7 +1,7 @@
 import psycopg2
 
 conn = psycopg2.connect(
-    "postgresql://neondb_owner:npg_GbATRcy2v8Fo@ep-gentle-cherry-an1c9y9a-pooler.c-6.us-east-1.aws.neon.tech/opencourseware?sslmode=require"
+    "os.environ.get("DATABASE_URL") or exit("ERROR: DATABASE_URL env var is required")"
 )
 cur = conn.cursor()
 cur.execute("ALTER TABLE videos ADD COLUMN IF NOT EXISTS silence_segments JSONB")

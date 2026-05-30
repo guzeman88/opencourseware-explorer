@@ -21,6 +21,8 @@ export default function AdminLoginPage() {
     try {
       const token = await adminLogin(email, password);
       localStorage.setItem("ocw_token", token);
+      // The backend also sets an httpOnly `ocw_session` cookie automatically,
+      // which the Next.js Edge Middleware uses for server-side route protection.
       router.push("/admin");
     } catch {
       setError("Invalid email or password.");

@@ -29,7 +29,7 @@ CSV_PATH = os.environ.get(
 )
 DB_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware"
+    "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware"
 ).replace("postgresql+asyncpg://", "postgresql://")
 
 print(f"CSV: {CSV_PATH}", flush=True)

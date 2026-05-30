@@ -2,7 +2,7 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Image,
   StyleSheet,
 } from "react-native";
@@ -33,10 +33,9 @@ export default function SavedScreen() {
       data={bookmarks}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
-      contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
       renderItem={({ item }) => (
-        <TouchableOpacity
+        <Pressable
           style={styles.row}
           onPress={() => router.push(`/course/${item.slug}`)}
         >
@@ -57,7 +56,7 @@ export default function SavedScreen() {
               {item.university_name} · {item.total_videos} lectures
             </Text>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       )}
     />
     </View>

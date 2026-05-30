@@ -17,6 +17,7 @@ import {
   GraduationCap as Logo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { adminLogout } from "@/lib/api";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -49,7 +50,8 @@ export default function AdminLayout({
 
   function handleLogout() {
     localStorage.removeItem("ocw_token");
-    router.push("/admin/login");
+    // Clear the httpOnly session cookie via the backend logout endpoint.
+    adminLogout().finally(() => router.push("/admin/login"));
   }
 
   if (authed === null) return null;

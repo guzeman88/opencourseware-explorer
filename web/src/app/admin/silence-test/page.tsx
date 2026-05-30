@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { SkipForward, Gauge, Clock, Info } from "lucide-react";
+import { SkipForward, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ReactPlayer = dynamic(() => import("react-player/youtube"), {
@@ -20,7 +20,7 @@ const POSTER = `https://img.youtube.com/vi/${VIDEO_ID}/maxresdefault.jpg`;
 const VIDEO_DURATION = 3134; // seconds (~52m 14s)
 
 // Generated with: ffmpeg -i audio.wav -af "silencedetect=n=-40dB:d=0.8" -f null -
-// Source: 18.065 Lecture 1 — The Column Space of A Contains All Vectors Ax (YiqIkSHSmyc)
+// Source: 18.065 Lecture 1 â€” The Column Space of A Contains All Vectors Ax (YiqIkSHSmyc)
 const SILENCE: [number, number][] = [
   [0, 1.583764],
   [20.805374, 23.55619],
@@ -452,9 +452,9 @@ const SILENCE: [number, number][] = [
 const TOTAL_SILENCE_S = Math.round(SILENCE.reduce((a, [s, e]) => a + (e - s), 0));
 const SILENCE_PCT = ((TOTAL_SILENCE_S / VIDEO_DURATION) * 100).toFixed(1);
 
-// ── Option A – Pre-emptive Hard Skip ─────────────────────────────────────────
+// â”€â”€ Option A â€“ Pre-emptive Hard Skip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // YouTube iframe seek takes ~150-250ms to complete. By triggering LEAD_SECS
-// before each silence, the seek lands right as silence begins → zero audible gap.
+// before each silence, the seek lands right as silence begins â†’ zero audible gap.
 const LEAD_SECS = 0.35;
 
 function OptionA() {
@@ -481,8 +481,8 @@ function OptionA() {
 
     lockRef.current = true;
 
-    // Chain consecutive silences into a single seek — handles clusters
-    // like [1357.73,1358.66]→[1358.66,1359.57] with only a 4ms gap.
+    // Chain consecutive silences into a single seek â€” handles clusters
+    // like [1357.73,1358.66]â†’[1358.66,1359.57] with only a 4ms gap.
     let landAt = seg[1] + 0.1;
     let totalSaved = seg[1] - seg[0]; // full silence duration
     let totalSkips = 1;
@@ -499,7 +499,8 @@ function OptionA() {
     lastLandRef.current = landAt;
     setSaved((v) => parseFloat((v + totalSaved).toFixed(1)));
     setSkips((v) => v + totalSkips);
-    playerRef.current.seekTo(landAt, "seconds");
+    const ipA = playerRef.current?.getInternalPlayer();
+    if (ipA?.seekTo) { ipA.seekTo(landAt, true); } else { playerRef.current?.seekTo(landAt, "seconds"); }
     setTimeout(() => { lockRef.current = false; }, 250);
   }
 
@@ -514,13 +515,13 @@ function OptionA() {
       letter="A"
       icon={<SkipForward className="h-5 w-5" />}
       title="Hard Skip"
-      description={`Seek fires ${LEAD_SECS}s before each silence — YouTube finishes seeking right as silence begins, giving near-zero audible gap. Chains consecutive clusters into one jump.`}
+      description={`Seek fires ${LEAD_SECS}s before each silence â€” YouTube finishes seeking right as silence begins, giving near-zero audible gap. Chains consecutive clusters into one jump.`}
       accentColor="text-blue-400"
       badgeColor="bg-blue-500/20 border-blue-500/30"
       stats={[
         { label: "Time saved", value: `${saved.toFixed(1)}s` },
         { label: "Skips made", value: skips },
-        { label: "Status", value: inSilence ? "⏩ jumping…" : "▶ playing" },
+        { label: "Status", value: inSilence ? "â© jumpingâ€¦" : "â–¶ playing" },
       ]}
     >
       <ReactPlayer
@@ -535,226 +536,15 @@ function OptionA() {
         onClickPreview={() => setPlaying(true)}
         onProgress={handleProgress}
         onSeek={handleUserSeek}
-        progressInterval={100}
+        progressInterval={50}
         config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
       />
     </OptionCard>
   );
 }
 
-// ── Option C – Speed Ramp (scheduled timer, no polling) ──────────────────────
-// Uses setTimeout instead of onProgress so timing is exact.
-// speedUp timer fires at silence start → 5×. slowDown timer fires
-// fastDuration/RAMP_SPEED wall-seconds later → 1×. No polling overhead.
-const RAMP_SPEED = 5;
-const RAMP_EXIT_EARLY = 0.4; // restore 1× this many video-secs before silence ends
 
-function OptionC() {
-  const playerRef = useRef<any>(null);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [inSilence, setInSilence] = useState(false);
-  const [savedApprox, setSavedApprox] = useState(0);
-  const speedUpRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const slowDownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playingRef = useRef(false);
-  const seekingRef = useRef(false);
-
-  function clearTimers() {
-    if (speedUpRef.current) { clearTimeout(speedUpRef.current); speedUpRef.current = null; }
-    if (slowDownRef.current) { clearTimeout(slowDownRef.current); slowDownRef.current = null; }
-  }
-
-  function scheduleFrom(fromSecs: number) {
-    clearTimers();
-    const seg = SILENCE.find(([s]) => s > fromSecs + 0.05);
-    if (!seg || !playingRef.current) return;
-    const [start, end] = seg;
-    // Video-seconds of silence that will play at RAMP_SPEED×
-    const fastVideoSecs = Math.max(0, end - RAMP_EXIT_EARLY - start);
-
-    speedUpRef.current = setTimeout(() => {
-      if (!playingRef.current) return;
-      if (fastVideoSecs < 0.1) {
-        // Silence too short to ramp — advance scheduling to next segment
-        scheduleFrom(end);
-        return;
-      }
-      setSpeed(RAMP_SPEED);
-      setInSilence(true);
-      // At RAMP_SPEED×, fastVideoSecs of video passes in fastVideoSecs/RAMP_SPEED wall-secs
-      slowDownRef.current = setTimeout(() => {
-        setSpeed(1);
-        setInSilence(false);
-        setSavedApprox((v) =>
-          parseFloat((v + fastVideoSecs * (1 - 1 / RAMP_SPEED)).toFixed(1))
-        );
-        // Video is now at end - RAMP_EXIT_EARLY; schedule next silence from there
-        scheduleFrom(end - RAMP_EXIT_EARLY);
-      }, Math.max(20, (fastVideoSecs / RAMP_SPEED) * 1000));
-    }, Math.max(20, (start - fromSecs) * 1000));
-  }
-
-  function handlePlay() {
-    playingRef.current = true;
-    setPlaying(true);
-    scheduleFrom(playerRef.current?.getCurrentTime?.() ?? 0);
-  }
-
-  function handlePause() {
-    playingRef.current = false;
-    setPlaying(false);
-    setSpeed(1);
-    setInSilence(false);
-    clearTimers();
-  }
-
-  function handleSeek(secs: number) {
-    if (seekingRef.current) return;
-    setSpeed(1);
-    setInSilence(false);
-    if (playingRef.current) scheduleFrom(secs);
-  }
-
-  useEffect(() => () => clearTimers(), []);
-
-  return (
-    <OptionCard
-      letter="C"
-      icon={<Gauge className="h-5 w-5" />}
-      title="Speed Ramp"
-      description={`Silences play at ${RAMP_SPEED}× — no hard cut, sounds natural. Scheduled timer fires at each silence start (zero polling), restores 1× speed ${RAMP_EXIT_EARLY}s before speech resumes.`}
-      accentColor="text-amber-400"
-      badgeColor="bg-amber-500/20 border-amber-500/30"
-      stats={[
-        { label: "Current speed", value: `${speed}×` },
-        { label: "Wall-time saved ≈", value: `${savedApprox.toFixed(1)}s` },
-        { label: "Status", value: inSilence ? `🚀 ${speed}× speed` : "▶ 1× normal" },
-      ]}
-    >
-      <ReactPlayer
-        ref={playerRef}
-        url={VIDEO_URL}
-        width="100%"
-        height="100%"
-        style={{ aspectRatio: "16/9" }}
-        controls
-        playing={playing}
-        playbackRate={speed}
-        light={!playing && POSTER}
-        onClickPreview={() => setPlaying(true)}
-        onPlay={handlePlay}
-        onPause={handlePause}
-        onSeek={handleSeek}
-        config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
-      />
-    </OptionCard>
-  );
-}
-
-// ── Option D – Scheduled Skip (setTimeout) ────────────────────────────────────
-function OptionD() {
-  const playerRef = useRef<any>(null);
-  const [playing, setPlaying] = useState(false);
-  const [skips, setSkips] = useState(0);
-  const [saved, setSaved] = useState(0);
-  const [nextSkipLabel, setNextSkipLabel] = useState<string>("—");
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playingRef = useRef(false);
-  const seekingRef = useRef(false);
-
-  function clearTimer() {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    setNextSkipLabel("—");
-  }
-
-  // Pre-emptive: fire LEAD_MS before silence starts so YouTube finishes
-  // seeking right as silence begins — giving near-zero audible gap.
-  const LEAD_MS = 350;
-
-  function scheduleNextFrom(fromSeconds: number) {
-    clearTimer();
-    const seg = SILENCE.find(([s]) => s > fromSeconds + 0.05);
-    if (!seg) return;
-    const [start, end] = seg;
-    const delaySecs = start - fromSeconds;
-    const mm = Math.floor(start / 60).toString().padStart(2, "0");
-    const ss = Math.floor(start % 60).toString().padStart(2, "0");
-    setNextSkipLabel(`${mm}:${ss}`);
-    // Fire LEAD_MS early so seek completes right as silence starts
-    timerRef.current = setTimeout(() => {
-      if (!playingRef.current || !playerRef.current) return;
-      const currentTime = playerRef.current.getCurrentTime?.() ?? 0;
-      if (Math.abs(currentTime - start) > 15) {
-        scheduleNextFrom(currentTime);
-        return;
-      }
-      seekingRef.current = true;
-      setSaved((v) => parseFloat((v + (end - start)).toFixed(1)));
-      setSkips((v) => v + 1);
-      playerRef.current.seekTo(end + 0.1, "seconds");
-      setTimeout(() => {
-        seekingRef.current = false;
-        scheduleNextFrom(end + 0.1);
-      }, 200);
-    }, Math.max(20, delaySecs * 1000 - LEAD_MS));
-  }
-
-  function handlePlay() {
-    playingRef.current = true;
-    setPlaying(true);
-    const cur = playerRef.current?.getCurrentTime?.() ?? 0;
-    scheduleNextFrom(cur);
-  }
-
-  function handlePause() {
-    playingRef.current = false;
-    setPlaying(false);
-    clearTimer();
-  }
-
-  function handleSeek(seconds: number) {
-    // Ignore seeks we triggered ourselves
-    if (seekingRef.current) return;
-    if (playingRef.current) scheduleNextFrom(seconds);
-  }
-
-  useEffect(() => () => clearTimer(), []);
-
-  return (
-    <OptionCard
-      letter="D"
-      icon={<Clock className="h-5 w-5" />}
-      title="Scheduled Skip"
-      description="Pre-computed timestamps become JS setTimeout calls. One timer at a time — fires at the silence start, seeks to its end, then queues the next. Zero polling overhead."
-      accentColor="text-emerald-400"
-      badgeColor="bg-emerald-500/20 border-emerald-500/30"
-      stats={[
-        { label: "Skips made", value: skips },
-        { label: "Time saved", value: `${saved.toFixed(1)}s` },
-        { label: "Next skip at", value: nextSkipLabel },
-      ]}
-    >
-      <ReactPlayer
-        ref={playerRef}
-        url={VIDEO_URL}
-        width="100%"
-        height="100%"
-        style={{ aspectRatio: "16/9" }}
-        controls
-        playing={playing}
-        light={!playing && POSTER}
-        onClickPreview={() => setPlaying(true)}
-        onPlay={handlePlay}
-        onPause={handlePause}
-        onSeek={handleSeek}
-        config={{ playerVars: { modestbranding: 1, rel: 0 } } as any}
-      />
-    </OptionCard>
-  );
-}
-
-// ── Shared card wrapper ────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Shared card wrapper ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 interface StatItem {
   label: string;
   value: string | number;
@@ -791,7 +581,7 @@ function OptionCard({
         <div className="flex-1 min-w-0">
           <div className={cn("flex items-center gap-2 font-semibold text-base", accentColor)}>
             {icon}
-            Option {letter} — {title}
+            Option {letter} ΓÇö {title}
           </div>
           <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
         </div>
@@ -818,42 +608,30 @@ function OptionCard({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-const TABS = [
-  { id: "A", label: "Option A — Hard Skip" },
-  { id: "C", label: "Option C — Speed Ramp" },
-  { id: "D", label: "Option D — Scheduled Skip" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
+// ΓöÇΓöÇ Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export default function SilenceTestPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("A");
-
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Silence Removal — Test Lab</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Silence Removal — Test</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Three universally-compatible approaches — iOS, Android, desktop web — tested on:{" "}
+          Pre-computed hard skip tested on:{" "}
           <span className="text-white/80 font-medium">18.065 — Lecture 1: The Column Space of A</span>
           {" "}(YiqIkSHSmyc)
         </p>
       </div>
-
-      {/* Analysis summary */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <div className="flex items-center gap-2 text-sm font-medium mb-3">
           <Info className="h-4 w-4 text-primary" />
-          FFmpeg silencedetect analysis — <code className="text-xs bg-white/10 px-1.5 py-0.5 rounded">-40dB threshold, 0.8s min duration</code>
+          FFmpeg silencedetect analysis
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Video length", value: "52m 14s" },
-            { label: "Silent segments", value: `${SILENCE.length}` },
-            { label: "Total silence", value: `${TOTAL_SILENCE_S}s` },
-            { label: "% silent", value: `${SILENCE_PCT}%` },
+            { label: "Silent segments", value: SILENCE.length },
+            { label: "Total silence", value: TOTAL_SILENCE_S + "s" },
+            { label: "% silent", value: SILENCE_PCT + "%" },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -861,49 +639,8 @@ export default function SilenceTestPage() {
             </div>
           ))}
         </div>
-        <details className="mt-3">
-          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
-            Show all {SILENCE.length} silent segments
-          </summary>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {SILENCE.map(([s, e], i) => (
-              <span key={i} className="text-xs bg-white/10 rounded px-2 py-0.5 font-mono">
-                {s.toFixed(1)}s → {e.toFixed(1)}s ({(e - s).toFixed(1)}s)
-              </span>
-            ))}
-          </div>
-        </details>
       </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors",
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/10"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Active panel */}
-      {activeTab === "A" && <OptionA />}
-      {activeTab === "C" && <OptionC />}
-      {activeTab === "D" && <OptionD />}
-
-      {/* Bottom note */}
-      <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-muted-foreground space-y-1">
-        <p><span className="text-white/60 font-medium">Option A — Hard Skip</span> — Best for eliminating dead air completely. Jumps to end of each silence in one seek call. Chains consecutive clusters in a single jump. Works on iOS, Android, desktop.</p>
-        <p><span className="text-white/60 font-medium">Option C — Speed Ramp</span> — Silences play at 5× instead of being cut. Feels more natural. Restores 1× speed slightly before speech resumes to avoid clipping first words. Works on iOS, Android, desktop via YouTube iframe API.</p>
-        <p><span className="text-white/60 font-medium">Option D — Scheduled Skip</span> — No polling. One JS timer queued at a time, fires at the next silence start, seeks to its end, then schedules the next. Zero CPU overhead during speech. Works on iOS, Android, desktop.</p>
-      </div>
+      <OptionA />
     </div>
   );
 }
