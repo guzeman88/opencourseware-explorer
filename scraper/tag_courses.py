@@ -10,6 +10,8 @@ import psycopg2
 import re
 
 CONN_STR = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware")
+# Set RESET_TAGS=1 to wipe all course_subjects before retagging (clean slate).
+RESET_FIRST = os.environ.get("RESET_TAGS", "0") == "1"
 
 # Rules: list of (subject_slug, [keywords_that_match_in_title])
 # Order matters only for readability. A course can match multiple subjects.
@@ -67,7 +69,8 @@ RULES = [
                                    "introduction to computer", "intro to computer"]),
     ("algorithms",               ["algorithm", "data structure", "discrete math",
                                    "combinatorics", "graph theory", "complexity",
-                                   "theory of computation", "computational"]),
+                                   "theory of computation", "computational complexity",
+                                   "computational geometry"]),
     ("data-structures",          ["data structure", "data organization", "trees and graphs",
                                    "linked list", "hash table"]),
     ("operating-systems",        ["operating system", "os kernel", "linux kernel",
@@ -106,8 +109,8 @@ RULES = [
                                    "interaction design", "interface design"]),
     ("databases",                ["database", "sql", "relational", "data management",
                                    "data engineering", "nosql", "query language"]),
-    ("networking",               ["network", "internet", "protocol", "tcp", "web security",
-                                   "distributed system"]),
+    ("networking",               ["computer network", "internet", "network protocol",
+                                   "tcp/ip", "networking"]),
     ("cybersecurity",            ["security", "cybersecurity", "cryptography",
                                    "information security", "network security"]),
     ("computer-security",        ["computer security", "application security", "software security",
@@ -189,7 +192,7 @@ RULES = [
                                    "multi-agent", "intelligent agents", "agent planning"]),
     ("artificial-intelligence",  ["artificial intelligence", "ai ", " ai,", "intelligent system",
                                    "knowledge representation", "expert system",
-                                   "planning", "search algorithm"]),
+                                   "automated planning", "search algorithm"]),
     ("natural-language-processing", ["natural language", "nlp", "text mining",
                                      "sentiment analysis", "language model",
                                      "computational linguistics"]),
@@ -203,7 +206,7 @@ RULES = [
 
     # ── Mathematics ─────────────────────────────────────────────────────────
     ("mathematics",              ["mathematics", "math ", "mathematical", "algebra",
-                                   "geometry", "topology", "analysis", "number theory",
+                                   "geometry", "topology", "number theory",
                                    "combinatorics", "real analysis", "complex analysis",
                                    "abstract algebra", "linear algebra", "discrete math",
                                    "differential geometry", "algebraic"]),
@@ -219,11 +222,9 @@ RULES = [
                                    "introduction to proofs", "writing proofs",
                                    "logic and proofs", "mathematical reasoning"]),
     ("analysis",                 ["mathematical analysis", "real analysis", "complex analysis",
-                                   "functional analysis", "analysis i", "analysis ii",
-                                   "advanced calculus"]),
-    ("real-analysis",            ["real analysis", "analysis i", "analysis ii",
-                                   "advanced calculus", "metric space", "measure theory",
-                                   "riemann integral", "lebesgue"]),
+                                   "functional analysis", "advanced calculus"]),
+    ("real-analysis",            ["real analysis", "advanced calculus", "metric space",
+                                   "measure theory", "riemann integral", "lebesgue"]),
     ("complex-analysis",         ["complex analysis", "complex variables", "analytic functions",
                                    "contour integration", "cauchy", "complex function",
                                    "holomorphic"]),
@@ -330,7 +331,7 @@ RULES = [
                                    "thermodynamics", "quantum", "relativity",
                                    "optics", "waves", "classical mechanics"]),
     ("mechanics",                ["mechanics", "classical mechanics", "statics",
-                                   "dynamics", "continuum"]),
+                                   "rigid body dynamics", "continuum mechanics"]),
     ("classical-mechanics",      ["classical mechanics", "newtonian mechanics",
                                    "lagrangian", "hamiltonian mechanics",
                                    "analytical mechanics"]),
@@ -344,8 +345,8 @@ RULES = [
                                    "light and matter", "diffraction", "interference"]),
     ("thermodynamics",           ["thermodynamics", "heat transfer", "statistical mechanics",
                                    "thermal"]),
-    ("fluid-mechanics",          ["fluid", "fluid mechanics", "aerodynamics",
-                                   "hydraulic", "flow "]),
+    ("fluid-mechanics",          ["fluid mechanics", "fluid dynamics", "aerodynamics",
+                                   "hydraulics", "fluid flow"]),
     ("fluid-dynamics",           ["fluid dynamics", "fluid mechanics", "aerodynamics",
                                    "hydrodynamics", "turbulence"]),
     ("continuum-mechanics",      ["continuum mechanics", "solid mechanics",
@@ -365,7 +366,7 @@ RULES = [
     ("condensed-matter",         ["condensed matter", "condensed-matter", "many-body",
                                    "superconductivity", "band structure", "materials physics",
                                    "phase transition"]),
-    ("materials-science",        ["materials science", "material science", "materials",
+    ("materials-science",        ["materials science", "material science",
                                    "metallurgy", "polymers", "crystallography"]),
     ("quantum-mechanics",        ["quantum", "quantum mechanics", "quantum field",
                                    "quantum information", "quantum computing"]),
@@ -431,12 +432,12 @@ RULES = [
                                    "integrated circuit design", "cmos circuit"]),
 
     # ── Engineering ─────────────────────────────────────────────────────────
-    ("engineering",              ["engineering", "design", "manufacturing",
-                                   "materials", "structural", "civil",
+    ("engineering",              ["engineering", "manufacturing",
+                                   "civil engineering", "structural engineering",
                                    "mechanical engineering", "electrical engineering",
                                    "chemical engineering", "aerospace"]),
     ("electrical-engineering",   ["electrical engineering", "circuits", "electronics",
-                                   "signal", "power system", "semiconductor"]),
+                                   "signal processing", "power system", "semiconductor"]),
     ("mechanical-engineering",   ["mechanical engineering", "mechanics of materials",
                                    "machine design", "thermal systems",
                                    "mechanical design", "machine elements"]),
@@ -733,10 +734,8 @@ RULES = [
 
     # ── Language & Literature ─────────────────────────────────────────────────
     ("literature",               ["literature", "literary", "poetry", "novel",
-                                   "fiction", "writing", "rhetoric", "composition",
-                                   "language", "linguistics", "phonology", "syntax",
-                                   "semantics", "grammar", "translation", "discourse",
-                                   "reading", "communication"]),
+                                   "fiction", "rhetoric", "phonology",
+                                   "translation", "discourse"]),
     ("linguistics",              ["linguistics", "phonology", "syntax", "semantics",
                                    "morphology", "applied linguistics", "language structure"]),
     ("writing",                  ["writing", "academic writing", "creative writing",
@@ -818,12 +817,13 @@ RULES = [
 
     # ── Additional broad catches ────────────────────────────────────────────
     ("engineering",              ["transportation", "infrastructure",
-                                   "urban", "construction", "aviation",
+                                   "urban engineering", "construction", "aviation",
                                    "aircraft", "antenna", "radar", "satellite",
-                                   "polymer", "semiconductor", "nuclear",
+                                   "polymer", "semiconductor fabrication", "nuclear engineering",
                                    "system architecture", "system design",
-                                   "product design"]),
-    ("physics",                  ["acoustics", "acoustical", "wave ", "oscillation",
+                                   "product engineering"]),
+    ("physics",                  ["acoustics", "acoustical", "wave mechanics",
+                                   "wave propagation", "oscillation",
                                    "electromagnetic", "laser", "photonics",
                                    "spectroscopy", "geophysics"]),
     ("ecology",                  ["ocean", "atmosphere", "climate change",
@@ -831,7 +831,7 @@ RULES = [
                                    "global warming", "water resources",
                                    "watershed", "urban ecology"]),
     ("sociology",                ["urban", "city", "cities", "community",
-                                   "development", "negotiation", "public sector",
+                                   "negotiation", "public sector",
                                    "immigration", "poverty",
                                    "inequality", "governance",
                                    "media studies", "journalism"]),
@@ -901,6 +901,11 @@ def main():
     slug_to_id = {row[0]: row[1] for row in cur.fetchall()}
     subject_slugs = set(slug_to_id.keys())
 
+    if RESET_FIRST:
+        cur.execute("DELETE FROM course_subjects")
+        conn.commit()
+        print("Deleted all existing course_subjects (RESET mode)", flush=True)
+
     # Load existing tags
     cur.execute("SELECT course_id, subject_id FROM course_subjects")
     existing = set(cur.fetchall())
@@ -911,35 +916,53 @@ def main():
     courses = cur.fetchall()
     print(f"Courses to tag: {len(courses)}", flush=True)
 
-    def tag(course_id, slugs):
+    inserted = 0
+    pending: list[tuple] = []
+
+    def flush():
         nonlocal inserted
-        for slug in slugs:
+        if not pending:
+            return
+        cur.executemany(
+            "INSERT INTO course_subjects (course_id, subject_id) VALUES (%s, %s)"
+            " ON CONFLICT DO NOTHING",
+            pending,
+        )
+        inserted += len(pending)
+        pending.clear()
+
+    for course_id, title, description, source_url, source_key in courses:
+        combined = build_title_lower(title, description)
+        matched_slugs = match_subjects(combined, subject_slugs)
+
+        course_sids: list[tuple] = []
+        for slug in matched_slugs:
             if slug not in slug_to_id:
                 continue
             sid = slug_to_id[slug]
             key = (course_id, sid)
             if key not in existing:
-                cur.execute(
-                    "INSERT INTO course_subjects (course_id, subject_id) VALUES (%s, %s)"
-                    " ON CONFLICT DO NOTHING",
-                    (course_id, sid),
-                )
+                pending.append(key)
                 existing.add(key)
-                inserted += 1
-
-    inserted = 0
-    for course_id, title, description, source_url, source_key in courses:
-        combined = build_title_lower(title, description)
-        matched_slugs = match_subjects(combined, subject_slugs)
-        tag(course_id, matched_slugs)
+                course_sids.append(key)
 
         # MIT course-number fallback: if nothing matched, assign dept default
-        current_tags = {k for k in existing if k[0] == course_id}
-        if not current_tags and source_key == "mit_ocw":
+        if not course_sids and source_key == "mit_ocw":
             dept = extract_mit_dept(source_url)
             if dept and dept in MIT_DEPT_MAP:
-                tag(course_id, MIT_DEPT_MAP[dept])
+                for slug in MIT_DEPT_MAP[dept]:
+                    if slug not in slug_to_id:
+                        continue
+                    sid = slug_to_id[slug]
+                    key = (course_id, sid)
+                    if key not in existing:
+                        pending.append(key)
+                        existing.add(key)
 
+        if len(pending) >= 500:
+            flush()
+
+    flush()
     conn.commit()
     print(f"Inserted {inserted} new tags", flush=True)
 
