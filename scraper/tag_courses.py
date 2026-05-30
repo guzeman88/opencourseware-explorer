@@ -224,7 +224,7 @@ RULES = [
     ("analysis",                 ["mathematical analysis", "real analysis", "complex analysis",
                                    "functional analysis", "advanced calculus"]),
     ("real-analysis",            ["real analysis", "advanced calculus", "metric space",
-                                   "measure theory", "riemann integral", "lebesgue"]),
+                                   "riemann integral"]),
     ("complex-analysis",         ["complex analysis", "complex variables", "analytic functions",
                                    "contour integration", "cauchy", "complex function",
                                    "holomorphic"]),
