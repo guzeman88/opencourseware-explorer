@@ -155,6 +155,7 @@ async def list_courses_endpoint(
         source_key=source_key,
         has_video_lectures=has_video_lectures,
         has_thumbnail=has_thumbnail,
+        is_published=True,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -181,6 +182,7 @@ async def featured_courses(
     filters = CourseFilters(
         has_video_lectures=True,
         has_thumbnail=True,
+        is_published=True,
         page=1,
         page_size=page_size,
         sort_by="view_count",
