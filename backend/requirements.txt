@@ -15,4 +15,4 @@ aiofiles==23.2.1
 pillow==10.3.0
 python-slugify==8.0.4
 slowapi==0.1.9
-sentry-sdk[fastapi]==2.8.0
+sentry-sdk[fastapi]==2.9.0

@@ -4,13 +4,12 @@ import {
   FlatList,
   ActivityIndicator,
   StyleSheet,
-  Pressable,
+  TouchableOpacity,
   Image,
 } from "react-native";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fetchCourses } from "@/lib/api";
+import { fetchFeaturedCourses, fetchCourses } from "@/lib/api";
 import type { CourseSummary } from "@/types";
 
 function CourseCard({
@@ -22,14 +21,17 @@ function CourseCard({
 }) {
   const thumb =
     course.thumbnail_url ??
-    `https://i.ytimg.com/vi/${course.university_slug}/hqdefault.jpg`;
+    (course.youtube_playlist_id
+      ? `https://i.ytimg.com/vi_webp/${course.youtube_playlist_id}/mqdefault.webp`
+      : undefined);
 
   return (
-    <Pressable style={styles.card} onPress={onPress} android_ripple={{ color: "#333" }}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <Image
-        source={{ uri: thumb }}
+        source={thumb ? { uri: thumb } : require("../../assets/placeholder.png")}
         style={styles.thumbnail}
         resizeMode="cover"
+        defaultSource={require("../../assets/placeholder.png")}
       />
       <View style={styles.cardInfo}>
         <Text style={styles.cardTitle} numberOfLines={2}>
@@ -39,38 +41,18 @@ function CourseCard({
           {course.university_name} · {course.total_videos} lectures
         </Text>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
 export default function BrowseScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["browse_infinite"],
-    queryFn: ({ pageParam = 1 }) =>
-      fetchCourses({
-        has_video_lectures: true,
-        sort_by: "view_count",
-        sort_dir: "desc",
-        page: pageParam,
-        page_size: 24,
-      }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
+  const { data, isLoading } = useQuery({
+    queryKey: ["featured"],
+    queryFn: () => fetchFeaturedCourses(30),
   });
 
-  const courses = data?.pages.flatMap((p) => p.items) ?? [];
+  const courses = data?.items ?? [];
 
   if (isLoading) {
     return (
@@ -80,19 +62,9 @@ export default function BrowseScreen() {
     );
   }
 
-  if (isError) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Couldn't load courses.</Text>
-        <Pressable style={styles.retryBtn} onPress={() => refetch()}>
-          <Text style={styles.retryText}>Try again</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
+      <Text style={styles.heading}>Featured Courses</Text>
       <FlatList
         data={courses}
         keyExtractor={(item) => item.id}
@@ -104,21 +76,8 @@ export default function BrowseScreen() {
             onPress={() => router.push(`/course/${item.slug}`)}
           />
         )}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-        }}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <ActivityIndicator
-              size="small"
-              color="#e50914"
-              style={{ marginVertical: 16 }}
-            />
-          ) : null
-        }
       />
     </View>
   );
@@ -126,8 +85,16 @@ export default function BrowseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#141414" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414", gap: 12 },
-  list: { paddingHorizontal: 8, paddingTop: 8 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#141414" },
+  heading: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#fff",
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  list: { paddingHorizontal: 8, paddingBottom: 24 },
   row: { gap: 8, marginBottom: 8 },
   card: {
     flex: 1,
@@ -141,12 +108,4 @@ const styles = StyleSheet.create({
   cardInfo: { padding: 8, gap: 4 },
   cardTitle: { color: "#fff", fontSize: 12, fontWeight: "600", lineHeight: 16 },
   cardMeta: { color: "#888", fontSize: 11 },
-  errorText: { color: "#aaa", fontSize: 15 },
-  retryBtn: {
-    backgroundColor: "#e50914",
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: { color: "#fff", fontWeight: "600" },
 });

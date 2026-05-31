@@ -8,17 +8,17 @@ services:
     region: oregon
     envVars:
       - key: DATABASE_URL
-        sync: false
+        sync: false  # Set in Render dashboard → Environment (Neon connection string)
       - key: ENVIRONMENT
         value: production
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_EMAIL
-        sync: false
+        sync: false  # Set in Render dashboard → Environment
       - key: ADMIN_PASSWORD
-        sync: false
+        sync: false  # Set in Render dashboard → Environment
       - key: CORS_ORIGINS
-        sync: false
+        sync: false  # Set in Render dashboard: https://opencourseware-explorer.netlify.app
       - key: DEBUG
         value: "false"
       - key: PORT

@@ -13,11 +13,8 @@ import {
   X,
   BarChart2,
   Clock,
-  Scissors,
-  GraduationCap as Logo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { adminLogout } from "@/lib/api";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -26,7 +23,6 @@ const navItems = [
   { href: "/admin/courses", label: "Courses", icon: BookOpen },
   { href: "/admin/pending-review", label: "Pending Review", icon: Clock },
   { href: "/admin/scraper", label: "Scraper Jobs", icon: Play },
-  { href: "/admin/silence-test", label: "Silence Test", icon: Scissors },
 ];
 
 export default function AdminLayout({
@@ -50,8 +46,9 @@ export default function AdminLayout({
 
   function handleLogout() {
     localStorage.removeItem("ocw_token");
-    // Clear the httpOnly session cookie via the backend logout endpoint.
-    adminLogout().finally(() => router.push("/admin/login"));
+    // Clear the session cookie the middleware uses
+    document.cookie = "ocw_session=; path=/; max-age=0";
+    router.push("/admin/login");
   }
 
   if (authed === null) return null;
@@ -59,35 +56,31 @@ export default function AdminLayout({
   if (pathname === "/admin/login") return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-60 flex flex-col transition-transform duration-300",
-          "border-r border-white/[0.06] bg-card/60 backdrop-blur-xl",
+          "fixed inset-y-0 left-0 z-40 w-56 bg-card border-r border-border flex flex-col transition-transform",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           "md:static md:translate-x-0"
         )}
       >
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between px-5 h-16 border-b border-white/[0.06] shrink-0">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <Logo className="h-5 w-5 text-primary" />
-            <div>
-              <p className="font-bold text-sm leading-none tracking-tight">The Commons</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Admin Panel</p>
-            </div>
-          </Link>
+        <div className="flex items-center justify-between px-4 h-16 border-b border-border shrink-0">
+          <span className="font-bold text-sm">Admin Panel</span>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-white/[0.06] transition-colors"
+            className="md:hidden text-muted-foreground"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-0.5">
           {navItems.map(({ href, label, icon: Icon, exact }) => {
+            const active = exact
+              ? pathname === href
+              : pathname.startsWith(href) && pathname !== href ||
+                (exact && pathname === href);
             const isActive = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -95,29 +88,26 @@ export default function AdminLayout({
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary/15 text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/[0.05]"
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "")} />
+                <Icon className="h-4 w-4" />
                 {label}
-                {isActive && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-white/[0.06]">
+        <div className="p-2 border-t border-border">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/[0.05] w-full transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 w-full transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            Log Out
           </button>
         </div>
       </aside>
@@ -125,24 +115,24 @@ export default function AdminLayout({
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-white/[0.06] flex items-center px-4 gap-3 md:hidden bg-card/60 backdrop-blur-xl">
+        <header className="h-16 border-b border-border flex items-center px-4 gap-3 md:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-white/[0.06] transition-colors"
+            className="text-muted-foreground"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-semibold text-sm">Admin Panel</span>
+          <span className="font-semibold">Admin</span>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full">{children}</main>
+        <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
     </div>
   );

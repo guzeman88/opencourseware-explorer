@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Auth / Security
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 8  # 8 hours
+    access_token_expire_minutes: int = 60 * 24 * 7  # 1 week
 
     # Admin credentials (hashed at startup via passlib)
     admin_email: str = "admin@example.com"
@@ -54,11 +54,11 @@ class Settings(BaseSettings):
     youtube_api_key: str = ""
     youtube_base_url: str = "https://www.googleapis.com/youtube/v3"
 
+    # Sentry
+    sentry_dsn: str = ""
+
     # Redis (optional cache)
     redis_url: str = "redis://localhost:6379"
-
-    # Sentry (optional error tracking; leave empty to disable)
-    sentry_dsn: str = ""
 
     # Pagination
     default_page_size: int = 24
@@ -79,6 +79,14 @@ class Settings(BaseSettings):
             dotenv_settings,
             file_secret_settings,
         )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
 
 
 @lru_cache
