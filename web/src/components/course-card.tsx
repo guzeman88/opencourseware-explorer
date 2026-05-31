@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Play, BookOpen, Bookmark } from "lucide-react";
-import { cn, levelLabel, levelColor, thumbnailUrl, universityGradient, formatNumber } from "@/lib/utils";
+import { Play, Bookmark } from "lucide-react";
+import { cn, thumbnailUrl, universityGradient } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useAuthModal } from "@/providers/auth-modal-provider";
 import { useLibraryStatus, useLibraryToggle } from "@/hooks/use-library";
@@ -93,24 +93,6 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
           </div>
         </div>
 
-        {/* Bookmark button */}
-        <button
-          onClick={handleBookmark}
-          className={cn(
-            "absolute top-1.5 left-1.5 transition-opacity rounded-full p-1.5",
-            "bg-black/60 hover:bg-black/80",
-            saved ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          )}
-          aria-label={saved ? "Remove from library" : "Save to library"}
-        >
-          <Bookmark
-            className={cn(
-              "h-3.5 w-3.5",
-              saved ? "fill-primary text-primary" : "text-white"
-            )}
-          />
-        </button>
-
         {/* Video count badge */}
         {course.total_videos > 0 && (
           <div className="absolute top-1.5 right-1.5 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1">
@@ -121,39 +103,27 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
       </div>
 
       {/* Info */}
-      <div className="p-3 space-y-1.5">
-        {/* Level badge */}
-        <div className="flex items-center justify-between">
-          <span
-            className={cn(
-              "text-xs px-1.5 py-0.5 rounded-full font-medium",
-              levelColor(course.level)
-            )}
-          >
-            {levelLabel(course.level)}
-          </span>
-          {course.view_count !== undefined && course.view_count > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {formatNumber(course.view_count)} views
-            </span>
-          )}
-        </div>
-
+      <div className="p-3 space-y-1">
         {/* Title */}
         <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">
           {course.title}
         </h3>
 
-        {/* University */}
-        <p className="text-xs text-muted-foreground">{course.university_name}</p>
-
-        {/* Material icons */}
-        <div className="flex items-center gap-2 pt-0.5">
-          {course.has_video_lectures && (
-            <span title="Video Lectures">
-              <BookOpen className="h-3 w-3 text-primary" />
-            </span>
-          )}
+        {/* University + Bookmark */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground truncate">{course.university_name}</p>
+          <button
+            onClick={handleBookmark}
+            className="shrink-0 rounded-full p-1 hover:bg-accent transition-colors"
+            aria-label={saved ? "Remove from library" : "Save to library"}
+          >
+            <Bookmark
+              className={cn(
+                "h-4 w-4",
+                saved ? "fill-primary text-primary" : "text-muted-foreground"
+              )}
+            />
+          </button>
         </div>
       </div>
     </Link>
