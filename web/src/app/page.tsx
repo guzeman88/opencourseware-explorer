@@ -1,4 +1,3 @@
-import { HeroBanner } from "@/components/hero-banner";
 import { CourseRow } from "@/components/course-row";
 import { UniversityGrid } from "@/components/university-grid";
 import type { PaginatedList, CourseSummary } from "@/types";
@@ -26,9 +25,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-0">
-      <HeroBanner />
-
-      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 -mt-32 relative z-10">
+      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 pt-8 relative z-10">
 
         {/* ── Above the fold ─────────────────────────────────────── */}
         <CourseRow title="Featured Courses"           queryKey="featured"   fetchType="featured"  initialData={featured} priority />
