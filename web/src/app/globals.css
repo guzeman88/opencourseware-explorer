@@ -2,26 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes splash-out {
+  from { opacity: 1; }
+  to   { opacity: 0; visibility: hidden; }
+}
+
+#app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  pointer-events: none;
+  animation: splash-out 0.35s ease-out 0.55s both;
+}
+
+#app-splash-title {
+  color: #fafafa;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
 @layer base {
   :root {
-    --background: 220 13% 5%;
-    --foreground: 0 0% 97%;
-    --card: 220 10% 8%;
-    --card-foreground: 0 0% 97%;
-    --primary: 0 78% 56%;
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+    --primary: 0 72% 51%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 220 10% 13%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 220 10% 13%;
-    --muted-foreground: 220 6% 58%;
-    --accent: 220 10% 16%;
-    --accent-foreground: 0 0% 97%;
-    --border: 220 10% 18%;
-    --input: 220 10% 13%;
-    --ring: 0 78% 56%;
-    --radius: 0.625rem;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 72% 51%;
+    --radius: 0.5rem;
   }
 }
 
@@ -30,26 +55,15 @@
     @apply border-border;
   }
 
-  /* Set background on html element so iOS WKWebView never shows white:
-     - html element is the compositing root in WKWebView standalone mode
-     - body bg-background doesn't apply until Tailwind CSS loads
-     - Without this, iOS sees a transparent (rendered as white) background
-       during script parse, CSS load, and PWA launch splash generation */
-  html {
-    background-color: hsl(220, 13%, 5%);
-  }
-
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -57,12 +71,11 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(220, 10%, 22%);
-    border-radius: 100px;
+    @apply bg-muted rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(220, 6%, 38%);
+    @apply bg-muted-foreground;
   }
 }
 
@@ -81,150 +94,17 @@
     overflow: hidden;
   }
 
-  /* iOS/Android PWA safe-area utilities. */
-  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
-  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
-  .pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
-  .pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }
-
   /* Netflix-style row scroll */
   .scroll-row {
     display: flex;
     overflow-x: auto;
-    overflow-y: clip;          /* clip scaled cards vertically without blocking horizontal scroll */
     gap: 0.75rem;
-    padding-bottom: 0.75rem;  /* extra breathing room so card shadows aren't clipped */
-    padding-top: 0.25rem;     /* room for upward translateY on hover */
+    padding-bottom: 0.5rem;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-  }
-
-  /* Each direct child of scroll-row gets a fixed responsive width */
-  .scroll-row > * {
-    flex-shrink: 0;
-    width: 160px;
-  }
-  @media (min-width: 480px) {
-    .scroll-row > * { width: 185px; }
-  }
-  @media (min-width: 640px) {
-    .scroll-row > * { width: 200px; }
-  }
-  @media (min-width: 768px) {
-    .scroll-row > * { width: 220px; }
   }
 
   .scroll-row::-webkit-scrollbar {
     display: none;
   }
-
-  /* Skip rendering off-screen rows entirely */
-  .content-row {
-    content-visibility: auto;
-    contain-intrinsic-size: 0 290px;
-  }
-
-  /* Premium card hover — pointer-device only to prevent mobile tap-overlap */
-  .card-hover {
-    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                box-shadow 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                border-color 0.25s ease;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .card-hover:hover {
-      transform: translateY(-3px) scale(1.025);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px hsl(var(--primary)/0.3);
-    }
-  }
-
-  /* Gradient text */
-  .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0, 90%, 72%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Fade edge masks for horizontally scrolling rows */
-  .fade-edges {
-    mask-image: linear-gradient(
-      to right,
-      transparent 0%,
-      black 2%,
-      black 98%,
-      transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-      to right,
-      transparent 0%,
-      black 2%,
-      black 98%,
-      transparent 100%
-    );
-  }
-
-  /* Glass morphism */
-  .glass {
-    background: hsl(var(--card) / 0.7);
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  }
-}
-
-/* Modal / overlay entrance animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in   { animation: fadeIn  0.2s ease forwards; }
-.animate-slide-up  { animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
-.animate-slide-down { animation: slideDown 0.2s ease forwards; }
-
-/* ── Row reveal — staggered card slide-up when data loads ─────────────── */
-@keyframes cardReveal {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* All cards in a revealed row animate in */
-.row-revealed .scroll-row > * {
-  animation: cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Stagger — each card starts 50ms after the previous */
-.row-revealed .scroll-row > *:nth-child(1)  { animation-delay:   0ms; }
-.row-revealed .scroll-row > *:nth-child(2)  { animation-delay:  50ms; }
-.row-revealed .scroll-row > *:nth-child(3)  { animation-delay: 100ms; }
-.row-revealed .scroll-row > *:nth-child(4)  { animation-delay: 150ms; }
-.row-revealed .scroll-row > *:nth-child(5)  { animation-delay: 200ms; }
-.row-revealed .scroll-row > *:nth-child(6)  { animation-delay: 250ms; }
-.row-revealed .scroll-row > *:nth-child(7)  { animation-delay: 300ms; }
-.row-revealed .scroll-row > *:nth-child(8)  { animation-delay: 350ms; }
-.row-revealed .scroll-row > *:nth-child(n+9){ animation-delay: 400ms; }
-
-/* Skeleton shimmer — richer than plain pulse */
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
-}
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--muted) / 0.5) 50%,
-    hsl(var(--muted)) 75%
-  );
-  background-size: 800px 100%;
-  animation: shimmer 1.4s linear infinite;
 }

@@ -44,6 +44,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
+        {/* Splash – covers the initial black screen, fades out once JS loads */}
+        <div id="app-splash" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 32 32">
+            <rect width="32" height="32" rx="6" fill="#0f172a"/>
+            <g transform="translate(4,4) scale(0.833333)" stroke="#d93025" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none">
+              <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/>
+              <path d="M22 10v6"/>
+              <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>
+            </g>
+          </svg>
+          <span id="app-splash-title">The Commons</span>
+        </div>
         <Suspense>
           <GoogleAnalytics />
         </Suspense>
