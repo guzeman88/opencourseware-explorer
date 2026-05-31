@@ -1,222 +1,142 @@
-# OpenCourseWare Explorer
+# The Commons — OpenCourseWare Explorer
 
-A Netflix-style platform for browsing thousands of free university courses from MIT, Yale, Stanford, Harvard, UC Berkeley, NPTEL and more — all on YouTube.
+A Netflix-style platform for browsing 9,700+ free university courses from MIT, Yale, Stanford, Harvard, UC Berkeley, NPTEL, freeCodeCamp, and more — all on YouTube.
+
+**Live site:** https://opencourseware-explorer.netlify.app  
+**API:** https://opencourseware-api.onrender.com/docs  
+**Repo:** https://github.com/guzeman88/opencourseware-explorer
+
+> For setup instructions, deployment procedures, data protection, and team workflows see **[OPERATIONS.md](OPERATIONS.md)**.
+
+---
 
 ## Architecture
 
 ```
 opencourseware/
-├── backend/          # FastAPI REST API (Python 3.12)
-├── scraper/          # Async scrapers + ingestion pipeline
-├── web/              # Next.js 14 frontend (TypeScript, Tailwind)
-├── mobile/           # Expo React Native app (planned)
+├── backend/          # FastAPI REST API (Python 3.12) → deployed on Render
+├── scraper/          # Data ingestion pipeline (Python, run locally or on-demand)
+├── web/              # Next.js 14 frontend (TypeScript, Tailwind) → deployed on Netlify
+├── mobile/           # Expo React Native app (not yet deployed)
 ├── docker-compose.yml
 └── Makefile
 ```
 
-### Stack
+### Production Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend API | FastAPI 0.111, SQLAlchemy 2.0 async, Alembic |
-| Database | PostgreSQL 16 (asyncpg driver) |
-| Cache/Queue | Redis 7 |
-| Auth | JWT (python-jose + bcrypt) |
-| Scrapers | aiohttp, BeautifulSoup, YouTube Data API v3 |
-| Frontend | Next.js 14 App Router, TypeScript, Tailwind CSS |
-| State | TanStack Query v5, Zustand |
-| UI Primitives | Radix UI, Lucide Icons, Framer Motion |
-| Video | react-player (YouTube embed) |
-| Testing (BE) | pytest + pytest-asyncio, SQLite in-memory |
-| Testing (FE) | Jest + Testing Library |
-| Containers | Docker Compose |
+| Layer | Technology | Host |
+|-------|-----------|------|
+| Frontend | Next.js 14.2 App Router, TypeScript, Tailwind CSS | Netlify |
+| Backend API | FastAPI 0.111, SQLAlchemy 2.0 async | Render (free tier) |
+| Database | PostgreSQL (Neon serverless) | Neon |
+| Auth | JWT via `python-jose` + `pbkdf2_sha256` | — |
+| Data fetching | TanStack Query v5 (client), `fetch` with ISR (server) | — |
+| Error tracking | Sentry (`@sentry/nextjs`) | Sentry |
+| Analytics | Google Analytics 4 (via `NEXT_PUBLIC_GA_MEASUREMENT_ID`) | Google |
+| Scrapers | aiohttp, BeautifulSoup, YouTube Data API v3 | Local / manual |
 
-## Quick Start
+---
+
+## Quick Start (Local Development)
 
 ### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+ (for local web dev)
-- Python 3.12+ (for local backend/scraper dev)
-- YouTube Data API v3 key (optional but recommended)
+- Node.js 20+ and Python 3.12+
+- A Neon account (or any PostgreSQL 15+ instance)
+- YouTube Data API v3 key (for scraper enrichment)
 
-### 1. Clone & Configure
+### 1. Clone & configure
 
 ```bash
-git clone <repo-url>
-cd opencourseware
+git clone https://github.com/guzeman88/opencourseware-explorer.git
+cd opencourseware-explorer
 
-# Copy and fill in secrets
 cp .env.example .env
-# Edit .env: set POSTGRES_PASSWORD, SECRET_KEY, YOUTUBE_API_KEY, etc.
+# Edit .env — see OPERATIONS.md §3 for every variable explained
 ```
 
-### 2. Start all services
-
-```bash
-make up
-# or: docker compose up --build -d
-```
-
-Services:
-- **Backend API**: http://localhost:8000  →  docs at http://localhost:8000/docs
-- **Web App**: http://localhost:3000
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
-
-### 3. Run scrapers to populate data
-
-```bash
-# Scrape all universities (requires YOUTUBE_API_KEY for video metadata)
-make scrape
-
-# Or scrape a single source
-make scrape-source SOURCE=mit_ocw
-
-# Available sources: mit_ocw, yale_ocw, stanford, nptel, berkeley, harvard, all
-```
-
-The MIT scraper reads from the provided CSV (2,563 courses). All other scrapers use curated seed data + live YouTube API enrichment.
-
-## Development
-
-### Backend
+### 2. Run the backend
 
 ```bash
 cd backend
-python -m venv .venv && .venv/Scripts/activate  # Windows
-pip install -r requirements.txt -r requirements-dev.txt
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -r requirements.txt
 
-# Run with auto-reload
+# Point at your database
+export DATABASE_URL="postgresql+asyncpg://..."
 uvicorn app.main:app --reload --port 8000
-
-# Run tests
-pytest -v
+# → http://localhost:8000/docs
 ```
 
-### Web
+### 3. Run the web frontend
 
 ```bash
 cd web
 npm install
-cp .env.local.example .env.local  # set NEXT_PUBLIC_API_URL
-
-npm run dev     # http://localhost:3000
-npm test        # Jest tests
-npm run build   # Production build
+# Create web/.env.local with: NEXT_PUBLIC_API_URL=http://localhost:8000
+npm run dev
+# → http://localhost:3000
 ```
 
-### Scrapers
-
-```bash
-cd scraper
-pip install -r requirements.txt
-
-# Run from project root with DATABASE_URL set
-python run_scrapers.py --source mit_ocw
-python run_scrapers.py --source all
-
-# Tests
-pytest -v
-```
+---
 
 ## API Reference
 
-Full OpenAPI docs: http://localhost:8000/docs
+Full interactive docs: https://opencourseware-api.onrender.com/docs
 
-### Key Endpoints
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v1/courses` | — | List/filter courses with pagination |
+| GET | `/api/v1/courses/featured` | — | Top view-count courses with video |
+| GET | `/api/v1/courses/{slug}` | — | Course detail with video list |
+| GET | `/api/v1/universities` | — | List universities |
+| GET | `/api/v1/universities/{slug}/courses` | — | Courses by university |
+| GET | `/api/v1/subjects` | — | Subject taxonomy |
+| GET | `/api/v1/search?q=...` | — | Full-text course search |
+| POST | `/api/v1/users/register` | — | Create user account |
+| POST | `/api/v1/users/login` | — | Authenticate, returns JWT |
+| GET | `/api/v1/users/me` | Bearer | Current user profile |
+| GET | `/api/v1/users/me/library` | Bearer | Saved courses list |
+| POST | `/api/v1/users/me/library` | Bearer | Bookmark a course |
+| DELETE | `/api/v1/users/me/library/{id}` | Bearer | Remove bookmark |
+| POST | `/api/v1/admin/auth/login` | — | Admin JWT login |
+| GET | `/api/v1/admin/stats` | Admin | Platform statistics |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/courses` | List/filter courses (pagination, search, filters) |
-| GET | `/api/v1/courses/featured` | Top courses with video, sorted by views |
-| GET | `/api/v1/courses/{slug}` | Course detail with videos |
-| GET | `/api/v1/universities` | List universities |
-| GET | `/api/v1/universities/{slug}/courses` | University's courses |
-| GET | `/api/v1/subjects` | Subject taxonomy |
-| GET | `/api/v1/search?q=...` | Full-text search |
-| POST | `/api/v1/admin/auth/login` | Admin JWT login |
-| GET | `/api/v1/admin/stats` | Platform statistics |
-| POST | `/api/v1/admin/scraper/jobs` | Trigger scraper job |
+---
 
-### Course Filters
+## Data Snapshot (as of May 2026)
 
-```
-GET /api/v1/courses?q=algorithms&university_slug=mit&level=graduate&has_video_lectures=true&page=2&sort_by=view_count
-```
+| Source | Courses | Has Video |
+|--------|---------|-----------|
+| MIT OCW | ~2,573 | partial |
+| NPTEL (IIT/IISc) | ~3,200 | most |
+| Harvard | ~142 | most |
+| freeCodeCamp | ~700 | all |
+| CrashCourse | ~44 | all |
+| Stanford | ~130 | most |
+| UC Berkeley | ~300 | partial |
+| Yale | ~42 | most |
+| + 10 other sources | — | — |
+| **Total** | **9,726** | **73.8% tagged** |
 
-Parameters: `q`, `university_slug`, `subject_slug`, `level`, `source_key`, `has_video_lectures`, `page`, `page_size`, `sort_by`, `sort_dir`
+---
 
-## Data Sources
+## Key Environment Variables
 
-| Source | Courses | Notes |
-|--------|---------|-------|
-| MIT OCW | 2,563 | From CSV; video lectures, notes, exams tracked |
-| Stanford | 13 | CS229 ML, CS231n, CS224n NLP, CS285 RL, iOS, etc. |
-| Yale | 15 | Death, Game Theory, Financial Markets, OYC series |
-| Harvard | 8 | CS50 family, Justice, Abstract Algebra |
-| UC Berkeley | 10 | CS61A/B/C, EE16A/B, CS285 |
-| NPTEL | 15 | IIT/IISc courses across CS, Math, Physics, EE |
+See `.env.example` and **[OPERATIONS.md §3](OPERATIONS.md)** for the complete reference.
 
-## Environment Variables
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `DATABASE_URL` | Backend | Full asyncpg connection string to Neon |
+| `SECRET_KEY` | Backend | JWT signing key — generate: `openssl rand -hex 32` |
+| `YOUTUBE_API_KEY` | Scraper | Required for video enrichment |
+| `NEXT_PUBLIC_API_URL` | Frontend | URL of the deployed backend |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Frontend | Google Analytics 4 Measurement ID |
 
-See `.env.example` for the full list. Key variables:
-
-| Variable | Description |
-|----------|-------------|
-| `POSTGRES_*` | Database connection details |
-| `SECRET_KEY` | JWT signing secret (generate with `openssl rand -hex 32`) |
-| `YOUTUBE_API_KEY` | YouTube Data API v3 key for video metadata enrichment |
-| `ADMIN_EMAIL` | Bootstrap admin user email |
-| `ADMIN_PASSWORD` | Bootstrap admin user password |
-| `NEXT_PUBLIC_API_URL` | Frontend → backend URL |
-
-## Admin Panel
-
-Navigate to http://localhost:3000/admin
-
-Default credentials come from `.env` → `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
-
-Features:
-- Dashboard with platform statistics
-- Universities list
-- Courses table with search/filter
-- Scraper job triggers with live status polling
-
-## Running Tests
-
-```bash
-# All backend tests
-make test-backend
-
-# All scraper tests
-make test-scraper
-
-# All web tests
-make test-web
-
-# Everything
-make test
-```
-
-## Makefile Reference
-
-```bash
-make up              # Start all Docker services
-make down            # Stop all services
-make build           # Rebuild images
-make scrape          # Run all scrapers
-make scrape-source SOURCE=mit_ocw  # Single source
-make test            # Run all tests
-make test-backend    # Backend pytest
-make test-scraper    # Scraper pytest
-make test-web        # Web jest
-make migrate         # Run Alembic migrations
-make shell-backend   # Bash into backend container
-make shell-db        # psql into database
-make logs            # Follow all service logs
-```
+---
 
 ## License
 
-All course content belongs to the respective universities. This platform is an aggregator/index only.
-MIT License for the application code.
+All course content belongs to the respective universities and creators. This platform is an index/aggregator only.  
+Application code: MIT License.
+

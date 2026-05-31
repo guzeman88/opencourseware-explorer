@@ -1,810 +1,780 @@
-# OCW Explorer — Operations & Developer Guide
+# The Commons — Operations & Developer Runbook
 
-Everything you need to build, run, change, and deploy this app.
+This is the single source of truth for building, running, deploying, and maintaining The Commons. If something is not in here, add it.
 
 ---
 
 ## Table of Contents
 
-1. [Repo Structure](#1-repo-structure)
-2. [Architecture Overview](#2-architecture-overview)
-3. [Environment Variables](#3-environment-variables)
-4. [Local Development](#4-local-development)
-5. [Backend (FastAPI)](#5-backend-fastapi)
-6. [Web Frontend (Next.js)](#6-web-frontend-nextjs)
-7. [Mobile App (Expo)](#7-mobile-app-expo)
-8. [Scraper Pipeline](#8-scraper-pipeline)
-9. [Database & Migrations](#9-database--migrations)
-10. [Deployment](#10-deployment)
-11. [Making and Shipping Changes](#11-making-and-shipping-changes)
-12. [Testing](#12-testing)
-13. [Monitoring & Error Tracking](#13-monitoring--error-tracking)
-14. [Common Tasks](#14-common-tasks)
+1. [Production Infrastructure](#1-production-infrastructure)
+2. [Where All Data Lives](#2-where-all-data-lives)
+3. [Data Protection & Backup](#3-data-protection--backup)
+4. [Environment Variables Reference](#4-environment-variables-reference)
+5. [Local Development Setup](#5-local-development-setup)
+6. [Backend (FastAPI)](#6-backend-fastapi)
+7. [Web Frontend (Next.js)](#7-web-frontend-nextjs)
+8. [Mobile App (Expo)](#8-mobile-app-expo)
+9. [Scraper Pipeline](#9-scraper-pipeline)
+10. [Database & Migrations](#10-database--migrations)
+11. [Deployment](#11-deployment)
+12. [How to Ship Changes](#12-how-to-ship-changes)
+13. [Known Bugs & Technical Debt](#13-known-bugs--technical-debt)
+14. [Monitoring & Alerting](#14-monitoring--alerting)
+15. [Common Runbook Tasks](#15-common-runbook-tasks)
 
 ---
 
-## 1. Repo Structure
+## 1. Production Infrastructure
 
 ```
-opencourseware/                  ← git repo root (github.com/guzeman88/opencourseware-explorer)
-├── backend/                     ← FastAPI REST API
-│   ├── app/
-│   │   ├── config.py            ← All settings (reads .env)
-│   │   ├── main.py              ← App factory, middleware, lifespan hooks
-│   │   ├── database.py          ← Async SQLAlchemy engine + session factory
-│   │   ├── models/              ← SQLAlchemy ORM models
-│   │   ├── schemas/             ← Pydantic request/response schemas
-│   │   ├── crud/                ← DB query functions
-│   │   ├── routers/             ← Route handlers (courses, universities, search, admin…)
-│   │   └── services/            ← Auth (JWT + bcrypt), business logic
-│   ├── migrations/              ← Alembic migration scripts
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── requirements-dev.txt
-│   ├── railway.toml             ← Railway deployment config
-│   └── render.yaml              ← Render deployment config
-├── web/                         ← Next.js 14 frontend (PWA)
-│   ├── src/app/                 ← Next.js App Router pages
-│   │   ├── page.tsx             ← Homepage (ISR, server component)
-│   │   ├── layout.tsx           ← App shell (QueryProvider, Sentry, PWA)
-│   │   ├── courses/             ← Course detail page
-│   │   ├── universities/        ← University listing + detail
-│   │   ├── subjects/            ← Subject listing
-│   │   ├── search/              ← Search page
-│   │   ├── browse/              ← Browse/filter page
-│   │   ├── library/             ← Saved courses (client-only)
-│   │   ├── roadmaps/            ← Learning roadmaps
-│   │   └── admin/               ← Admin dashboard
-│   ├── src/components/          ← Reusable UI components
-│   ├── src/hooks/               ← Custom React hooks
-│   ├── src/lib/                 ← API client, utilities
-│   ├── src/providers/           ← QueryProvider, ThemeProvider
-│   ├── src/types/               ← Shared TypeScript types
-│   ├── next.config.js           ← Next.js + Sentry + bundle analyser config
-│   ├── Dockerfile               ← Multi-stage Docker build
-│   └── package.json
-├── mobile/                      ← Expo React Native app
-│   ├── app/
-│   │   ├── (tabs)/              ← Tab-based navigation root
-│   │   │   ├── index.tsx        ← Browse/Home tab
-│   │   │   ├── search.tsx       ← Search tab
-│   │   │   ├── universities.tsx ← Universities tab
-│   │   │   └── saved.tsx        ← Saved courses tab
-│   │   ├── course/              ← Course detail screen
-│   │   └── universities/        ← University screen
-│   ├── app.json                 ← Expo app config (bundle IDs, plugins)
-│   ├── eas.json                 ← EAS Build profiles (dev/preview/prod)
-│   └── package.json
-├── scraper/                     ← Data ingestion pipeline
-│   ├── scrapers/                ← Per-university scrapers
-│   │   ├── mit_ocw.py
-│   │   ├── yale_ocw.py
-│   │   ├── stanford.py
-│   │   ├── harvard.py
-│   │   ├── berkeley.py
-│   │   ├── nptel.py
-│   │   └── youtube_api.py       ← YouTube Data API client
-│   ├── pipeline/
-│   │   └── ingester.py          ← Normalises scraped data → DB upserts
-│   ├── run_scrapers.py          ← CLI entry point: --source mit_ocw|all|…
-│   └── requirements.txt
-├── docker-compose.yml           ← Local dev: db + redis + backend + web + scraper
-├── docker-compose.prod.yml      ← Production overrides (no port exposure, workers=2)
-├── Makefile                     ← All common commands (see §4)
-└── OPERATIONS.md                ← This file
+Users
+  │
+  ▼
+Netlify CDN  ──────────────────────────────────────────────────────────────
+  │  https://opencourseware-explorer.netlify.app                          │
+  │  Next.js 14 App Router (Netlify Next.js plugin)                       │
+  │  ISR: homepage revalidates every 300s                                 │
+  │                                                                       │
+  │  Built from: opencourseware/web/                                      │
+  │  Triggered by: every push to main branch                              │
+  │                                                                       │
+  ▼
+Render (free tier web service)  ────────────────────────────────────────────
+  │  https://opencourseware-api.onrender.com                              │
+  │  FastAPI + uvicorn (Docker)                                           │
+  │  Spins down after 15 min inactivity (free tier cold start ~30s)       │
+  │                                                                       │
+  │  Built from: opencourseware/backend/ (Dockerfile)                     │
+  │  Triggered by: manual deploy or auto-deploy on push                   │
+  │                                                                       │
+  ▼
+Neon (serverless PostgreSQL)  ──────────────────────────────────────────────
+     https://console.neon.tech
+     Project: ep-blue-leaf-aq4lk4jf
+     Branch: main
+     Database: neondb
+     Region: us-east-1
+     9,726 courses · 15,425 course_subjects tags
 ```
 
-The `opencourseware/` folder is used as a **git submodule** inside the workspace root (`Courses/`). The submodule is the authoritative git repo — all commits and pushes happen from inside `opencourseware/`.
+### Service Accounts
+
+| Service | Login | Where credentials are |
+|---------|-------|-----------------------|
+| Netlify | guzeman88@yahoo.com | Netlify dashboard |
+| Render | guzeman88@yahoo.com | Render dashboard |
+| Neon | guzeman88@yahoo.com | Neon console |
+| GitHub | guzeman88 | https://github.com/guzeman88/opencourseware-explorer |
+| Sentry | guzeman88@yahoo.com | sentry.io |
 
 ---
 
-## 2. Architecture Overview
+## 2. Where All Data Lives
 
+> **Read this section carefully before running any destructive commands.**
+
+### Primary Database — Neon PostgreSQL
+
+**This is the only persistent store for all user and course data.**
+
+| What | Where |
+|------|-------|
+| All 9,726 courses | `courses` table |
+| All 15,425 subject tags | `course_subjects` table |
+| All universities | `universities` table |
+| All subjects taxonomy | `subjects` table |
+| User accounts | `users` table |
+| User bookmarks / Library | `user_library_courses` table |
+| Video metadata | `videos` table |
+| Learning roadmaps | `roadmaps` + `roadmap_entries` tables |
+
+Connection string (stored in Render env vars and in `.env` locally):
 ```
-Browser / Mobile
-      │
-      ▼
- Vercel CDN (ISR cache, 1 hr TTL)
-      │
-      ▼
- Next.js 14 (web)          Expo React Native (mobile)
-      │                              │
-      └──────────┬───────────────────┘
-                 ▼
-         FastAPI on Railway (or Render / Docker)
-         /api/v1/…   ← rate-limited (200 req/min), gzip, Sentry
-                 │
-         ┌───────┴──────────┐
-         ▼                  ▼
-   PostgreSQL 16        Redis 7 (optional, 60-sec course-list cache)
+postgresql+asyncpg://neondb_owner:<password>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-**Key design decisions:**
-- The homepage is a **server component** with ISR (`revalidate = 3600`). The full HTML is generated once and served from Vercel's edge CDN. No client-side waterfall on first load.
-- The API is stateless; Redis is purely a read-through cache for the courses list endpoint. The app works without Redis — it degrades gracefully.
-- JWT auth is only for the admin panel. Public endpoints are unauthenticated.
-- Rate limit: 200 requests/minute per IP (enforced by `slowapi`).
+> **⚠️ The Neon database is the single source of truth. There is no secondary replica. If data is deleted it must be re-scraped or restored from a manual backup. User accounts and bookmarks cannot be recovered from scraping.**
+
+### Scraper Source Files (local only)
+
+| File | What it contains | Risk if lost |
+|------|-----------------|--------------|
+| `MIT Course List Master - MIT Course List Master.csv` | 2,573 MIT course records | High — required to reload MIT courses |
+| `course-availability-report.csv` | Audit of source availability | Low |
+| `opencourseware/scraper/discovered_channels.json` | YouTube channel IDs discovered during scraping | Medium — can be re-discovered |
+| `opencourseware/scraper/channel_scrape_progress.json` | Checkpoint file for long scrape runs | Low — only used mid-run |
+
+### No Local Database
+
+There is no local PostgreSQL instance that matters. All data is on Neon. Running scrapers locally writes directly to Neon via `DATABASE_URL`.
+
+### Git Repository
+
+All source code is at `github.com/guzeman88/opencourseware-explorer`. The working directory `C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware\` is a clone of that repo.
 
 ---
 
-## 3. Environment Variables
+## 3. Data Protection & Backup
 
-### Backend (`.env` in `backend/` or shell env)
+### How to Avoid Losing Data
 
-| Variable | Required in Prod | Default (dev) | Description |
-|----------|:---:|---|---|
-| `DATABASE_URL` | ✅ | `postgresql+asyncpg://ocw:ocwpass@localhost:5432/opencourseware` | Full asyncpg connection string |
-| `SECRET_KEY` | ✅ | `change-me-in-production` | JWT signing secret. Generate: `openssl rand -hex 32` |
-| `ADMIN_EMAIL` | ✅ | `admin@example.com` | Admin user bootstrapped at startup |
-| `ADMIN_PASSWORD` | ✅ | `changeme` | Admin password (bcrypt-hashed at startup) |
-| `CORS_ORIGINS` | ✅ | `["http://localhost:3000"]` | JSON array **or** comma-separated list of allowed origins |
-| `YOUTUBE_API_KEY` | ⚠️ optional | `""` | Required to enrich video metadata during scraping |
-| `REDIS_URL` | ⚠️ optional | `redis://localhost:6379` | Omit or leave empty to disable caching |
-| `SENTRY_DSN` | ⚠️ optional | `""` | Leave empty to disable error tracking |
-| `ENVIRONMENT` | — | `development` | Set to `production` to enforce secret validation |
-| `DEBUG` | — | `false` | Enables debug logging |
+**Rule 1: Never run `DROP TABLE`, `TRUNCATE`, or `DELETE FROM` on Neon without a backup.**
 
-> **Important:** In `production` mode the app will **refuse to start** if `SECRET_KEY`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, or `CORS_ORIGINS` are left at their default values.
+**Rule 2: Never run `tag_courses.py` with `RESET_TAGS=1` without first verifying the tagging logic is correct.** This wipes and rebuilds all 15,425 subject tags.
 
-### Web (`web/.env.local` or Vercel dashboard)
+**Rule 3: Never run `alembic downgrade` on the production database without a backup.**
+
+**Rule 4: User accounts and bookmarks cannot be re-created from scraping. Treat the `users` and `user_library_courses` tables as irreplaceable.**
+
+### Manual Database Backup (Neon)
+
+Neon does not auto-backup on the free tier. Take a manual backup before any risky operation.
+
+**Option A — pg_dump (recommended)**
+
+```powershell
+# From the workspace root — requires pg_dump in PATH
+# Windows: install PostgreSQL tools from https://www.postgresql.org/download/windows/
+
+$env:DATABASE_URL = "postgresql://neondb_owner:<password>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+
+pg_dump $env:DATABASE_URL `
+  --format=custom `
+  --file="backup_$(Get-Date -Format 'yyyyMMdd_HHmm').dump"
+```
+
+**Option B — Neon branching (zero-copy, instant)**
+
+In the Neon console (console.neon.tech):
+1. Select the `neondb` database
+2. Click **Branches → Create branch**
+3. Name it `backup-YYYY-MM-DD`
+4. This creates an instant point-in-time copy with no storage overhead until it diverges
+
+Branches can be deleted after a risky migration is confirmed successful.
+
+### Restoring from Backup
+
+```powershell
+# Restore from a pg_dump file
+pg_restore `
+  --dbname="postgresql://neondb_owner:<password>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require" `
+  --clean `
+  --if-exists `
+  backup_20260530_1200.dump
+```
+
+### What Can Be Rebuilt vs. What Cannot
+
+| Data | Recoverable without backup? | How |
+|------|:--:|-----|
+| Course metadata (title, URL, description) | ✅ Yes | Re-run scrapers |
+| YouTube video data | ✅ Yes | Re-run `scrape_all_playlists_api.py` |
+| Subject tags | ✅ Yes | Re-run `tag_courses.py` |
+| Thumbnails | ✅ Yes | Re-run `backfill_thumbnails.py` |
+| User accounts | ❌ No | Must restore from backup |
+| User bookmarks (Library) | ❌ No | Must restore from backup |
+| Roadmap data | ⚠️ Partial | Re-run `load_roadmaps.py` but custom edits are lost |
+
+### Credential Rotation
+
+If any of the following credentials are compromised, rotate them immediately:
+
+| Credential | How to rotate |
+|------------|--------------|
+| Neon DB password | Neon console → Settings → Connection Details → Reset password. Update `DATABASE_URL` in Render env vars. |
+| `SECRET_KEY` (JWT signing) | Generate new: `openssl rand -hex 32`. Update in Render env vars. **All existing user sessions will be invalidated.** |
+| YouTube API key | GCP console → Credentials → Regenerate. Update `YOUTUBE_API_KEY` in local `.env`. |
+| Render admin password | Set `ADMIN_PASSWORD` env var in Render dashboard, redeploy. |
+
+> **⚠️ Security note:** The YouTube API key and Neon connection string have appeared in PowerShell terminal history. If this machine is shared or the history is synced anywhere, rotate both.
+
+---
+
+## 4. Environment Variables Reference
+
+### Backend — set in Render dashboard
 
 | Variable | Required | Description |
-|----------|:---:|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | Backend URL, e.g. `https://api.ocwexplorer.com` |
-| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ optional | Sentry DSN for client-side error tracking |
-| `SENTRY_AUTH_TOKEN` | ⚠️ optional | Sentry source map upload (set in Vercel env, not `.env.local`) |
-| `SENTRY_ORG` | ⚠️ optional | Sentry org slug |
-| `SENTRY_PROJECT` | ⚠️ optional | Sentry project slug |
+|----------|:--------:|-------------|
+| `DATABASE_URL` | ✅ | `postgresql+asyncpg://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require` |
+| `SECRET_KEY` | ✅ | JWT signing secret. Generate: `openssl rand -hex 32`. **Never use the default.** |
+| `ADMIN_EMAIL` | ✅ | Admin dashboard login email |
+| `ADMIN_PASSWORD` | ✅ | Admin dashboard login password (bcrypt-hashed at startup) |
+| `CORS_ORIGINS` | ✅ | Comma-separated or JSON array: `https://opencourseware-explorer.netlify.app` |
+| `ENVIRONMENT` | ✅ | Set to `production` |
+| `YOUTUBE_API_KEY` | ⚠️ | Required only for scraper enrichment. Not needed for the API to run. |
+| `SENTRY_DSN` | ⚠️ | Sentry error reporting. Leave empty to disable. |
+| `DEBUG` | — | `false` in production |
 
-### Mobile (set via EAS or inline in `eas.json`)
+### Web Frontend — set in Netlify dashboard
 
-| Variable | Description |
-|----------|---|
-| `EXPO_PUBLIC_API_URL` | Backend URL for the native app |
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `NEXT_PUBLIC_API_URL` | ✅ | `https://opencourseware-api.onrender.com` |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | ⚠️ | Google Analytics 4 Measurement ID (`G-XXXXXXXXXX`). Code is deployed; just needs this value. |
+| `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | Sentry DSN for client-side error reporting |
+| `SENTRY_AUTH_TOKEN` | ⚠️ | Sentry source map upload token |
 
-EAS build profiles control which API URL is used:
-- `development` → `http://localhost:8000`
-- `preview` → `https://api-staging.ocwexplorer.com`
-- `production` → `https://api.ocwexplorer.com`
+### Scraper — set locally in PowerShell before running
 
-### Docker Compose (`.env` at repo root, alongside `docker-compose.yml`)
+```powershell
+$env:DATABASE_URL  = "postgresql://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+$env:YOUTUBE_API_KEY = "<your-key>"
+```
+
+### Local Development — `web/.env.local`
 
 ```
-POSTGRES_USER=ocw
-POSTGRES_PASSWORD=<secret>
-POSTGRES_DB=opencourseware
-SECRET_KEY=<openssl rand -hex 32>
-YOUTUBE_API_KEY=<your-key>
 NEXT_PUBLIC_API_URL=http://localhost:8000
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=<secret>
-CORS_ORIGINS=["http://localhost:3001","http://localhost:3000"]
 ```
 
 ---
 
-## 4. Local Development
+## 5. Local Development Setup
 
 ### Prerequisites
 
-- Docker Desktop
-- Node.js 20+
 - Python 3.12+
-- (Optional) YouTube Data API v3 key
+- Node.js 20+
+- The `.venv` virtual environment at `C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\.venv\`
 
-### Option A — Docker Compose (recommended, all services at once)
+### Backend (native, no Docker)
 
-```bash
-cd opencourseware
-cp .env.example .env          # fill in at minimum YOUTUBE_API_KEY
-make up                       # builds images and starts all services
-make migrate                  # run Alembic migrations
-make scrape                   # populate the database
-```
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware\backend"
 
-| Service | URL |
-|---------|-----|
-| Backend API + docs | http://localhost:8000 / http://localhost:8000/docs |
-| Web app | http://localhost:3001 |
-| PostgreSQL | localhost:5433 (mapped from container's 5432) |
-| Redis | localhost:6379 |
-
-Stop everything: `make down`
-
-View logs: `make logs`
-
-### Option B — Local (no Docker)
-
-```bash
-# 1. Backend
-cd backend
 python -m venv .venv
-.venv\Scripts\activate        # Windows
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt -r requirements-dev.txt
-# Set DATABASE_URL in shell or .env
+
+# Point at Neon (or a local Postgres)
+$env:DATABASE_URL = "postgresql+asyncpg://..."
+$env:SECRET_KEY   = "dev-only-secret"
+
 uvicorn app.main:app --reload --port 8000
-
-# 2. Web
-cd web
-npm install
-# Create web/.env.local: NEXT_PUBLIC_API_URL=http://localhost:8000
-npm run dev                   # → http://localhost:3000
-
-# 3. Mobile
-cd mobile
-npm install
-npx expo start                # opens Expo dev tools
+# → http://localhost:8000/docs
 ```
 
-### Makefile Quick Reference
+### Web Frontend (native)
 
-| Command | What it does |
-|---------|---|
-| `make up` | Build and start all Docker services |
-| `make down` | Stop all services |
-| `make build` | Rebuild Docker images without starting |
-| `make logs` | Tail all service logs |
-| `make migrate` | Run `alembic upgrade head` inside the backend container |
-| `make scrape` | Run all scrapers |
-| `make scrape-source SOURCE=mit_ocw` | Run a single scraper |
-| `make test` | Run all tests (backend + scraper + web) |
-| `make test-backend` | pytest in backend container |
-| `make test-scraper` | pytest in scraper container |
-| `make test-web` | Jest in web/ |
-| `make shell-backend` | Open bash inside the running backend container |
-| `make shell-db` | Open psql inside the running db container |
-| `make dev-backend` | Run backend locally (no Docker) |
-| `make dev-web` | Run web locally (no Docker) |
-| `make install` | `pip install` + `npm install` for all subprojects locally |
-| `make prod-up` | Start production Docker Compose stack |
-| `make prod-migrate` | Run migrations in production stack |
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware\web"
+
+npm install
+
+# Create web/.env.local:
+# NEXT_PUBLIC_API_URL=http://localhost:8000
+
+npm run dev
+# → http://localhost:3000
+```
+
+### Virtual Environment (shared, workspace-level)
+
+A shared `.venv` exists at the workspace root and is used for all scraper scripts:
+
+```
+C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\.venv\Scripts\python.exe
+```
+
+Activate it in any terminal:
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+All scraper one-liners in this document assume this venv is active.
 
 ---
 
-## 5. Backend (FastAPI)
+## 6. Backend (FastAPI)
 
-**Location:** `backend/`  
+**Location:** `opencourseware/backend/`  
 **Language:** Python 3.12  
-**Framework:** FastAPI 0.111 + SQLAlchemy 2.0 async + Alembic  
-**Database driver:** asyncpg (PostgreSQL 16)  
-**Auth:** JWT via `python-jose` + `passlib[bcrypt]`
+**Framework:** FastAPI 0.111 + SQLAlchemy 2.0 async  
+**Database driver:** asyncpg  
+**Auth:** JWT via `python-jose` + `pbkdf2_sha256`  
+**Deployed:** Render — `https://opencourseware-api.onrender.com`
 
-### API Routes
+### API Routers
 
-All routes are mounted at `/api/v1/`.
+All routes mount at `/api/v1/`.
 
-| Router | Prefix | Description |
-|--------|--------|---|
-| `courses.py` | `/courses` | List/filter/search courses, course detail, view count increment, featured endpoint |
-| `universities.py` | `/universities` | List universities, university courses |
-| `subjects.py` | `/subjects` | Subject taxonomy |
-| `search.py` | `/search` | Full-text search across courses |
-| `roadmaps.py` | `/roadmaps` | Learning roadmaps |
-| `users.py` | `/users` | User profile (JWT-protected) |
-| `admin.py` | `/admin` | Stats, scraper triggers, content management (JWT-protected) |
+| File | Prefix | Notes |
+|------|--------|-------|
+| `routers/courses.py` | `/courses` | List, filter, detail, featured, view-count increment. Has 60s in-process TTL cache. |
+| `routers/universities.py` | `/universities` | List + per-university course listing |
+| `routers/subjects.py` | `/subjects` | Subject taxonomy (flat + hierarchical) |
+| `routers/search.py` | `/search` | `ilike` full-text search on course title |
+| `routers/roadmaps.py` | `/roadmaps` | Learning roadmaps |
+| `routers/users.py` | `/users` | Auth (register/login) + Library CRUD — **must be mounted in `main.py`** (see §13) |
+| `routers/admin.py` | `/admin` | Stats, pending review, publish toggle — JWT-protected |
 
-Interactive API docs: http://localhost:8000/docs (Swagger UI)
+### Auth Flow
+
+1. `POST /api/v1/users/register` or `POST /api/v1/users/login` → returns `{ access_token }` (JWT)
+2. Client stores token in `localStorage` under key `ocw_user_token`
+3. Protected endpoints require `Authorization: Bearer <token>`
+4. Tokens expire after 7 days (`access_token_expire_minutes = 60 * 24 * 7`)
+5. On 401, the frontend clears `ocw_user_token` from localStorage
 
 ### Startup Behaviour
 
 On startup (`lifespan` in `main.py`):
-1. In production, validates all required env vars are non-default — **hard fails** if any are missing.
-2. In development, auto-creates all tables via `Base.metadata.create_all`. **In production, use Alembic** (see §9).
-3. Bootstraps the admin user (`ADMIN_EMAIL` / `ADMIN_PASSWORD`) if it doesn't already exist.
-
-### Redis Caching
-
-The courses list endpoint caches results in Redis for 60 seconds using the full filter parameters as the cache key. If Redis is unavailable, requests hit the database directly with no error surfaced.
+1. In `development` mode: auto-creates all tables via `Base.metadata.create_all`
+2. In `production` mode: **skips table creation** — use Alembic migrations
+3. Bootstraps the admin user from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars (non-fatal if DB is temporarily unavailable)
 
 ### Rate Limiting
 
-200 requests per minute per IP. Returns HTTP 429 if exceeded.
-
-### Adding a New API Endpoint
-
-1. Add a function to the appropriate `crud/` file.
-2. Add request/response schemas to `schemas/`.
-3. Add route handler to the appropriate `routers/` file.
-4. Create an Alembic migration if you changed a model: `alembic revision --autogenerate -m "description"`.
+- Auth endpoints (`/users/register`, `/users/login`): **10 requests/minute per IP** via `slowapi`
+- All other endpoints: no rate limit currently set
 
 ---
 
-## 6. Web Frontend (Next.js)
+## 7. Web Frontend (Next.js)
 
-**Location:** `web/`  
-**Framework:** Next.js 14 App Router  
-**Language:** TypeScript  
-**Styling:** Tailwind CSS  
-**Data fetching:** TanStack Query v5 (client), `fetch` (server components)  
-**State:** Zustand (UI state, saved courses)  
-**Error tracking:** Sentry (`@sentry/nextjs`)  
-**Testing:** Jest + Testing Library + MSW
+**Location:** `opencourseware/web/`  
+**Framework:** Next.js 14.2.35 (App Router)  
+**Deployed:** Netlify — `https://opencourseware-explorer.netlify.app`  
+**Build trigger:** every push to `main`
 
 ### Pages
 
-| Route | File | Type | Description |
-|-------|------|------|---|
-| `/` | `app/page.tsx` | Server (ISR) | Homepage: hero banner + course rows by subject |
-| `/courses/[slug]` | `app/courses/` | Server + client | Course detail, video player |
+| Route | File | Render type | Description |
+|-------|------|-------------|-------------|
+| `/` | `app/page.tsx` | Server + ISR (300s) | Homepage: hero + ~70 subject course rows |
+| `/courses` | `app/courses/page.tsx` | Client | Paginated course browser with filters |
+| `/courses/[id]` | `app/courses/[id]/` | Client | Course detail + video list |
 | `/universities` | `app/universities/` | Client | University grid |
 | `/universities/[slug]` | `app/universities/[slug]/` | Client | University course listing |
 | `/subjects` | `app/subjects/` | Client | Subject browser |
-| `/search` | `app/search/` | Client | Full-text search |
-| `/browse` | `app/browse/` | Client | Filter courses |
-| `/library` | `app/library/` | Client (Zustand) | Saved/bookmarked courses |
-| `/roadmaps` | `app/roadmaps/` | Client | Learning roadmaps |
+| `/search` | `app/search/page.tsx` | Client | Full-text search |
+| `/browse` | `app/browse/page.tsx` | Client | Table-style course browser by university/subject |
+| `/library` | `app/library/page.tsx` | Client | User's bookmarked courses (auth required) |
+| `/roadmaps` | `app/roadmaps/page.tsx` | Client | Learning roadmaps grouped by field |
 | `/admin` | `app/admin/` | Client (JWT) | Admin dashboard |
 
-### ISR / Caching
+### Provider Hierarchy
 
-- The homepage (`/`) has `export const revalidate = 3600` — it's generated server-side and cached at Vercel's CDN for 1 hour.
-- The server component fetches the top 4 course rows (`featured`, `computer-science`, `machine-learning`, `mathematics`) on the first request; all others are loaded client-side via TanStack Query.
-- Backend fetch timeout in ISR: 3 seconds. If the API is cold-starting, the page renders with partial data and the client fills in from cache.
-
-### Mobile vs Desktop behaviour
-
-The homepage uses Tailwind responsive classes to differ by viewport:
-
-| Element | Mobile (< 768px) | Desktop (≥ 768px) |
-|---------|-----------------|------------------|
-| `HeroBanner` | Hidden | Visible |
-| "Featured Courses" row | Hidden | Visible |
-| `-mt-32` overlap | Off | On (content overlaps banner) |
-| All other course rows | Visible | Visible |
-
-**Tailwind breakpoints:** `sm` = 640px, `md` = 768px, `lg` = 1024px, `xl` = 1280px.
-
-### PWA
-
-The web app is a PWA. The service worker is registered via `app/layout.tsx`. The manifest is generated by `app/manifest.ts`. Cache headers for `sw.js` are set to `no-cache` in `next.config.js` to ensure updates are picked up immediately.
-
-### Sentry
-
-Configured in `sentry.client.config.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts`. Source maps are uploaded during build if `SENTRY_AUTH_TOKEN` is set.
-
-### Bundle Analysis
-
-```bash
-cd web
-npm run analyze    # builds and opens webpack bundle report
 ```
+layout.tsx
+  └── <QueryProvider>            ← TanStack Query client
+        └── <AppShell>
+              └── <AuthProvider>        ← JWT token, user state, rehydration
+                    └── <AuthModalProvider>  ← openAuthModal() context
+                          ├── <Navbar>
+                          ├── {children}
+                          ├── <footer>
+                          ├── <PwaRegister>
+                          └── <AuthModal> (conditional)
+```
+
+### Auth Token Storage
+
+- User token: `localStorage["ocw_user_token"]` — managed by `AuthProvider`
+- Admin token: `localStorage["ocw_token"]` — managed by the admin login page
+- The 401 response interceptor in `api.ts` clears **both** keys on auth failure
+
+### ISR / Caching Strategy
+
+- Homepage: `revalidate = 300` (5 min). Netlify CDN serves cached HTML.
+- Course rows below the fold: lazy-fetched client-side via `IntersectionObserver` (300px preload margin)
+- All client fetches: TanStack Query with `staleTime = 30,000ms`
+- Backend courses list: in-process 60s TTL cache keyed on all filter parameters
+
+### Security Headers (set in `next.config.js`)
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 
 ---
 
-## 7. Mobile App (Expo)
+## 8. Mobile App (Expo)
 
-**Location:** `mobile/`  
-**Framework:** Expo SDK 51 + Expo Router 3.5  
-**Language:** TypeScript  
-**Navigation:** File-based (Expo Router), tab layout  
-**Data fetching:** TanStack Query v5  
-**Video:** `react-native-youtube-iframe`  
-**Error tracking:** Sentry (`@sentry/react-native`)
+**Location:** `opencourseware/mobile/`  
+**Status: NOT DEPLOYED.** This is an early prototype. Do not point users to it.
 
-### Screens
-
-| Tab / Route | File | Description |
-|-------------|------|---|
-| Browse (Home) | `app/(tabs)/index.tsx` | Infinite-scroll grid of courses sorted by view count |
-| Search | `app/(tabs)/search.tsx` | Full-text course search |
-| Universities | `app/(tabs)/universities.tsx` | University grid → university courses |
-| Saved | `app/(tabs)/saved.tsx` | Bookmarked courses (AsyncStorage) |
-| Course detail | `app/course/[slug].tsx` | Course info + video player |
-
-### Running locally
-
-```bash
-cd mobile
-npm install
-npx expo start              # Opens Expo dev server + QR code
-```
-
-- Press `a` to open Android emulator
-- Press `i` to open iOS simulator
-- Scan QR with Expo Go (physical device)
-
-The dev build points `EXPO_PUBLIC_API_URL` to `http://localhost:8000`.
-
-### EAS Builds (publishing native apps)
-
-EAS (Expo Application Services) is used for native builds.
-
-```bash
-npm install -g eas-cli
-eas login
-
-# Development build (uses Expo Dev Client)
-eas build --profile development --platform android
-
-# Preview / internal testing
-eas build --profile preview --platform all
-
-# Production build (auto-increments version)
-eas build --profile production --platform all
-
-# Submit to app stores
-eas submit --platform android    # uses google-service-account.json
-eas submit --platform ios        # needs appleId, ascAppId, appleTeamId in eas.json
-```
-
-> **Note:** `eas.json` `submit.production.ios` fields (`appleId`, `ascAppId`, `appleTeamId`) must be filled in before submitting to App Store.
-
-The `eas.json` EAS project ID (`extra.eas.projectId` in `app.json`) must also be filled in before EAS builds will work.
-
-### App Config
-
-| Setting | Value |
-|---------|-------|
-| App name | OCW Explorer |
-| Expo slug | `ocw-explorer` |
-| iOS bundle ID | `com.ocwexplorer.app` |
-| Android package | `com.ocwexplorer.app` |
-| URL scheme | `ocw://` |
+**Known bugs before it can be shipped:**
+- Thumbnail calculation uses `course.university_slug` instead of `course.thumbnail_url` — all thumbnails are broken
+- No auth system (no login, no Library, no token management)
+- No Sentry / crash reporting
+- `eas.json` and `app.json` are not configured for production (no bundle ID, store IDs, etc.)
 
 ---
 
-## 8. Scraper Pipeline
+## 9. Scraper Pipeline
 
-**Location:** `scraper/`  
+**Location:** `opencourseware/scraper/`  
 **Language:** Python 3.12  
-**Libraries:** aiohttp, BeautifulSoup, YouTube Data API v3
+**Runs:** manually, on-demand, from a local machine pointing at Neon
 
-### Data Sources
+All scraper commands require `DATABASE_URL` set in the shell.
 
-| Source key | Scraper file | Courses | Notes |
-|------------|--------------|---------|-------|
-| `mit_ocw` | `scrapers/mit_ocw.py` | ~2,563 | Reads from `MIT Course List Master.csv`; CSV must be present |
-| `yale_ocw` | `scrapers/yale_ocw.py` | ~15 | Seed data + live enrichment |
-| `stanford` | `scrapers/stanford.py` | ~13 | Seed data |
-| `harvard` | `scrapers/harvard.py` | ~8 | Seed data |
-| `berkeley` | `scrapers/berkeley.py` | ~10 | Seed data |
-| `nptel` | `scrapers/nptel.py` | ~15 | Seed data |
+### Canonical One-liner (PowerShell)
 
-### Running the Scraper
-
-```bash
-# All sources (Docker)
-make scrape
-
-# Single source (Docker)
-make scrape-source SOURCE=mit_ocw
-
-# All sources (native, from repo root)
-cd scraper
-DATABASE_URL=postgresql+asyncpg://ocw:ocwpass@localhost:5432/opencourseware \
-YOUTUBE_API_KEY=<your-key> \
-python run_scrapers.py --source all
-
-# Single source (native)
-python run_scrapers.py --source stanford
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses"
+$env:DATABASE_URL  = "postgresql://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+$env:YOUTUBE_API_KEY = "<key>"
 ```
 
-### Ingestion Pipeline
+### Active Scripts (used regularly)
 
-`pipeline/ingester.py` handles:
-1. Upserts universities (by `slug`)
-2. Upserts subjects (by `slug`)
-3. Upserts courses (by `source_url`), linking to university + subjects
-4. Upserts video records per course
-5. Enriches video metadata via YouTube API if `YOUTUBE_API_KEY` is set
+| Script | What it does | When to run |
+|--------|-------------|-------------|
+| `tag_courses.py` | Keyword-tags all courses into subjects | After a bulk data load, or to fix tag coverage. Use `$env:RESET_TAGS="1"` to wipe and rebuild all tags. |
+| `scrape_all_playlists_api.py` | Fetches YouTube playlist metadata (video count, duration, thumbnail) for all courses with a `youtube_playlist_id` | When new courses are added or video data is stale |
+| `backfill_thumbnails.py` | Fills in missing thumbnails from YouTube API or OG image fallback | After bulk load if thumbnails are missing |
+| `load_roadmaps.py` | Loads learning roadmap data into the `roadmaps` table | When updating roadmap content |
+| `load_mit_csv.py` / `load_csv_fast.py` | Loads MIT OCW courses from the CSV file | When re-seeding MIT data |
+| `scrape_nptel_full.py` | Scrapes NPTEL courses | When updating NPTEL content |
+| `scrape_harvard_full.py` | Scrapes Harvard courses | When updating Harvard content |
+| `fix_labels_and_publish.py` | Sets `is_published=True` for courses meeting quality criteria | After bulk load |
 
-Courses are identified by `source_url` — re-running a scraper updates existing records rather than duplicating them.
+### Tag System
 
-### Adding a New Source
+`tag_courses.py` maps keyword rules → subject slugs. Current stats: **15,425 tags across 9,726 courses (73.8% coverage)**.
 
-1. Create `scrapers/newuniversity.py` implementing the `BaseScraper` interface from `scrapers/base.py`.
-2. Register the class in `scrapers/__init__.py`'s `SCRAPER_MAP`.
-3. Run `make scrape-source SOURCE=newuniversity`.
+To reset and rebuild all tags:
+```powershell
+$env:RESET_TAGS = "1"
+.venv\Scripts\python.exe opencourseware\scraper\tag_courses.py
+```
+
+> **⚠️ Warning:** `RESET_TAGS=1` deletes ALL rows in `course_subjects` before rebuilding. Do not run this if you have made manual tag edits you want to keep.
+
+### One-off Fix Scripts (`_` prefix)
+
+Scripts prefixed with `_` are one-off audits and fixes applied during development (e.g., `_fix_schema.py`, `_audit_tags.py`). They are safe to ignore but should not be deleted — they document the data cleaning history.
 
 ---
 
-## 9. Database & Migrations
+## 10. Database & Migrations
 
-**Engine:** PostgreSQL 16  
-**ORM:** SQLAlchemy 2.0 (async)  
-**Migrations:** Alembic
+**Engine:** PostgreSQL (Neon serverless)  
+**ORM:** SQLAlchemy 2.0 async  
+**Migrations:** Alembic (in `backend/`)
 
 ### Running Migrations
 
-```bash
-# In Docker
-make migrate
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware\backend"
+$env:DATABASE_URL = "postgresql+asyncpg://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
 
-# Production Docker Compose
-make prod-migrate
-
-# Native
-cd backend
 alembic upgrade head
 ```
 
-### Creating a New Migration
+**Always take a Neon branch backup (§3) before running migrations in production.**
 
-```bash
+### Creating a Migration
+
+After changing a model in `backend/app/models/`:
+
+```powershell
 cd backend
-# After changing a model in app/models/:
-alembic revision --autogenerate -m "describe your change"
+alembic revision --autogenerate -m "brief description of change"
 # Review the generated file in migrations/versions/
 alembic upgrade head
 ```
 
 ### Alembic Connection
 
-The `alembic.ini` file has a **hardcoded fallback** URL (`postgresql://ocw:ocwpass@localhost:5432/opencourseware`). In practice, the `DATABASE_URL` env var overrides this. Always ensure the correct `DATABASE_URL` is set before running migrations in any environment.
+`alembic.ini` has a hardcoded fallback URL for local dev. In production, the `DATABASE_URL` env var is used. Always verify `DATABASE_URL` is set correctly before running migrations.
 
-### Schema Bootstrap (dev only)
+### Schema Overview
 
-In development mode (`ENVIRONMENT != production`), the backend auto-creates all tables on startup via `Base.metadata.create_all`. This is **disabled in production** — Alembic must be run explicitly.
-
-### Direct DB Access
-
-```bash
-# Via Docker
-make shell-db
-
-# Native psql
-psql postgresql://ocw:ocwpass@localhost:5432/opencourseware
+```
+universities    ← source institutions
+departments     ← optional sub-groupings within a university
+courses         ← 9,726 rows; core entity
+  └── videos    ← YouTube video records per course
+  └── course_subjects  ← many-to-many: courses ↔ subjects (15,425 rows)
+subjects        ← subject taxonomy (~150 rows)
+users           ← user accounts (email + hashed password)
+user_library_courses  ← user bookmarks (user_id, course_id)
+roadmaps        ← learning roadmap definitions
+roadmap_entries ← ordered course list within each roadmap
 ```
 
 ---
 
-## 10. Deployment
+## 11. Deployment
 
-### How Deployment Works
+### Web → Netlify (automatic)
 
-**There are no GitHub Actions in this repo.** Deployment is triggered by:
-
-- **Web (Vercel):** Vercel watches the `main` branch of `github.com/guzeman88/opencourseware-explorer` via native Git integration. Every push to `main` triggers a Vercel production deployment automatically. No secrets or workflow files needed.
-- **Backend (Railway / Render):** Deployed via Docker. See below.
-
-### Web → Vercel
+Every push to `main` triggers a Netlify deployment automatically.
 
 | Property | Value |
 |----------|-------|
-| Vercel project | `opencourseware-explorer` |
-| Vercel project ID | `prj_GSGPTvGL4NcbkOfEuALxfYciKoJD` |
-| Vercel org ID | `team_XFGTZa1a7I91NQ5k3FK2J5up` |
-| Git repo | `github.com/guzeman88/opencourseware-explorer` |
-| Branch | `main` |
-| Root directory | `web/` (configured in Vercel dashboard) |
-| Build command | `npm run build` |
-| Output | `.next/` |
-| Deploys on | Every push to `main` |
+| Site URL | `https://opencourseware-explorer.netlify.app` |
+| Build command | `npm run build` (run from `web/`) |
+| Publish dir | `web/.next` |
+| Plugin | `@netlify/plugin-nextjs` |
+| Env vars | Set in Netlify dashboard → Site settings → Environment variables |
 
 **To deploy a web change:**
-1. Make changes in `web/`
-2. Commit and push to `main` from inside `opencourseware/`
-3. Vercel detects the push and deploys automatically (~1–3 min)
-
-**Environment variables** are set in the Vercel dashboard under the project settings. The critical one is `NEXT_PUBLIC_API_URL`.
-
-### Backend → Railway
-
-Railway is configured via `backend/railway.toml`. It builds using `backend/Dockerfile` and restarts on failure.
-
-Railway reads env vars from the Railway dashboard (not from the repo). At minimum, set:
-- `DATABASE_URL` (Railway can provision a Postgres database and inject this automatically)
-- `SECRET_KEY`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `CORS_ORIGINS`
-
-After deploying, run the initial migration from Railway's shell or trigger it as part of the deploy pipeline.
-
-### Backend → Render (alternative)
-
-`backend/render.yaml` defines a web service using Docker. Render reads env vars from the Render dashboard. `SECRET_KEY` is auto-generated by Render.
-
-### Production Docker Compose (self-hosted)
-
-Use when deploying to a VPS or VM.
-
-```bash
-# On the server
-cd opencourseware
-cp .env.example .env      # fill in all production values
-make prod-up              # starts db + redis + backend + web (production config)
-make prod-migrate         # run Alembic migrations
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware"
+git add web/
+git commit -m "describe change"
+git push origin main
+# Netlify detects the push and deploys automatically (~2–5 min)
 ```
 
-`docker-compose.prod.yml` differences from dev:
-- No port exposure for db or redis (internal network only)
-- No volume mounts for source code (uses built Docker image)
-- 2 uvicorn workers with proxy header support
-- Redis persistence enabled
-- 512MB memory limits on all services
-- Backend health check via `/health`
+### Backend → Render (manual or auto)
+
+| Property | Value |
+|----------|-------|
+| Service URL | `https://opencourseware-api.onrender.com` |
+| Build source | `backend/Dockerfile` |
+| Config file | `backend/render.yaml` |
+| Env vars | Set in Render dashboard → Environment |
+| Cold start | ~30s on free tier (first request after 15 min idle) |
+
+**To deploy a backend change:**
+```powershell
+git add backend/
+git commit -m "describe change"
+git push origin main
+# Trigger a manual deploy in Render dashboard, OR enable auto-deploy from main
+```
+
+**⚠️ `render.yaml` currently contains plaintext credentials** (`ADMIN_PASSWORD`, a legacy `DATABASE_URL`). These values are overridden by Render dashboard env vars at runtime, but the file should be cleaned up — replace them with `sync: false` placeholders.
+
+### Deployment Checklist (before any production push)
+
+- [ ] `npm run build` passes locally in `web/`
+- [ ] No TypeScript errors (`tsc --noEmit` in `web/`)
+- [ ] Backend `SECRET_KEY` is set to a non-default value in Render
+- [ ] `CORS_ORIGINS` includes `https://opencourseware-explorer.netlify.app` in Render
+- [ ] Neon branch backup taken if the change includes a DB migration
 
 ---
 
-## 11. Making and Shipping Changes
+## 12. How to Ship Changes
 
 ### Git Workflow
 
-The repo is `opencourseware/` (the git submodule). All git commands run from inside that directory.
+The repo is at `opencourseware/` (a clone of `github.com/guzeman88/opencourseware-explorer`). All git commands run from inside that directory.
 
-```bash
-cd opencourseware
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware"
 
-# Check what's changed
 git status
-
-# Stage and commit
-git add web/src/app/page.tsx
-git commit -m "describe your change"
-
-# Push → triggers Vercel deployment automatically
+git add <files>
+git commit -m "type: short description"
 git push origin main
 ```
 
-> PowerShell gotcha: paths with parentheses (like `mobile/app/(tabs)/index.tsx`) must be quoted:
+**Commit message format:** `type: description`  
+Types: `feat` (new feature), `fix` (bug fix), `chore` (maintenance), `docs` (documentation)
+
+> PowerShell tip: paths with parentheses must be quoted:
 > `git add "mobile/app/(tabs)/index.tsx"`
 
 ### Changing the Web UI
 
-- **Homepage layout:** `web/src/app/page.tsx`
-- **Responsive behaviour:** use Tailwind breakpoints. `md:` = 768px+. To hide on mobile: `hidden md:block`. To show only on mobile: `block md:hidden`.
-- **Shared components:** `web/src/components/`
-- **API calls (client-side):** `web/src/lib/` (axios-based API client) and hooks in `web/src/hooks/`
-- **ISR revalidation:** `export const revalidate = 3600` in page files. Change the number (seconds) to adjust how often the CDN regenerates the page.
+| What to change | Where |
+|----------------|-------|
+| Homepage course rows | `web/src/app/page.tsx` — add/remove `<CourseRow>` components |
+| Shared components | `web/src/components/` |
+| API calls (client) | `web/src/lib/api.ts` + hooks in `web/src/hooks/` |
+| Auth logic | `web/src/providers/auth-provider.tsx` |
+| Global styles | `web/src/app/globals.css` |
+| ISR revalidation period | `revalidate = 300` in page files (seconds) |
 
-### Changing the Mobile App
+### Changing the Backend
 
-- **Home/Browse screen:** `mobile/app/(tabs)/index.tsx`
-- **Other tabs:** `mobile/app/(tabs)/`
-- **Course detail:** `mobile/app/course/`
-- Changes are visible immediately in Expo Go after saving (fast refresh).
-- **To update the published native app:** you must run an EAS build and submit (see §7). A git push does not automatically update native app stores.
-
-### Changing the API
-
-1. Edit the router file in `backend/app/routers/`
+1. Edit the router in `backend/app/routers/`
 2. Add/modify Pydantic schemas in `backend/app/schemas/`
-3. If you changed DB models, create an Alembic migration (see §9)
-4. Push to `main` — backend auto-redeploys on Railway/Render
+3. If a DB model changed, create an Alembic migration (§10)
+4. Push to `main` → manually trigger redeploy in Render dashboard
 
 ### Adding a New Subject Row to the Homepage
 
-In `web/src/app/page.tsx`, add a `<CourseRow>` component inside the main `<div>`:
-
+In `web/src/app/page.tsx`:
 ```tsx
 <CourseRow
   title="Your Subject Title"
-  queryKey="unique-key"
+  queryKey="unique-key-no-spaces"
   fetchType="subject"
-  subjectSlug="your-subject-slug"
+  subjectSlug="slug-from-subjects-table"
 />
 ```
 
-The `subjectSlug` must match a slug in the database `subjects` table.
-
----
-
-## 12. Testing
-
-### Backend Tests
-
-```bash
-# Docker
-make test-backend
-
-# Native
-cd backend
-pytest -v
-```
-
-Tests use SQLite in-memory so no Postgres is required.
-
-### Scraper Tests
-
-```bash
-# Docker
-make test-scraper
-
-# Native
-cd scraper
-pytest -v
-```
-
-### Web Tests
-
-```bash
-# Docker / native
-make test-web
-
-# Native
-cd web
-npm test
-npm run test:coverage
-```
-
-Uses Jest + Testing Library + MSW for API mocking.
-
-### Run All Tests
-
-```bash
-make test
+The `subjectSlug` must match a slug in the `subjects` table. Verify with:
+```powershell
+$env:DATABASE_URL = "..."
+.venv\Scripts\python.exe -c "
+import psycopg, os
+with psycopg.connect(os.environ['DATABASE_URL'].replace('+asyncpg', '')) as conn:
+    rows = conn.execute('SELECT slug FROM subjects ORDER BY slug').fetchall()
+    for r in rows: print(r[0])
+"
 ```
 
 ---
 
-## 13. Monitoring & Error Tracking
+## 13. Known Bugs & Technical Debt
 
-### Sentry
+These are confirmed bugs that need fixing. Prioritised highest to lowest.
 
-Both the backend and web frontend send errors to Sentry when `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` is configured. Traces sample rate is 20% on the backend.
+### 🔴 Critical
 
-To enable:
-1. Create a project in sentry.io
-2. Set `SENTRY_DSN` on Railway/Render (backend)
-3. Set `NEXT_PUBLIC_SENTRY_DSN` in Vercel dashboard (web)
-4. Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` in Vercel for source map uploads
+**1. `users.py` router is not mounted in `main.py`**  
+File: `backend/app/main.py`  
+The `users` router (`/users/register`, `/users/login`, `/users/me`, `/users/me/library`) is never imported or registered. All auth and Library endpoints return 404 in production.  
+Fix: add `from app.routers import users` and `app.include_router(users.router, prefix="/api/v1")` to `main.py`.
 
-### Backend Health Check
+**2. Admin login token/cookie mismatch**  
+File: `web/src/middleware.ts` + `web/src/app/admin/login/`  
+The edge middleware checks for an `ocw_session` **httpOnly cookie**, but the admin login page stores the token in `localStorage["ocw_token"]`. The cookie is never set, so the middleware redirects every request — the admin panel is permanently inaccessible.  
+Fix: either set a cookie on login response, or change the middleware to accept the Bearer token via an `Authorization` header.
 
-```
-GET /health
-```
+**3. `render.yaml` contains plaintext credentials**  
+File: `backend/render.yaml`  
+`ADMIN_PASSWORD` and a legacy `DATABASE_URL` are committed in plaintext. While Render dashboard env vars override these at runtime, they should be removed from the file.  
+Fix: replace with `sync: false` entries and set values only in Render dashboard.
 
-Returns `{"status": "ok"}`. Used by the production Docker Compose health check and Railway/Render uptime monitors.
+### 🟡 High
 
-### API Docs
+**4. No Sentry on the backend**  
+`sentry-sdk` is not in `requirements.txt`. Backend crashes on Render are invisible.  
+Fix: add `sentry-sdk[fastapi]>=2.0` to `requirements.txt`, initialise in `run.py` or `main.py`.
 
-```
-GET /docs       ← Swagger UI
-GET /redoc      ← ReDoc
-GET /openapi.json
-```
+**5. No silent token refresh**  
+When a JWT expires, the 401 interceptor clears localStorage and the user is silently signed out mid-session. There is no refresh endpoint.  
+Fix: add `POST /api/v1/users/refresh` to the backend returning a new token; call it from the 401 interceptor before clearing state.
 
-Available at the backend URL. Useful for testing endpoints manually.
+**6. Browse page loads all courses on category expand**  
+File: `web/src/app/browse/page.tsx`  
+When a university or subject section is expanded, all courses for that section are fetched with no pagination. With large universities (e.g. NPTEL ~3,200 courses) this causes a large query and slow render.  
+Fix: add cursor-based pagination with a "load more" button.
+
+**7. `render.yaml` / `SECRET_KEY` default**  
+If `SECRET_KEY` is not set in Render dashboard env vars, the default `"change-me-in-production"` is used, making all JWTs forgeable.  
+Fix: verify `SECRET_KEY` is set in Render. `openssl rand -hex 32` to generate.
+
+### 🟢 Medium
+
+**8. Full-text search uses `ilike`**  
+`list_courses` does `Course.title.ilike('%query%')` — a sequential scan with no index. Will degrade as course count grows.  
+Fix: add a `pg_trgm` GIN index on `courses.title`.
+
+**9. No Privacy Policy page**  
+Required before collecting analytics data (GA4) or accepting user registrations (GDPR/CCPA).  
+Fix: add a `/privacy` route with a basic privacy policy.
+
+**10. No per-route `loading.tsx`**  
+Only the root `loading.tsx` exists. `/courses`, `/library`, `/roadmaps` have no loading skeleton.  
+Fix: add `loading.tsx` per route for smoother transitions.
 
 ---
 
-## 14. Common Tasks
+## 14. Monitoring & Alerting
 
-### Reseed the database from scratch
+### Sentry (Frontend)
 
-```bash
-make shell-db
-# Inside psql:
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-\q
+Sentry is configured in:
+- `web/src/sentry.client.config.ts` — client-side
+- `web/src/instrumentation.ts` — server/edge
+- `web/src/app/error.tsx` — catches render errors and calls `captureException`
 
-make migrate
-make scrape
+To activate: set `NEXT_PUBLIC_SENTRY_DSN` in Netlify dashboard.
+
+### Sentry (Backend)
+
+Not yet configured. See bug #4 in §13.
+
+### Uptime Monitoring
+
+No uptime monitor is currently configured. The backend health endpoint is:
+```
+GET https://opencourseware-api.onrender.com/health
+→ {"status": "ok", "version": "1.0.0"}
 ```
 
-### Run only the MIT scraper
+Set up a free monitor at [uptimerobot.com](https://uptimerobot.com) pointing at this URL. Configure an email alert for downtime.
 
-```bash
-make scrape-source SOURCE=mit_ocw
+### Google Analytics 4
+
+Code is deployed. Activate by setting `NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX` in Netlify dashboard. The GA4 property must be created first at [analytics.google.com](https://analytics.google.com).
+
+Tracked automatically:
+- Every page view (via `usePathname` + `useSearchParams`)
+
+Custom events available via `trackEvent()` in `web/src/components/google-analytics.tsx`:
+```ts
+trackEvent({ action: "bookmark_added", category: "library", label: courseId });
 ```
 
-The MIT scraper reads from the CSV file at `MIT Course List Master - MIT Course List Master.csv` (repo root level, one directory up from `scraper/`). The path is resolved via `OCW_MIT_CSV` env var or defaults to the relative path.
+---
 
-### Update the admin password
+## 15. Common Runbook Tasks
 
-Set `ADMIN_PASSWORD` env var to a new value and restart the backend. The password is bcrypt-hashed and stored at startup.
+### Re-tag all courses (subject taxonomy rebuild)
 
-### Inspect the live database
-
-On Railway: use the Railway dashboard's database shell, or connect directly with the connection string from the Railway dashboard.
-
-On Docker: `make shell-db`
-
-### Force-refresh Vercel ISR cache
-
-Vercel does not expose a purge-by-URL API on the free/hobby plan. Options:
-- Wait for the 1-hour TTL to expire
-- Re-deploy (every deploy purges all ISR cache)
-- Use `revalidatePath()` from a server action or API route (requires adding that logic)
-
-### Check what's deployed
-
-```bash
-cd opencourseware
-git log --oneline -10
+```powershell
+cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses"
+$env:DATABASE_URL = "postgresql://..."
+$env:RESET_TAGS = "1"
+.venv\Scripts\python.exe opencourseware\scraper\tag_courses.py
+# Expected: ~15,000 tags inserted across ~9,726 courses
 ```
 
-The latest commit on `main` is what's deployed to Vercel and Railway.
+### Backfill missing thumbnails
+
+```powershell
+$env:DATABASE_URL = "postgresql://..."
+$env:YOUTUBE_API_KEY = "..."
+.venv\Scripts\python.exe opencourseware\scraper\backfill_thumbnails.py
+```
+
+### Refresh YouTube video metadata
+
+```powershell
+$env:DATABASE_URL = "postgresql://..."
+$env:YOUTUBE_API_KEY = "..."
+.venv\Scripts\python.exe opencourseware\scraper\scrape_all_playlists_api.py
+```
+
+### Check database health (course counts by source)
+
+```powershell
+$env:DATABASE_URL = "postgresql://..."
+.venv\Scripts\python.exe opencourseware\scraper\count_catalogue.py
+```
+
+### Manually connect to the Neon database
+
+```powershell
+# Requires psql in PATH (install PostgreSQL tools)
+psql "postgresql://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+
+# Useful queries:
+# \dt                                          list all tables
+# SELECT COUNT(*) FROM courses;               total courses
+# SELECT COUNT(*) FROM courses WHERE is_published; published courses
+# SELECT source_key, COUNT(*) FROM courses GROUP BY source_key ORDER BY COUNT(*) DESC;
+# SELECT COUNT(*) FROM users;                 total users
+# SELECT COUNT(*) FROM user_library_courses;  total bookmarks
+```
+
+### Force a Netlify redeploy (without a code change)
+
+In the Netlify dashboard → Deploys → Trigger deploy → Deploy site.
+
+### Force a Render redeploy (without a code change)
+
+In the Render dashboard → Manual Deploy → Deploy latest commit.
+
+### Rotate the JWT secret key
+
+1. Generate new key: `openssl rand -hex 32`
+2. Set `SECRET_KEY` in Render dashboard → Environment
+3. Trigger a Render redeploy
+4. **All existing user sessions are immediately invalidated.** Users will need to sign in again.
