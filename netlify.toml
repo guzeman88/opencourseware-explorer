@@ -1,7 +1,7 @@
 [build]
   base    = "web"
   command = "npm run build"
-  publish = ".next"
+  publish = "web/.next"
 
 [build.environment]
   # Backend proxy target — same Render instance as Vercel uses
