@@ -1,36 +1,46 @@
 import { HeroBanner } from "@/components/hero-banner";
 import { CourseRow } from "@/components/course-row";
 import { UniversityGrid } from "@/components/university-grid";
+import type { PaginatedList, CourseSummary } from "@/types";
 
-// Fully static page — no async server components, no SSR, no revalidate.
-// Built once at deploy time; served from Netlify CDN edge instantly.
-// All data fetched client-side by React Query:
-//   • priority rows: fetch immediately on mount (~300-500ms with warm backend)
-//   • all other rows: lazy-load via IntersectionObserver as they scroll into view
-// The keepalive Netlify scheduled function pings Render every 5 min so the
-// backend never cold-starts, keeping every client fetch fast.
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export default function HomePage() {
+async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {
+  try {
+    const res = await fetch(`${API}/api/v1${path}`, { next: { revalidate: 300 } });
+    if (!res.ok) return undefined;
+    return res.json();
+  } catch {
+    return undefined;
+  }
+}
+
+export default async function HomePage() {
+  // Fetch above-the-fold rows server-side so they appear instantly
+  const [featured, cs, ml, math] = await Promise.all([
+    serverFetch("/courses/featured?page_size=18&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=computer-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=machine-learning&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses?subject_slug=mathematics&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+  ]);
+
   return (
     <div className="space-y-0">
-      <div className="hidden md:block">
-        <HeroBanner />
-      </div>
+      <HeroBanner />
 
-      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 md:-mt-32 relative z-10">
+      <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 -mt-32 relative z-10">
 
-        {/* ── Above the fold — priority=true fires React Query immediately on mount ── */}
-        <div className="hidden md:block">
-          <CourseRow title="Featured Courses"            queryKey="featured"   fetchType="featured"  priority />
-        </div>
-        <CourseRow title="Computer Science"              queryKey="cs"         fetchType="subject"  subjectSlug="computer-science"         priority />
-        <CourseRow title="Machine Learning & AI"         queryKey="ml"         fetchType="subject"  subjectSlug="machine-learning"         priority />
-        <CourseRow title="Artificial Intelligence"       queryKey="ai"         fetchType="subject"  subjectSlug="artificial-intelligence"  priority />
-        <CourseRow title="Mathematics"                   queryKey="math"       fetchType="subject"  subjectSlug="mathematics"              priority />
-        <CourseRow title="Algorithms & Data Structures"  queryKey="algo"       fetchType="subject"  subjectSlug="algorithms"               priority />
+        {/* ── Above the fold ─────────────────────────────────────── */}
+        <CourseRow title="Featured Courses"           queryKey="featured"   fetchType="featured"  initialData={featured} priority />
+        <CourseRow title="Computer Science"           queryKey="cs"         fetchType="subject"   subjectSlug="computer-science"  initialData={cs}   priority />
+        <CourseRow title="Machine Learning & AI"      queryKey="ml"         fetchType="subject"   subjectSlug="machine-learning"  initialData={ml}   priority />
+        <CourseRow title="Artificial Intelligence"     queryKey="ai"         fetchType="subject"   subjectSlug="artificial-intelligence" priority />
+        <CourseRow title="Mathematics"                queryKey="math"       fetchType="subject"   subjectSlug="mathematics"       initialData={math} priority />
 
         {/* ── CS Deep Dives ──────────────────────────────────────── */}
-        <CourseRow title="Deep Learning & Neural Networks" queryKey="dl"       fetchType="subject" subjectSlug="deep-learning" />
+        <CourseRow title="Algorithms & Data Structures"    queryKey="algo"        fetchType="subject" subjectSlug="algorithms" />
+        <CourseRow title="Deep Learning & Neural Networks" queryKey="dl"          fetchType="subject" subjectSlug="deep-learning" />
+        <CourseRow title="Natural Language Processing"     queryKey="nlp"         fetchType="subject" subjectSlug="natural-language-processing" />
         <CourseRow title="Computer Vision"                 queryKey="cv"          fetchType="subject" subjectSlug="computer-vision" />
         <CourseRow title="Reinforcement Learning"          queryKey="rl"          fetchType="subject" subjectSlug="reinforcement-learning" />
         <CourseRow title="Large Language Models"           queryKey="llm"         fetchType="subject" subjectSlug="large-language-models" />
@@ -74,6 +84,7 @@ export default function HomePage() {
         <CourseRow title="Fourier Analysis"            queryKey="fourier"     fetchType="query"   queryString="fourier" />
 
         {/* ── Physics ────────────────────────────────────────────── */}
+        <CourseRow title="Physics"                     queryKey="physics"     fetchType="subject" subjectSlug="physics" />
         <CourseRow title="Quantum Physics"             queryKey="qm"          fetchType="subject" subjectSlug="quantum-physics" />
         <CourseRow title="Quantum Mechanics"           queryKey="qmech"       fetchType="query"   queryString="quantum mechanics" />
         <CourseRow title="Quantum Field Theory"        queryKey="qft"         fetchType="query"   queryString="quantum field theory" />
