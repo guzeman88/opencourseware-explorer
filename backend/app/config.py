@@ -48,7 +48,12 @@ class Settings(BaseSettings):
     admin_password: str = "changeme"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:19006"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:19006",
+        "https://opencourseware-explorer.netlify.app",
+        "https://opencourseware-explorer.vercel.app",
+    ]
 
     # YouTube
     youtube_api_key: str = ""
