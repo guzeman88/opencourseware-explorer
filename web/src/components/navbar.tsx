@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Search, BookOpen, GraduationCap, Menu, X, Bookmark, LogOut } from "lucide-react";
+import { Search, GraduationCap, Menu, X, Bookmark, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useAuthModal } from "@/providers/auth-modal-provider";
 
 const navLinks = [
   { href: "/courses", label: "All Courses" },
-  { href: "/browse", label: "Browse" },
   { href: "/universities", label: "Universities" },
   { href: "/subjects", label: "Subjects" },
   { href: "/roadmaps", label: "Roadmaps" },
@@ -81,15 +80,6 @@ export function Navbar({ onSignInClick }: { onSignInClick?: () => void }) {
           </div>
         </form>
 
-        {/* Admin link */}
-        <Link
-          href="/admin"
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-        >
-          <BookOpen className="h-4 w-4" />
-          Admin
-        </Link>
-
         {/* Auth */}
         {user ? (
           <div className="hidden md:flex items-center gap-2">
@@ -147,13 +137,6 @@ export function Navbar({ onSignInClick }: { onSignInClick?: () => void }) {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/admin"
-            onClick={() => setMenuOpen(false)}
-            className="block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50"
-          >
-            Admin
-          </Link>
           {user ? (
             <button
               onClick={() => { signOut(); setMenuOpen(false); }}
