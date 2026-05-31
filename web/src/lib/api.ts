@@ -11,6 +11,7 @@ import type {
   University,
   Stats,
   ScraperJob,
+  WatchHistoryEntry,
 } from "@/types";
 
 const BASE_URL =
@@ -141,6 +142,29 @@ export async function fetchRoadmaps(params: {
 
 export async function fetchRoadmap(slug: string): Promise<Roadmap> {
   const { data } = await apiClient.get<Roadmap>(`/roadmaps/${slug}`);
+  return data;
+}
+
+// ─── Watch History ────────────────────────────────────────────────────────────
+
+export async function recordWatch(
+  courseId: string,
+  videoIndex: number,
+  token: string
+): Promise<void> {
+  await apiClient.post(
+    "/users/me/history",
+    { course_id: courseId, video_index: videoIndex },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
+export async function fetchWatchHistory(
+  token: string
+): Promise<WatchHistoryEntry[]> {
+  const { data } = await apiClient.get<WatchHistoryEntry[]>("/users/me/history", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return data;
 }
 

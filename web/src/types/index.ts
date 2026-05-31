@@ -35,8 +35,6 @@ export interface VideoSummary {
   thumbnail_url?: string;
   duration_seconds?: number;
   order: number;
-  /** Pre-computed silence segments as [[start_secs, end_secs], ...]. Null = not yet generated. */
-  silence_segments?: [number, number][] | null;
   created_at: string;
   updated_at: string;
 }
@@ -88,6 +86,12 @@ export interface PaginatedList<T> {
   page: number;
   page_size: number;
   pages: number;
+}
+
+export interface WatchHistoryEntry {
+  course: CourseSummary;
+  video_index: number;
+  watched_at: string;
 }
 
 export interface ScraperJob {
@@ -156,9 +160,8 @@ export interface CourseFilters {
   level?: CourseLevel;
   source_key?: string;
   has_video_lectures?: boolean;
-  has_thumbnail?: boolean;
   page?: number;
   page_size?: number;
-  sort_by?: "title" | "view_count" | "created_at" | "total_videos" | "relevance";
+  sort_by?: "title" | "view_count" | "created_at" | "total_videos";
   sort_dir?: "asc" | "desc";
 }

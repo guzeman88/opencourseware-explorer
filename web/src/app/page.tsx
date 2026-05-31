@@ -1,5 +1,6 @@
 import { CourseRow } from "@/components/course-row";
 import { UniversityGrid } from "@/components/university-grid";
+import { ContinueWatchingRow } from "@/components/continue-watching-row";
 import type { PaginatedList, CourseSummary } from "@/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -26,6 +27,9 @@ export default async function HomePage() {
   return (
     <div className="space-y-0">
       <div className="px-4 md:px-8 lg:px-12 space-y-10 pb-16 pt-8 relative z-10">
+
+        {/* ── Continue Watching (logged-in users only) ───────────── */}
+        <ContinueWatchingRow />
 
         {/* ── Above the fold ─────────────────────────────────────── */}
         <CourseRow title="Featured Courses"           queryKey="featured"   fetchType="featured"  initialData={featured} priority />
