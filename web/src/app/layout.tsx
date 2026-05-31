@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AppShell } from "@/components/app-shell";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -42,6 +44,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
+        <Suspense>
+          <GoogleAnalytics />
+        </Suspense>
         <QueryProvider>
           <AppShell>{children}</AppShell>
         </QueryProvider>
