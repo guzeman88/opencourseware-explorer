@@ -3,6 +3,7 @@ import type {
   Course,
   CourseSummary,
   CourseFilters,
+  CourseLevel,
   PaginatedList,
   Roadmap,
   RoadmapSummary,
@@ -198,4 +199,37 @@ export async function setCoursePublished(
   await apiClient.patch(`/admin/courses/${courseId}/publish`, null, {
     params: { published },
   });
+}
+
+export interface CourseUpdatePayload {
+  title?: string;
+  description?: string;
+  level?: CourseLevel;
+  instructor?: string;
+  year?: number | null;
+  semester?: string | null;
+  thumbnail_url?: string | null;
+  has_video_lectures?: boolean;
+  has_lecture_notes?: boolean;
+  has_exams?: boolean;
+  lecture_notes_url?: string | null;
+  exams_url?: string | null;
+  youtube_playlist_id?: string | null;
+  is_published?: boolean;
+}
+
+export async function fetchAdminCourse(courseId: string): Promise<Course> {
+  const { data } = await apiClient.get<Course>(`/courses/${courseId}`);
+  return data;
+}
+
+export async function updateCourse(
+  courseId: string,
+  payload: CourseUpdatePayload
+): Promise<Course> {
+  const { data } = await apiClient.put<Course>(
+    `/admin/courses/${courseId}`,
+    payload
+  );
+  return data;
 }
