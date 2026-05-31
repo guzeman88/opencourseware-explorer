@@ -6,6 +6,17 @@
 [build.environment]
   # Backend proxy target — same Render instance as Vercel uses
   API_UPSTREAM = "https://opencourseware-api.onrender.com"
+  # Empty string → axios uses relative URLs (/api/v1/…) → Netlify proxy picks them up
+  NEXT_PUBLIC_API_URL = ""
+
+# Proxy /api/v1/* → Render backend (server-side, no CORS).
+# This is the same route the Next.js /api/v1/[...path] handler covers,
+# but the Netlify redirect is faster (no Lambda cold-start).
+[[redirects]]
+  from   = "/api/v1/*"
+  to     = "https://opencourseware-api.onrender.com/api/v1/:splat"
+  status = 200
+  force  = true
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
