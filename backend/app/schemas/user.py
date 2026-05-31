@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, field_validator
+from app.schemas.course import CourseSummary
 
 
 class RegisterRequest(BaseModel):
@@ -41,3 +42,24 @@ class LibraryCourseId(BaseModel):
 
 class LibraryStatusResponse(BaseModel):
     saved: bool
+
+
+class WatchHistoryCreate(BaseModel):
+    course_id: uuid.UUID
+    video_index: int = 0
+
+
+class WatchHistoryEntry(BaseModel):
+    course_id: uuid.UUID
+    video_index: int
+    watched_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WatchHistoryWithCourse(BaseModel):
+    course: CourseSummary
+    video_index: int
+    watched_at: datetime
+
+    model_config = {"from_attributes": True}

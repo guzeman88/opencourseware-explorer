@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.course import Course
 from app.models.library import UserLibraryCourse
+from app.models.watch_history import UserWatchHistory
 from app.models.user import User
 from app.schemas.course import CourseSummary
 from app.schemas.user import (
@@ -18,6 +19,8 @@ from app.schemas.user import (
     RegisterRequest,
     TokenResponse,
     UserRead,
+    WatchHistoryCreate,
+    WatchHistoryWithCourse,
 )
 from app.services.auth import (
     authenticate_user,
@@ -161,3 +164,79 @@ async def remove_from_library(
         await db.delete(entry)
         await db.commit()
     return LibraryStatusResponse(saved=False)
+
+
+# ─── Watch History ────────────────────────────────────────────────────────────
+
+@router.post("/me/history", status_code=status.HTTP_204_NO_CONTENT)
+async def record_watch(
+    body: WatchHistoryCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Upsert the last-watched video index for a course."""
+    existing = (
+        await db.execute(
+            select(UserWatchHistory).where(
+                UserWatchHistory.user_id == current_user.id,
+                UserWatchHistory.course_id == body.course_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.video_index = body.video_index
+        from sqlalchemy import func
+        existing.updated_at = func.now()
+    else:
+        db.add(
+            UserWatchHistory(
+                user_id=current_user.id,
+                course_id=body.course_id,
+                video_index=body.video_index,
+            )
+        )
+    await db.commit()
+
+
+@router.get("/me/history", response_model=list[WatchHistoryWithCourse])
+async def get_watch_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[WatchHistoryWithCourse]:
+    """Return up to 20 most-recently-watched courses with course data."""
+    rows = (
+        await db.execute(
+            select(UserWatchHistory, Course)
+            .join(Course, UserWatchHistory.course_id == Course.id)
+            .where(UserWatchHistory.user_id == current_user.id)
+            .order_by(UserWatchHistory.updated_at.desc())
+            .limit(20)
+        )
+    ).all()
+
+    result = []
+    for history, course in rows:
+        course_summary = CourseSummary.model_validate(course)
+        result.append(
+            WatchHistoryWithCourse(
+                course=course_summary,
+                video_index=history.video_index,
+                watched_at=history.updated_at,
+            )
+        )
+    return result
+
+
+@router.delete("/me/history", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_watch_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    rows = (
+        await db.execute(
+            select(UserWatchHistory).where(UserWatchHistory.user_id == current_user.id)
+        )
+    ).scalars().all()
+    for row in rows:
+        await db.delete(row)
+    await db.commit()

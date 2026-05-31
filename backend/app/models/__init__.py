@@ -9,7 +9,7 @@ from app.models.video import Video
 from app.models.scraper_job import ScraperJob
 from app.models.user import User
 from app.models.roadmap import Roadmap, RoadmapEntry
-from app.models.library import UserLibraryCourse
+from app.models.watch_history import UserWatchHistory
 
 __all__ = [
     "Base",
@@ -23,5 +23,5 @@ __all__ = [
     "User",
     "Roadmap",
     "RoadmapEntry",
-    "UserLibraryCourse",
+    "UserWatchHistory",
 ]
