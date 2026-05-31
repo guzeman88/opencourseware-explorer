@@ -44,8 +44,29 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
-        {/* Splash – covers the initial black screen, fades out once JS loads */}
-        <div id="app-splash" aria-hidden="true">
+        {/* Keyframe + splash styles inlined in the HTML so they apply before any external CSS loads */}
+        {/* eslint-disable-next-line react/no-danger */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes splash-out{from{opacity:1}to{opacity:0;visibility:hidden}}
+        `}} />
+        {/* Splash – all styles inline so they work before globals.css is parsed */}
+        <div
+          id="app-splash"
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "#0a0a0a",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "20px",
+            pointerEvents: "none",
+            animation: "splash-out 0.35s ease-out 0.55s both",
+          }}
+        >
           <svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 32 32">
             <rect width="32" height="32" rx="6" fill="#0f172a"/>
             <g transform="translate(4,4) scale(0.833333)" stroke="#d93025" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none">
@@ -54,7 +75,9 @@ export default function RootLayout({
               <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>
             </g>
           </svg>
-          <span id="app-splash-title">The Commons</span>
+          <span style={{ color: "#fafafa", fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em", fontFamily: "system-ui, sans-serif" }}>
+            The Commons
+          </span>
         </div>
         <Suspense>
           <GoogleAnalytics />
