@@ -3,7 +3,10 @@ import { UniversityGrid } from "@/components/university-grid";
 import { ContinueWatchingRow } from "@/components/continue-watching-row";
 import type { PaginatedList, CourseSummary } from "@/types";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API =
+  process.env.API_UPSTREAM ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8000";
 
 async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {
   try {
