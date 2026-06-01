@@ -16,19 +16,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["education"],
     icons: [
       {
-        src: "/icon.png",
+        src: "/icon",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon.png",
+        src: "/icon",
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/apple-icon.png",
+        src: "/apple-icon",
         sizes: "180x180",
         type: "image/png",
       },
