@@ -104,6 +104,12 @@
     -ms-overflow-style: none;
   }
 
+  /* Cards inside a scroll row get a fixed width and don't shrink */
+  .scroll-row > * {
+    width: 13rem; /* 208px = w-52 */
+    flex-shrink: 0;
+  }
+
   .scroll-row::-webkit-scrollbar {
     display: none;
   }

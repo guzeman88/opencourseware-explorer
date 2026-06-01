@@ -48,7 +48,7 @@ export function CourseCard({ course, className, priority = false }: CourseCardPr
     <Link
       href={`/courses/${course.slug}`}
       className={cn(
-        "group relative flex-shrink-0 w-52 rounded-lg overflow-hidden bg-card border border-border/50",
+        "group relative rounded-lg overflow-hidden bg-card border border-border/50",
         "transition-all duration-300 hover:scale-105 hover:border-primary/50 hover:shadow-2xl hover:shadow-black/50",
         className
       )}
