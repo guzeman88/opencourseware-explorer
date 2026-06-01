@@ -5,6 +5,7 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AppShell } from "@/components/app-shell";
 import { GoogleAnalytics } from "@/components/google-analytics";
+import { SplashDismisser } from "@/components/splash-dismisser";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -49,7 +50,7 @@ export default function RootLayout({
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes splash-out{from{opacity:1}to{opacity:0;visibility:hidden}}
         `}} />
-        {/* Splash – all styles inline so they work before globals.css is parsed */}
+        {/* Splash – stays until React hydrates, then SplashDismisser fades it out */}
         <div
           id="app-splash"
           aria-hidden="true"
@@ -64,7 +65,6 @@ export default function RootLayout({
             justifyContent: "center",
             gap: "20px",
             pointerEvents: "none",
-            animation: "splash-out 0.35s ease-out 0.55s both",
           }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 32 32">
@@ -83,6 +83,7 @@ export default function RootLayout({
           <GoogleAnalytics />
         </Suspense>
         <QueryProvider>
+          <SplashDismisser />
           <AppShell>{children}</AppShell>
         </QueryProvider>
       </body>
