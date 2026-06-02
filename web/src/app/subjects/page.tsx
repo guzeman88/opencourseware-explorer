@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchSubjects } from "@/lib/api";
+import { fetchStrictSubjectCounts, fetchSubjects } from "@/lib/api";
 import Link from "next/link";
 import type { Subject } from "@/types";
 
@@ -353,15 +353,16 @@ export default function SubjectsPage() {
     queryKey: ["subjects"],
     queryFn: () => fetchSubjects(false, true),
   });
+  const { data: strictCounts = {} } = useQuery({
+    queryKey: ["strict-subject-counts"],
+    queryFn: fetchStrictSubjectCounts,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const subjectMap = new Map<string, Subject>();
   for (const s of data?.items ?? []) {
     subjectMap.set(s.slug, s);
   }
-
-  const otherSubjects = [...(data?.items ?? [])]
-    .filter((s) => !MAPPED_SLUGS.has(s.slug) && (s.course_count ?? 0) > 0)
-    .sort((a, b) => (b.course_count ?? 0) - (a.course_count ?? 0));
 
   if (isLoading) {
     return (
@@ -385,6 +386,14 @@ export default function SubjectsPage() {
   type RenderedSubfield = { name: string; subjects: DisplaySubject[] };
   type RenderedField    = { name: string; accent: string; subfields: RenderedSubfield[] };
 
+  const otherSubjects = [...(data?.items ?? [])]
+    .map((subject) => ({
+      ...subject,
+      course_count: strictCounts[subject.slug] ?? subject.course_count ?? 0,
+    }))
+    .filter((s) => !MAPPED_SLUGS.has(s.slug) && (s.course_count ?? 0) > 0)
+    .sort((a, b) => (b.course_count ?? 0) - (a.course_count ?? 0));
+
   const renderedFields: RenderedField[] = FIELDS.map((field) => ({
     name: field.name,
     accent: field.accent,
@@ -393,7 +402,11 @@ export default function SubjectsPage() {
       // Show every slug — zero count if not in DB or no video courses yet
       subjects: sf.slugs.map((slug) => {
         const s = subjectMap.get(slug);
-        return { slug, name: s?.name ?? slugToName(slug), course_count: s?.course_count ?? 0 };
+        return {
+          slug,
+          name: s?.name ?? slugToName(slug),
+          course_count: strictCounts[slug] ?? s?.course_count ?? 0,
+        };
       }),
     })),
   }));

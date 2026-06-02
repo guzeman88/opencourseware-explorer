@@ -116,6 +116,14 @@ export async function fetchSubjects(
   return data;
 }
 
+export async function fetchStrictSubjectCounts(): Promise<Record<string, number>> {
+  const { data } = await axios.get<{ counts: Record<string, number> }>(
+    "/api/strict-subject-counts",
+    { timeout: 30000 }
+  );
+  return data.counts;
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 export async function searchCourses(
