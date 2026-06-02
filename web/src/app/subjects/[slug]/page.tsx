@@ -18,6 +18,58 @@ const LEVEL_LABEL: Record<string, string> = {
   advanced: "Advanced",
 };
 
+const STRICT_SUBJECT_SYNONYMS: Record<string, string[]> = {
+  "artificial-intelligence": ["ai", "artificial intelligence"],
+  "computer-science": ["computer science", "computing", "cs"],
+  "computer-networks": ["computer networks", "networking"],
+  cybersecurity: ["cybersecurity", "cyber security", "computer security", "information security"],
+  "data-structures": ["data structures", "data structure"],
+  "differential-equations": [
+    "differential equations",
+    "ordinary differential equations",
+    "partial differential equations",
+  ],
+  "discrete-mathematics": ["discrete mathematics", "discrete math", "discrete structures"],
+  "large-language-models": ["large language models", "large language model", "llm", "language models"],
+  "machine-learning": ["machine learning", "statistical learning"],
+  "natural-language-processing": ["natural language processing", "nlp"],
+  "operating-systems": ["operating systems", "operating system"],
+  probability: ["probability", "probability theory"],
+  "proof-writing": ["proof writing", "proofs", "mathematical proofs", "logic and proof"],
+  "real-analysis": ["real analysis"],
+  "software-engineering": ["software engineering"],
+};
+
+function normalizeSubjectText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function strictTitleScope(title: string) {
+  return title.split(" | ", 1)[0] ?? title;
+}
+
+function phraseMatches(haystack: string, phrase: string) {
+  const normalized = normalizeSubjectText(phrase);
+  if (!normalized) return false;
+  return new RegExp(`(^|[^a-z0-9])${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(
+    haystack
+  );
+}
+
+function strictSubjectPhrases(slug: string) {
+  const fallback = slug.replace(/-/g, " ");
+  return Array.from(new Set([fallback, ...(STRICT_SUBJECT_SYNONYMS[slug] ?? [])]));
+}
+
+function isStrictSubjectCourse(course: CourseSummary, subjectSlug: string) {
+  const title = normalizeSubjectText(strictTitleScope(course.title));
+  return strictSubjectPhrases(subjectSlug).some((phrase) => phraseMatches(title, phrase));
+}
+
 function CourseListRow({ course }: { course: CourseSummary }) {
   return (
     <Link
@@ -55,12 +107,13 @@ export default function SubjectPage() {
   const { data: coursesData, isLoading } = useQuery({
     queryKey: ["subject-courses", slug],
     queryFn: () =>
-      fetchCourses({ subject_slug: slug, page_size: 48, sort_by: "relevance", sort_dir: "desc" }),
+      fetchCourses({ subject_slug: slug, page_size: 100, sort_by: "relevance", sort_dir: "desc" }),
     enabled: !!slug,
   });
 
-  const courses = coursesData?.items ?? [];
-  const total = coursesData?.total ?? 0;
+  const rawCourses = coursesData?.items ?? [];
+  const courses = rawCourses.filter((course) => isStrictSubjectCourse(course, slug));
+  const total = courses.length;
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 md:px-8 lg:px-12 py-8">
