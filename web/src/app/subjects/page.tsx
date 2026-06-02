@@ -346,6 +346,12 @@ const FIELDS: FieldDef[] = [
 const MAPPED_SLUGS = new Set(
   FIELDS.flatMap((f) => f.subfields.flatMap((sf) => sf.slugs))
 );
+const PRIORITY_COUNT_SLUGS = [
+  "proof-writing",
+  "logic",
+  "discrete-mathematics",
+  "combinatorics",
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SubjectsPage() {
@@ -358,6 +364,12 @@ export default function SubjectsPage() {
     queryFn: () => fetchStrictSubjectCounts(Array.from(MAPPED_SLUGS)),
     staleTime: 5 * 60 * 1000,
   });
+  const { data: priorityCounts = {} } = useQuery({
+    queryKey: ["strict-subject-counts", "priority"],
+    queryFn: () => fetchStrictSubjectCounts(PRIORITY_COUNT_SLUGS),
+    staleTime: 5 * 60 * 1000,
+  });
+  const countMap = { ...strictCounts, ...priorityCounts };
 
   const subjectMap = new Map<string, Subject>();
   for (const s of data?.items ?? []) {
@@ -389,7 +401,7 @@ export default function SubjectsPage() {
   const otherSubjects = [...(data?.items ?? [])]
     .map((subject) => ({
       ...subject,
-      course_count: strictCounts[subject.slug] ?? subject.course_count ?? 0,
+      course_count: countMap[subject.slug] ?? subject.course_count ?? 0,
     }))
     .filter((s) => !MAPPED_SLUGS.has(s.slug) && (s.course_count ?? 0) > 0)
     .sort((a, b) => (b.course_count ?? 0) - (a.course_count ?? 0));
@@ -405,7 +417,7 @@ export default function SubjectsPage() {
         return {
           slug,
           name: s?.name ?? slugToName(slug),
-          course_count: strictCounts[slug] ?? s?.course_count ?? 0,
+          course_count: countMap[slug] ?? 0,
         };
       }),
     })),
@@ -445,7 +457,7 @@ export default function SubjectsPage() {
                     {subject.name}
                   </span>
                   <span className="ml-2 text-xs text-muted-foreground/60 tabular-nums shrink-0">
-                    {subject.course_count}
+                    {subject.slug in countMap ? subject.course_count : "–"}
                   </span>
                 </Link>
               ))}
