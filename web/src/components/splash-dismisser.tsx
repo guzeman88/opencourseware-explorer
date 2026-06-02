@@ -8,6 +8,7 @@ export function SplashDismisser() {
     const splashEl = el;
 
     let timeoutId: number | undefined;
+    let removeTimeoutId: number | undefined;
     let didDismiss = false;
 
     function dismiss() {
@@ -18,6 +19,7 @@ export function SplashDismisser() {
         window.requestAnimationFrame(() => {
           splashEl.style.animation = "splash-out 0.35s ease-out both";
           splashEl.addEventListener("animationend", () => splashEl.remove(), { once: true });
+          removeTimeoutId = window.setTimeout(() => splashEl.remove(), 700);
         });
       });
     }
@@ -32,6 +34,7 @@ export function SplashDismisser() {
     return () => {
       window.removeEventListener("load", dismiss);
       if (timeoutId) window.clearTimeout(timeoutId);
+      if (removeTimeoutId) window.clearTimeout(removeTimeoutId);
     };
   }, []);
   return null;
