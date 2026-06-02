@@ -73,7 +73,8 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd web
 npm install
-# Create web/.env.local with: NEXT_PUBLIC_API_URL=http://localhost:8000
+# Optional: leave NEXT_PUBLIC_API_URL empty to use the built-in /api/v1 proxy.
+# Set it only when you are intentionally running a local backend.
 npm run dev
 # → http://localhost:3000
 ```
@@ -130,7 +131,8 @@ See `.env.example` and **[OPERATIONS.md §3](OPERATIONS.md)** for the complete r
 | `DATABASE_URL` | Backend | Full asyncpg connection string to Neon |
 | `SECRET_KEY` | Backend | JWT signing key — generate: `openssl rand -hex 32` |
 | `YOUTUBE_API_KEY` | Scraper | Required for video enrichment |
-| `NEXT_PUBLIC_API_URL` | Frontend | URL of the deployed backend |
+| `API_UPSTREAM` | Frontend server/proxy | Backend URL used by SSR and `/api/v1` proxy |
+| `NEXT_PUBLIC_API_URL` | Frontend browser | Leave empty to use relative `/api/v1`; set only for an intentional direct backend |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Frontend | Google Analytics 4 Measurement ID |
 
 ---

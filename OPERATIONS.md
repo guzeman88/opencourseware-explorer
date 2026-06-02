@@ -211,7 +211,8 @@ If any of the following credentials are compromised, rotate them immediately:
 
 | Variable | Required | Description |
 |----------|:--------:|-------------|
-| `NEXT_PUBLIC_API_URL` | ✅ | `https://opencourseware-api.onrender.com` |
+| `API_UPSTREAM` | ✅ | `https://opencourseware-api.onrender.com` for SSR and the `/api/v1` proxy |
+| `NEXT_PUBLIC_API_URL` | ✅ | Leave empty so browser requests use relative `/api/v1` and Netlify can proxy/cache them |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | ⚠️ | Google Analytics 4 Measurement ID (`G-XXXXXXXXXX`). Code is deployed; just needs this value. |
 | `NEXT_PUBLIC_SENTRY_DSN` | ⚠️ | Sentry DSN for client-side error reporting |
 | `SENTRY_AUTH_TOKEN` | ⚠️ | Sentry source map upload token |
@@ -226,8 +227,10 @@ $env:YOUTUBE_API_KEY = "<your-key>"
 ### Local Development — `web/.env.local`
 
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=
 ```
+
+Leave `NEXT_PUBLIC_API_URL` empty unless you are intentionally running a local backend. Empty means browser requests use relative `/api/v1`, which goes through the Next.js proxy route and falls back to the live Render backend. Setting this to a dead local port makes the app appear blank or skeleton-only after the splash.
 
 ---
 
@@ -504,25 +507,51 @@ roadmap_entries ← ordered course list within each roadmap
 
 ## 11. Deployment
 
-### Web → Netlify (automatic)
+### Web → Netlify
 
-Every push to `main` triggers a Netlify deployment automatically.
+Every push to `main` should trigger the Netlify build hook in `.github/workflows/deploy.yml`. Do not assume that is enough for phone testing: after user-facing web changes, verify the production URL or run an explicit Netlify deploy and report the URL.
 
 | Property | Value |
 |----------|-------|
 | Site URL | `https://opencourseware-explorer.netlify.app` |
+| Site name | `opencourseware-explorer` |
+| Site ID | `54de50b1-3845-47d0-b667-d0a955e3e724` |
 | Build command | `npm run build` (run from `web/`) |
 | Publish dir | `web/.next` |
 | Plugin | `@netlify/plugin-nextjs` |
 | Env vars | Set in Netlify dashboard → Site settings → Environment variables |
 
-**To deploy a web change:**
+**Normal deploy path for a web change:**
 ```powershell
 cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses\opencourseware"
-git add web/
+git fetch --all --prune
+git status --short --branch
+npm --prefix web run build
+git add -- web/src/... netlify.toml
 git commit -m "describe change"
 git push origin main
-# Netlify detects the push and deploys automatically (~2–5 min)
+```
+
+Then confirm the Netlify build hook completed, or deploy explicitly for immediate phone testing:
+
+```powershell
+netlify deploy --prod --site 54de50b1-3845-47d0-b667-d0a955e3e724 --build
+```
+
+After deploy, verify with a cache-busted request:
+
+```powershell
+Invoke-WebRequest "https://opencourseware-explorer.netlify.app/?verify=$(Get-Date -UFormat %s)" -UseBasicParsing
+```
+
+For mobile UI changes, also open the Netlify URL on a phone and verify the interaction there. Report the production URL, unique deploy URL, deploy ID, commit hash, and what was verified.
+
+**Local Netlify state:**
+
+`.netlify/` is intentionally ignored because it is local CLI state. If `netlify status` says the folder is not linked, do not guess the site. Use the site ID above, or relink explicitly:
+
+```powershell
+netlify link --id 54de50b1-3845-47d0-b667-d0a955e3e724
 ```
 
 ### Backend → Render (manual or auto)
@@ -766,7 +795,7 @@ psql "postgresql://neondb_owner:<pw>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neo
 
 ### Force a Netlify redeploy (without a code change)
 
-In the Netlify dashboard → Deploys → Trigger deploy → Deploy site.
+Preferred for traceability: use the explicit CLI deploy command from the current pushed commit, then verify the production URL. Dashboard fallback: Netlify dashboard → Deploys → Trigger deploy → Deploy site.
 
 ### Force a Render redeploy (without a code change)
 
