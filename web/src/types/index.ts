@@ -163,6 +163,6 @@ export interface CourseFilters {
   has_thumbnail?: boolean;
   page?: number;
   page_size?: number;
-  sort_by?: "title" | "view_count" | "created_at" | "total_videos";
+  sort_by?: "title" | "view_count" | "created_at" | "total_videos" | "relevance";
   sort_dir?: "asc" | "desc";
 }

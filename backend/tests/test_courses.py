@@ -5,7 +5,8 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.course import Course, CourseLevel
+from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectRelevance
+from app.models.subject import Subject
 from app.models.university import University
 
 
@@ -113,6 +114,66 @@ async def test_featured_courses(client: AsyncClient, courses: list[Course]):
     # Featured only returns courses with video lectures
     for item in body["items"]:
         assert item["has_video_lectures"] is True
+
+
+@pytest.mark.asyncio
+async def test_subject_relevance_uses_sidecar_scores(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    uni: University,
+):
+    subject = Subject(name="Discrete Mathematics", slug="discrete-mathematics")
+    exact = Course(
+        university_id=uni.id,
+        title="Discrete Mathematics",
+        slug="discrete-mathematics-test",
+        level=CourseLevel.undergraduate,
+        source_key="test",
+        has_video_lectures=True,
+        total_videos=12,
+        view_count=1,
+    )
+    weak = Course(
+        university_id=uni.id,
+        title="Advanced Hematologic System Physiology",
+        slug="advanced-hematologic-system-physiology-test",
+        level=CourseLevel.undergraduate,
+        source_key="test",
+        has_video_lectures=True,
+        total_videos=16,
+        view_count=999,
+    )
+    db_session.add_all([subject, exact, weak])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            CourseSubject(course_id=exact.id, subject_id=subject.id),
+            CourseSubject(course_id=weak.id, subject_id=subject.id),
+            CourseSubjectRelevance(
+                course_id=exact.id,
+                subject_id=subject.id,
+                score=100,
+                relationship="exact_title",
+                reason="title contains 'discrete mathematics'",
+            ),
+            CourseSubjectRelevance(
+                course_id=weak.id,
+                subject_id=subject.id,
+                score=35,
+                relationship="weak_existing_tag",
+                reason="existing tag only; no direct text evidence",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client.get(
+        "/api/v1/courses?subject_slug=discrete-mathematics&sort_by=relevance&page_size=10"
+    )
+    assert resp.status_code == 200
+    titles = [item["title"] for item in resp.json()["items"]]
+    assert titles[0] == "Discrete Mathematics"
+    assert "Advanced Hematologic System Physiology" not in titles
 
 
 @pytest.mark.asyncio

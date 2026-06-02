@@ -3,14 +3,48 @@ from __future__ import annotations
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, inspect as sa_inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.course import Course, CourseLevel, CourseSubject
+from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectRelevance
 from app.models.university import University
 from app.models.subject import Subject
 from app.schemas.course import CourseCreate, CourseFilters, CourseUpdate
+
+MIN_SUBJECT_RELEVANCE_SCORE = 40
+_HAS_RELEVANCE_TABLE: bool | None = None
+
+
+async def _has_relevance_table(db: AsyncSession) -> bool:
+    global _HAS_RELEVANCE_TABLE
+    if _HAS_RELEVANCE_TABLE is not None:
+        return _HAS_RELEVANCE_TABLE
+
+    def check(sync_session) -> bool:
+        return sa_inspect(sync_session.get_bind()).has_table("course_subject_relevance")
+
+    try:
+        _HAS_RELEVANCE_TABLE = await db.run_sync(check)
+    except Exception:
+        _HAS_RELEVANCE_TABLE = False
+    return _HAS_RELEVANCE_TABLE
+
+
+async def _subject_has_relevance_scores(db: AsyncSession, subject_slug: str) -> bool:
+    if not await _has_relevance_table(db):
+        return False
+
+    result = await db.execute(
+        select(func.count())
+        .select_from(CourseSubjectRelevance)
+        .join(Subject, CourseSubjectRelevance.subject_id == Subject.id)
+        .where(
+            Subject.slug == subject_slug,
+            CourseSubjectRelevance.score >= MIN_SUBJECT_RELEVANCE_SCORE,
+        )
+    )
+    return (result.scalar_one() or 0) > 0
 
 
 async def get_course_by_id(db: AsyncSession, course_id: uuid.UUID) -> Course | None:
@@ -52,6 +86,7 @@ async def list_courses(
         )
     )
     count_query = select(func.count()).select_from(Course)
+    relevance_scores = None
 
     # Apply filters
     if filters.q:
@@ -68,7 +103,31 @@ async def list_courses(
         query = query.where(Course.university_id.in_(sub))
         count_query = count_query.where(Course.university_id.in_(sub))
 
-    if filters.subject_slug:
+    use_scored_subject_relevance = (
+        filters.subject_slug is not None
+        and filters.sort_by == "relevance"
+        and await _subject_has_relevance_scores(db, filters.subject_slug)
+    )
+
+    if filters.subject_slug and use_scored_subject_relevance:
+        relevance_scores = (
+            select(
+                CourseSubjectRelevance.course_id,
+                func.max(CourseSubjectRelevance.score).label("subject_relevance_score"),
+            )
+            .join(Subject, CourseSubjectRelevance.subject_id == Subject.id)
+            .where(
+                Subject.slug == filters.subject_slug,
+                CourseSubjectRelevance.score >= MIN_SUBJECT_RELEVANCE_SCORE,
+            )
+            .group_by(CourseSubjectRelevance.course_id)
+            .subquery()
+        )
+        query = query.join(relevance_scores, Course.id == relevance_scores.c.course_id)
+        count_query = count_query.where(
+            Course.id.in_(select(relevance_scores.c.course_id))
+        )
+    elif filters.subject_slug:
         sub = (
             select(CourseSubject.course_id)
             .join(Subject, CourseSubject.subject_id == Subject.id)
@@ -100,10 +159,16 @@ async def list_courses(
 
     # Sorting
     if filters.sort_by == "relevance" and filters.subject_slug:
-        from sqlalchemy import case
-        term = filters.subject_slug.replace("-", " ")
-        title_match = case((Course.title.ilike(f"%{term}%"), 0), else_=1)
-        query = query.order_by(title_match, Course.view_count.desc())
+        if relevance_scores is not None:
+            query = query.order_by(
+                relevance_scores.c.subject_relevance_score.desc(),
+                Course.view_count.desc(),
+                Course.title.asc(),
+            )
+        else:
+            term = filters.subject_slug.replace("-", " ")
+            title_match = case((Course.title.ilike(f"%{term}%"), 0), else_=1)
+            query = query.order_by(title_match, Course.view_count.desc(), Course.title.asc())
     else:
         sort_col = {
             "title": Course.title,

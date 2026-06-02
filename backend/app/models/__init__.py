@@ -4,7 +4,7 @@ from app.models.base import Base
 from app.models.university import University
 from app.models.department import Department
 from app.models.subject import Subject
-from app.models.course import Course, CourseSubject
+from app.models.course import Course, CourseSubject, CourseSubjectRelevance
 from app.models.video import Video
 from app.models.scraper_job import ScraperJob
 from app.models.user import User
@@ -18,6 +18,7 @@ __all__ = [
     "Subject",
     "Course",
     "CourseSubject",
+    "CourseSubjectRelevance",
     "Video",
     "ScraperJob",
     "User",

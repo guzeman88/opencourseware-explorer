@@ -5,11 +5,33 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic.fields import FieldInfo
-from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class _CorsAwareEnvSource(EnvSettingsSource):
     """Custom env source that parses CORS_ORIGINS as comma-separated or JSON array."""
+
+    def prepare_field_value(
+        self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool
+    ) -> Any:
+        if field_name == "cors_origins" and isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [str(s).strip() for s in parsed if str(s).strip()]
+            except (json.JSONDecodeError, ValueError):
+                pass
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
+
+
+class _CorsAwareDotEnvSource(DotEnvSettingsSource):
+    """Dotenv source with the same CORS_ORIGINS parsing as real env vars."""
 
     def prepare_field_value(
         self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool
@@ -81,17 +103,9 @@ class Settings(BaseSettings):
         return (
             init_settings,
             _CorsAwareEnvSource(settings_cls),
-            dotenv_settings,
+            _CorsAwareDotEnvSource(settings_cls),
             file_secret_settings,
         )
-
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
-
-
-settings = get_settings()
 
 
 @lru_cache

@@ -14,7 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship as orm_relationship
 
 from app.models.base import Base
 
@@ -84,14 +84,14 @@ class Course(Base):
         Text, nullable=True
     )  # tsvector stored as text for portability
 
-    university: Mapped[University] = relationship("University", back_populates="courses")
-    department: Mapped[Department | None] = relationship(
+    university: Mapped[University] = orm_relationship("University", back_populates="courses")
+    department: Mapped[Department | None] = orm_relationship(
         "Department", back_populates="courses"
     )
-    videos: Mapped[list[Video]] = relationship(
+    videos: Mapped[list[Video]] = orm_relationship(
         "Video", back_populates="course", cascade="all, delete-orphan", order_by="Video.order"
     )
-    course_subjects: Mapped[list[CourseSubject]] = relationship(
+    course_subjects: Mapped[list[CourseSubject]] = orm_relationship(
         "CourseSubject", back_populates="course", cascade="all, delete-orphan"
     )
 
@@ -111,7 +111,32 @@ class CourseSubject(Base):
         ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False
     )
 
-    course: Mapped[Course] = relationship("Course", back_populates="course_subjects")
-    subject: Mapped[Subject] = relationship("Subject", back_populates="course_subjects")
+    course: Mapped[Course] = orm_relationship("Course", back_populates="course_subjects")
+    subject: Mapped[Subject] = orm_relationship("Subject", back_populates="course_subjects")
 
     __table_args__ = (UniqueConstraint("course_id", "subject_id"),)
+
+
+class CourseSubjectRelevance(Base):
+    __tablename__ = "course_subject_relevance"
+
+    course_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
+    )
+    subject_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False
+    )
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    relationship: Mapped[str] = mapped_column(String(50), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(50), nullable=False, default="auto")
+    version: Mapped[str] = mapped_column(String(50), nullable=False, default="v1")
+
+    course: Mapped[Course] = orm_relationship("Course")
+    subject: Mapped[Subject] = orm_relationship("Subject")
+
+    __table_args__ = (
+        UniqueConstraint("course_id", "subject_id", name="uq_course_subject_relevance"),
+        Index("ix_course_subject_relevance_subject_score", "subject_id", "score"),
+        Index("ix_course_subject_relevance_course_subject", "course_id", "subject_id"),
+    )

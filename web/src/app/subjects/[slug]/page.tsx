@@ -55,7 +55,7 @@ export default function SubjectPage() {
   const { data: coursesData, isLoading } = useQuery({
     queryKey: ["subject-courses", slug],
     queryFn: () =>
-      fetchCourses({ subject_slug: slug, page_size: 48, sort_by: "view_count", sort_dir: "desc" }),
+      fetchCourses({ subject_slug: slug, page_size: 48, sort_by: "relevance", sort_dir: "desc" }),
     enabled: !!slug,
   });
 
