@@ -8,10 +8,14 @@ are left alone.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import os
+import json
 import re
 import uuid
 from dataclasses import dataclass
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.request import urlopen
 
 import psycopg
 
@@ -20,6 +24,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 SOURCE = "auto"
 VERSION = "v1"
 MIN_DISPLAY_SCORE = 40
+TITLE_SUFFIX_SEPARATORS = (" | ",)
 
 GENERIC_TOKENS = {
     "and",
@@ -51,6 +56,7 @@ SYNONYMS: dict[str, list[str]] = {
     "natural-language-processing": ["natural language processing", "nlp"],
     "operating-systems": ["operating systems", "operating system"],
     "probability": ["probability theory"],
+    "proof-writing": ["proof writing", "proofs", "mathematical proofs", "logic and proof"],
     "real-analysis": ["real analysis"],
     "software-engineering": ["software engineering"],
 }
@@ -121,8 +127,25 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def strict_title_scope(title: str) -> str:
+    scoped = title
+    for separator in TITLE_SUFFIX_SEPARATORS:
+        if separator in scoped:
+            scoped = scoped.split(separator, 1)[0]
+    return scoped
+
+
 def psycopg_url(url: str) -> str:
-    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    normalized = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    parts = urlsplit(normalized)
+    params = dict(parse_qsl(parts.query, keep_blank_values=True))
+    if "sslmode" not in params and (
+        "railway" in normalized.lower() or "rlwy.net" in normalized.lower()
+    ):
+        params["sslmode"] = "require"
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(params), parts.fragment)
+    )
 
 
 def phrase_match(haystack: str, phrase: str) -> bool:
@@ -157,8 +180,12 @@ def all_tokens_match(haystack: str, tokens: list[str]) -> bool:
     return bool(tokens) and all(phrase_match(haystack, token) for token in tokens)
 
 
-def score_direct(course: Course, subject: Subject) -> tuple[int, str, str]:
-    title = normalize(course.title)
+def score_direct(
+    course: Course, subject: Subject, *, strategy: str = "rollup"
+) -> tuple[int, str, str]:
+    title = normalize(
+        strict_title_scope(course.title) if strategy == "strict" else course.title
+    )
     description = normalize(course.description)
     phrases = subject_phrases(subject)
     tokens = distinctive_tokens(subject)
@@ -178,7 +205,7 @@ def score_direct(course: Course, subject: Subject) -> tuple[int, str, str]:
     if all_tokens_match(description, tokens):
         return 64, "description_match", f"description contains subject tokens: {', '.join(tokens)}"
 
-    if subject.slug in course.existing_subjects:
+    if strategy != "strict" and subject.slug in course.existing_subjects:
         return 35, "weak_existing_tag", "existing tag only; no direct text evidence"
 
     return 0, "none", ""
@@ -191,7 +218,9 @@ def add_or_raise(scores: dict[tuple[str, str], Relevance], item: Relevance) -> N
         scores[key] = item
 
 
-def build_scores(courses: list[Course], subjects: list[Subject]) -> list[Relevance]:
+def build_scores(
+    courses: list[Course], subjects: list[Subject], *, strategy: str = "rollup"
+) -> list[Relevance]:
     by_slug = {s.slug: s for s in subjects}
     scores: dict[tuple[str, str], Relevance] = {}
     direct_by_course: dict[str, list[Relevance]] = {}
@@ -199,7 +228,9 @@ def build_scores(courses: list[Course], subjects: list[Subject]) -> list[Relevan
     for course in courses:
         direct_matches: list[Relevance] = []
         for subject in subjects:
-            score, relationship, reason = score_direct(course, subject)
+            score, relationship, reason = score_direct(
+                course, subject, strategy=strategy
+            )
             if score <= 0:
                 continue
             item = Relevance(
@@ -215,24 +246,25 @@ def build_scores(courses: list[Course], subjects: list[Subject]) -> list[Relevan
                 direct_matches.append(item)
         direct_by_course[course.id] = direct_matches
 
-    for course in courses:
-        for child_match in direct_by_course.get(course.id, []):
-            for parent_slug in ROLLUPS.get(child_match.subject_slug, []):
-                parent = by_slug.get(parent_slug)
-                if parent is None:
-                    continue
-                score = max(MIN_DISPLAY_SCORE + 1, child_match.score - 28)
-                add_or_raise(
-                    scores,
-                    Relevance(
-                        course_id=course.id,
-                        subject_id=parent.id,
-                        subject_slug=parent.slug,
-                        score=score,
-                        relationship="parent_rollup",
-                        reason=f"related via {child_match.subject_slug}: {child_match.reason}",
-                    ),
-                )
+    if strategy != "strict":
+        for course in courses:
+            for child_match in direct_by_course.get(course.id, []):
+                for parent_slug in ROLLUPS.get(child_match.subject_slug, []):
+                    parent = by_slug.get(parent_slug)
+                    if parent is None:
+                        continue
+                    score = max(MIN_DISPLAY_SCORE + 1, child_match.score - 28)
+                    add_or_raise(
+                        scores,
+                        Relevance(
+                            course_id=course.id,
+                            subject_id=parent.id,
+                            subject_slug=parent.slug,
+                            score=score,
+                            relationship="parent_rollup",
+                            reason=f"related via {child_match.subject_slug}: {child_match.reason}",
+                        ),
+                    )
 
     return list(scores.values())
 
@@ -265,6 +297,67 @@ def load_data(conn) -> tuple[list[Course], list[Subject]]:
         )
         for row in cur.fetchall()
     ]
+    return courses, subjects
+
+
+def fetch_api_page(
+    api_base: str, path: str, page: int, page_size: int, extra_params: dict | None = None
+) -> dict:
+    url = urljoin(api_base.rstrip("/") + "/", path.lstrip("/"))
+    params = {"page": page, "page_size": page_size}
+    if extra_params:
+        params.update(extra_params)
+    url = f"{url}?{urlencode(params)}"
+    with urlopen(url, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def fetch_all_api_items(
+    api_base: str, path: str, extra_params: dict | None = None
+) -> list[dict]:
+    page_size = 100
+    first = fetch_api_page(api_base, path, 1, page_size, extra_params)
+    payloads = [first]
+    pages = first["pages"]
+    if pages > 1:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            payloads.extend(
+                executor.map(
+                    lambda page: fetch_api_page(
+                        api_base, path, page, page_size, extra_params
+                    ),
+                    range(2, pages + 1),
+                )
+            )
+    items: list[dict] = []
+    for payload in payloads:
+        items.extend(payload["items"])
+    return items
+
+
+def load_api_data(
+    api_base: str, *, course_subject: str | None = None
+) -> tuple[list[Course], list[Subject]]:
+    subject_items = fetch_all_api_items(api_base, "/api/v1/subjects")
+    subjects = [
+        Subject(id=item["id"], slug=item["slug"], name=item["name"])
+        for item in subject_items
+    ]
+
+    course_params = {"subject_slug": course_subject} if course_subject else None
+    course_items = fetch_all_api_items(api_base, "/api/v1/courses", course_params)
+    courses = [
+        Course(
+            id=item["id"],
+            title=item["title"],
+            description=item.get("description") or "",
+            existing_subjects=frozenset(
+                subject["slug"] for subject in item.get("subjects", [])
+            ),
+        )
+        for item in course_items
+    ]
+
     return courses, subjects
 
 
@@ -307,7 +400,10 @@ def apply_scores(conn, scores: list[Relevance]) -> None:
     conn.commit()
 
 
-def print_summary(scores: list[Relevance], subject: str | None, limit: int) -> None:
+def print_summary(
+    scores: list[Relevance], courses: list[Course], subject: str | None, limit: int
+) -> None:
+    course_titles = {course.id: course.title for course in courses}
     visible = [s for s in scores if s.score >= MIN_DISPLAY_SCORE]
     print(f"Scored rows: {len(scores):,}")
     print(f"Rows at display threshold >= {MIN_DISPLAY_SCORE}: {len(visible):,}")
@@ -319,33 +415,61 @@ def print_summary(scores: list[Relevance], subject: str | None, limit: int) -> N
         )
         print(f"\nTop {min(limit, len(selected))} for {subject}:")
         for item in selected[:limit]:
-            print(f"  {item.score:3d} {item.relationship:18s} {item.course_id} {item.reason}")
+            title = course_titles.get(item.course_id, item.course_id)
+            print(f"  {item.score:3d} {item.relationship:18s} {title} [{item.reason}]")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="write sidecar relevance rows")
+    parser.add_argument(
+        "--api-base",
+        help="read visible course/subject data from an API base URL instead of DATABASE_URL",
+    )
+    parser.add_argument(
+        "--api-course-subject",
+        help="when using --api-base, only fetch courses currently visible for this subject slug",
+    )
     parser.add_argument("--subject", help="print sample rows for one subject slug")
     parser.add_argument("--limit", type=int, default=25)
+    parser.add_argument(
+        "--strategy",
+        choices=("rollup", "strict"),
+        default="rollup",
+        help="rollup keeps broad parent matches; strict only keeps direct subject evidence",
+    )
     args = parser.parse_args()
 
-    if not DATABASE_URL:
+    if args.apply and args.api_base:
+        raise SystemExit("--apply is only available with DATABASE_URL, not --api-base")
+
+    if not args.api_base and not DATABASE_URL:
         raise SystemExit("DATABASE_URL is required")
 
-    conn = psycopg.connect(psycopg_url(DATABASE_URL))
+    conn = None
     try:
-        courses, subjects = load_data(conn)
+        if args.api_base:
+            courses, subjects = load_api_data(
+                args.api_base, course_subject=args.api_course_subject
+            )
+        else:
+            conn = psycopg.connect(psycopg_url(DATABASE_URL))
+            courses, subjects = load_data(conn)
         print(f"Courses: {len(courses):,}")
         print(f"Subjects: {len(subjects):,}")
-        scores = build_scores(courses, subjects)
-        print_summary(scores, args.subject, args.limit)
+        print(f"Strategy: {args.strategy}")
+        scores = build_scores(courses, subjects, strategy=args.strategy)
+        print_summary(scores, courses, args.subject, args.limit)
         if args.apply:
+            if conn is None:
+                raise SystemExit("--apply requires DATABASE_URL")
             apply_scores(conn, scores)
             print("Applied relevance sidecar rows.")
         else:
             print("Dry run only. Re-run with --apply to write sidecar rows.")
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 if __name__ == "__main__":
