@@ -119,12 +119,30 @@ export async function fetchSubjects(
 export async function fetchStrictSubjectCounts(
   slugs: string[]
 ): Promise<Record<string, number>> {
-  const { data } = await axios.post<{ counts: Record<string, number> }>(
-    "/api/strict-subject-counts",
-    { slugs },
-    { timeout: 30000 }
-  );
-  return data.counts;
+  const counts: Record<string, number> = {};
+  const uniqueSlugs = Array.from(new Set(slugs));
+  const chunks: string[][] = [];
+  for (let index = 0; index < uniqueSlugs.length; index += 6) {
+    chunks.push(uniqueSlugs.slice(index, index + 6));
+  }
+
+  for (let index = 0; index < chunks.length; index += 6) {
+    const batch = chunks.slice(index, index + 6);
+    const results = await Promise.all(
+      batch.map((chunk) =>
+        axios.post<{ counts: Record<string, number> }>(
+          "/api/strict-subject-counts",
+          { slugs: chunk },
+          { timeout: 30000 }
+        )
+      )
+    );
+    for (const result of results) {
+      Object.assign(counts, result.data.counts);
+    }
+  }
+
+  return counts;
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────

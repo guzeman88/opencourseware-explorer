@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
       { counts, generated_at: new Date().toISOString() },
       {
         headers: {
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
-          "Netlify-CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+          "Cache-Control": "no-store",
+          "Netlify-CDN-Cache-Control": "no-store",
         },
       }
     );
