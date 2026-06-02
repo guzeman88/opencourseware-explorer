@@ -2,24 +2,40 @@
 
 import { useEffect } from "react";
 
+const CLEANUP_KEY = "ocw-sw-cleanup-v2";
+
 export function PwaRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    // Unregister every SW and delete every cache — no reloads, no controller
-    // changes. This runs silently after hydration, so iOS WKWebView never
-    // sees a mid-page disruption that it would count as a crash.
-    navigator.serviceWorker
-      .getRegistrations()
-      .then((registrations) => registrations.forEach((r) => r.unregister()))
-      .catch(() => {});
-
-    if ("caches" in window) {
-      caches
-        .keys()
-        .then((keys) => keys.forEach((k) => caches.delete(k)))
-        .catch(() => {});
+    let alreadyCleaned = false;
+    try {
+      alreadyCleaned = localStorage.getItem(CLEANUP_KEY) === "1";
+    } catch {
+      alreadyCleaned = false;
     }
+    const hasController = !!navigator.serviceWorker.controller;
+
+    if (alreadyCleaned && !hasController) return;
+
+    Promise.all([
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
+        .catch(() => []),
+      "caches" in window
+        ? caches
+            .keys()
+            .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+            .catch(() => [])
+        : Promise.resolve([]),
+    ])
+      .then(() => {
+        try {
+          localStorage.setItem(CLEANUP_KEY, "1");
+        } catch {}
+      })
+      .catch(() => {});
   }, []);
 
   return null;

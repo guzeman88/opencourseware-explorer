@@ -112,4 +112,9 @@
   .scroll-row::-webkit-scrollbar {
     display: none;
   }
+
+  .content-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 260px;
+  }
 }
