@@ -18,7 +18,6 @@
   justify-content: center;
   gap: 20px;
   pointer-events: none;
-  animation: splash-out 0.35s ease-out 0.55s both;
 }
 
 #app-splash-title {

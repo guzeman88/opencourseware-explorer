@@ -49,8 +49,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} min-h-screen bg-background antialiased`}>
+    <html lang="en" className="dark" style={{ backgroundColor: "#0a0a0a" }}>
+      <body
+        className={`${inter.variable} min-h-screen bg-background antialiased`}
+        style={{ backgroundColor: "#0a0a0a" }}
+      >
         {/* Keyframe + splash styles inlined in the HTML so they apply before any external CSS loads */}
         {/* eslint-disable-next-line react/no-danger */}
         <style dangerouslySetInnerHTML={{ __html: `
