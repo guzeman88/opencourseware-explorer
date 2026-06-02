@@ -107,10 +107,11 @@ export async function fetchUniversityCourses(
 // ─── Subjects ─────────────────────────────────────────────────────────────────
 
 export async function fetchSubjects(
-  topLevelOnly = false
+  topLevelOnly = false,
+  strictCounts = false
 ): Promise<PaginatedList<Subject>> {
   const { data } = await apiClient.get<PaginatedList<Subject>>("/subjects", {
-    params: { top_level_only: topLevelOnly, page_size: 500 },
+    params: { top_level_only: topLevelOnly, strict_counts: strictCounts, page_size: 500 },
   });
   return data;
 }

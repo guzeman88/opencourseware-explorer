@@ -351,7 +351,7 @@ const MAPPED_SLUGS = new Set(
 export default function SubjectsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["subjects"],
-    queryFn: () => fetchSubjects(false),
+    queryFn: () => fetchSubjects(false, true),
   });
 
   const subjectMap = new Map<string, Subject>();

@@ -177,6 +177,48 @@ async def test_subject_relevance_uses_sidecar_scores(
 
 
 @pytest.mark.asyncio
+async def test_strict_relevance_allows_multi_subject_title_matches(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    uni: University,
+):
+    logic = Subject(name="Logic", slug="logic")
+    proof = Subject(name="Proof Writing", slug="proof-writing")
+    course = Course(
+        university_id=uni.id,
+        title="Logic and Proof",
+        slug="logic-and-proof-test",
+        level=CourseLevel.undergraduate,
+        source_key="test",
+        has_video_lectures=True,
+        total_videos=8,
+        view_count=1,
+    )
+    db_session.add_all([logic, proof, course])
+    await db_session.commit()
+
+    logic_resp = await client.get(
+        "/api/v1/courses?subject_slug=logic&sort_by=relevance&page_size=10"
+    )
+    proof_resp = await client.get(
+        "/api/v1/courses?subject_slug=proof-writing&sort_by=relevance&page_size=10"
+    )
+
+    assert logic_resp.status_code == 200
+    assert proof_resp.status_code == 200
+    assert "Logic and Proof" in [item["title"] for item in logic_resp.json()["items"]]
+    assert "Logic and Proof" in [item["title"] for item in proof_resp.json()["items"]]
+
+    subjects_resp = await client.get("/api/v1/subjects?page_size=500&strict_counts=true")
+    assert subjects_resp.status_code == 200
+    counts = {
+        item["slug"]: item["course_count"] for item in subjects_resp.json()["items"]
+    }
+    assert counts["logic"] == 1
+    assert counts["proof-writing"] == 1
+
+
+@pytest.mark.asyncio
 async def test_view_count_increments(client: AsyncClient, courses: list[Course]):
     slug = "linear-algebra-mit"
     resp1 = await client.get(f"/api/v1/courses/{slug}")

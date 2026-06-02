@@ -16,10 +16,15 @@ async def list_subjects_endpoint(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
     top_level_only: bool = Query(False),
+    strict_counts: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ):
     subjects, total = await list_subjects(
-        db, page=page, page_size=page_size, top_level_only=top_level_only
+        db,
+        page=page,
+        page_size=page_size,
+        top_level_only=top_level_only,
+        strict_counts=strict_counts,
     )
     pages = max(1, math.ceil(total / page_size))
     items = [SubjectRead.model_validate(s) for s in subjects]

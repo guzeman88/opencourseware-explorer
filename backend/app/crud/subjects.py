@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.models.course import Course, CourseSubject
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
+from app.subject_matching import strict_subject_matches_title
 
 
 async def get_subject_by_slug(db: AsyncSession, slug: str) -> Subject | None:
@@ -45,6 +46,7 @@ async def list_subjects(
     page_size: int = 100,
     parent_id: uuid.UUID | None = None,
     top_level_only: bool = False,
+    strict_counts: bool = False,
 ) -> tuple[list[Subject], int]:
     ccsq = _course_count_subq()
 
@@ -74,6 +76,13 @@ async def list_subjects(
         subj = row[0]
         subj.course_count = row[1]
         subjects.append(subj)
+
+    if strict_counts and subjects:
+        titles = list((await db.execute(select(Course.title))).scalars().all())
+        for subj in subjects:
+            subj.course_count = sum(
+                1 for title in titles if strict_subject_matches_title(title, subj.slug)
+            )
 
     return subjects, total
 

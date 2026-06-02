@@ -35,7 +35,7 @@ const STRICT_SUBJECT_SYNONYMS: Record<string, string[]> = {
   "natural-language-processing": ["natural language processing", "nlp"],
   "operating-systems": ["operating systems", "operating system"],
   probability: ["probability", "probability theory"],
-  "proof-writing": ["proof writing", "proofs", "mathematical proofs", "logic and proof"],
+  "proof-writing": ["proof writing", "proofs", "proof", "mathematical proofs", "logic and proof"],
   "real-analysis": ["real analysis"],
   "software-engineering": ["software engineering"],
 };

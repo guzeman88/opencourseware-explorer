@@ -11,6 +11,7 @@ from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectR
 from app.models.university import University
 from app.models.subject import Subject
 from app.schemas.course import CourseCreate, CourseFilters, CourseUpdate
+from app.subject_matching import strict_subject_title_condition
 
 MIN_SUBJECT_RELEVANCE_SCORE = 40
 _HAS_RELEVANCE_TABLE: bool | None = None
@@ -103,13 +104,21 @@ async def list_courses(
         query = query.where(Course.university_id.in_(sub))
         count_query = count_query.where(Course.university_id.in_(sub))
 
+    use_strict_subject_relevance = (
+        filters.subject_slug is not None and filters.sort_by == "relevance"
+    )
     use_scored_subject_relevance = (
         filters.subject_slug is not None
         and filters.sort_by == "relevance"
+        and not use_strict_subject_relevance
         and await _subject_has_relevance_scores(db, filters.subject_slug)
     )
 
-    if filters.subject_slug and use_scored_subject_relevance:
+    if filters.subject_slug and use_strict_subject_relevance:
+        strict_match = strict_subject_title_condition(Course.title, filters.subject_slug)
+        query = query.where(strict_match)
+        count_query = count_query.where(strict_match)
+    elif filters.subject_slug and use_scored_subject_relevance:
         relevance_scores = (
             select(
                 CourseSubjectRelevance.course_id,
