@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchStrictSubjectCounts, fetchSubjects } from "@/lib/api";
+import { STRICT_SUBJECT_COUNTS } from "@/lib/strict-subject-counts";
 import Link from "next/link";
 import type { Subject } from "@/types";
 
@@ -369,7 +370,7 @@ export default function SubjectsPage() {
     queryFn: () => fetchStrictSubjectCounts(PRIORITY_COUNT_SLUGS),
     staleTime: 5 * 60 * 1000,
   });
-  const countMap = { ...strictCounts, ...priorityCounts };
+  const countMap = { ...STRICT_SUBJECT_COUNTS, ...strictCounts, ...priorityCounts };
 
   const subjectMap = new Map<string, Subject>();
   for (const s of data?.items ?? []) {
@@ -417,7 +418,7 @@ export default function SubjectsPage() {
         return {
           slug,
           name: s?.name ?? slugToName(slug),
-          course_count: countMap[slug] ?? 0,
+          course_count: countMap[slug] ?? s?.course_count ?? 0,
         };
       }),
     })),
@@ -457,7 +458,7 @@ export default function SubjectsPage() {
                     {subject.name}
                   </span>
                   <span className="ml-2 text-xs text-muted-foreground/60 tabular-nums shrink-0">
-                    {subject.slug in countMap ? subject.course_count : "–"}
+                    {subject.course_count}
                   </span>
                 </Link>
               ))}
