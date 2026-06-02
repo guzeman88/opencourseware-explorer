@@ -116,9 +116,12 @@ export async function fetchSubjects(
   return data;
 }
 
-export async function fetchStrictSubjectCounts(): Promise<Record<string, number>> {
-  const { data } = await axios.get<{ counts: Record<string, number> }>(
+export async function fetchStrictSubjectCounts(
+  slugs: string[]
+): Promise<Record<string, number>> {
+  const { data } = await axios.post<{ counts: Record<string, number> }>(
     "/api/strict-subject-counts",
+    { slugs },
     { timeout: 30000 }
   );
   return data.counts;

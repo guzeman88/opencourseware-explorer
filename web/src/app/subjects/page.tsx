@@ -355,7 +355,7 @@ export default function SubjectsPage() {
   });
   const { data: strictCounts = {} } = useQuery({
     queryKey: ["strict-subject-counts"],
-    queryFn: fetchStrictSubjectCounts,
+    queryFn: () => fetchStrictSubjectCounts(Array.from(MAPPED_SLUGS)),
     staleTime: 5 * 60 * 1000,
   });
 

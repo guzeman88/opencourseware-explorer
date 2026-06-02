@@ -1,56 +1,53 @@
-import { NextResponse } from "next/server";
-import { isStrictSubjectTitle } from "@/lib/subject-matching";
-import type { CourseSummary, PaginatedList, Subject } from "@/types";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  isStrictSubjectTitle,
+  strictSubjectPhrases,
+} from "@/lib/subject-matching";
+import type { CourseSummary, PaginatedList } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 const UPSTREAM = process.env.API_UPSTREAM ?? "https://opencourseware-api.onrender.com";
 const PAGE_SIZE = 100;
-const CONCURRENCY = 10;
+const CONCURRENCY = 12;
 
-async function fetchJson<T>(path: string, params: Record<string, string | number> = {}) {
-  const url = new URL(`${UPSTREAM}${path}`);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, String(value));
-  }
-  const response = await fetch(url, { signal: AbortSignal.timeout(25000) });
-  if (!response.ok) {
-    throw new Error(`Upstream ${path} failed with ${response.status}`);
-  }
-  return (await response.json()) as T;
+async function fetchCandidates(phrase: string) {
+  const url = new URL(`${UPSTREAM}/api/v1/courses`);
+  url.searchParams.set("q", phrase);
+  url.searchParams.set("page_size", String(PAGE_SIZE));
+  url.searchParams.set("sort_by", "view_count");
+  url.searchParams.set("sort_dir", "desc");
+  const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
+  if (!response.ok) return [];
+  const data = (await response.json()) as PaginatedList<CourseSummary>;
+  return data.items;
 }
 
-async function fetchPages<T>(path: string) {
-  const first = await fetchJson<PaginatedList<T>>(path, { page: 1, page_size: PAGE_SIZE });
-  const pages = Array.from({ length: Math.max(0, first.pages - 1) }, (_, index) => index + 2);
-  const items = [...first.items];
-
-  for (let index = 0; index < pages.length; index += CONCURRENCY) {
-    const batch = pages.slice(index, index + CONCURRENCY);
-    const results = await Promise.all(
-      batch.map((page) => fetchJson<PaginatedList<T>>(path, { page, page_size: PAGE_SIZE }))
-    );
-    for (const result of results) items.push(...result.items);
+async function countSubject(slug: string) {
+  const candidates = new Map<string, CourseSummary>();
+  const phraseResults = await Promise.all(
+    strictSubjectPhrases(slug).map((phrase) => fetchCandidates(phrase))
+  );
+  for (const result of phraseResults) {
+    for (const course of result) candidates.set(course.id, course);
   }
-
-  return items;
+  return Array.from(candidates.values()).filter((course) =>
+    isStrictSubjectTitle(course.title, slug)
+  ).length;
 }
 
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    const [subjects, courses] = await Promise.all([
-      fetchPages<Subject>("/api/v1/subjects"),
-      fetchPages<CourseSummary>("/api/v1/courses"),
-    ]);
+    const body = (await request.json()) as { slugs?: string[] };
+    const slugs = Array.from(new Set(body.slugs ?? [])).filter(Boolean);
     const counts: Record<string, number> = {};
-    for (const subject of subjects) counts[subject.slug] = 0;
 
-    for (const course of courses) {
-      for (const subject of subjects) {
-        if (isStrictSubjectTitle(course.title, subject.slug)) {
-          counts[subject.slug] += 1;
-        }
-      }
+    for (let index = 0; index < slugs.length; index += CONCURRENCY) {
+      const batch = slugs.slice(index, index + CONCURRENCY);
+      const results = await Promise.all(batch.map((slug) => countSubject(slug)));
+      batch.forEach((slug, resultIndex) => {
+        counts[slug] = results[resultIndex];
+      });
     }
 
     return NextResponse.json(
