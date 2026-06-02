@@ -15,10 +15,10 @@ import type {
 } from "@/types";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export const apiClient = axios.create({
-  baseURL: `${BASE_URL}/api/v1`,
+  baseURL: `${BASE_URL.replace(/\/$/, "")}/api/v1`,
   timeout: 15000,
   headers: { "Content-Type": "application/json" },
 });

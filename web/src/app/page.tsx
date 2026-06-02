@@ -6,7 +6,7 @@ import type { PaginatedList, CourseSummary } from "@/types";
 const API =
   process.env.API_UPSTREAM ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  "https://opencourseware-api.onrender.com";
 
 async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> | undefined> {
   try {

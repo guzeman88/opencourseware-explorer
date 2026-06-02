@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, GraduationCap, Menu, X, Bookmark, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
@@ -19,10 +19,36 @@ const navLinks = [
 export function Navbar({ onSignInClick }: { onSignInClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const { user, signOut } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const mobileMenuId = "mobile-navigation-menu";
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!mobileMenuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -114,46 +140,81 @@ export function Navbar({ onSignInClick }: { onSignInClick?: () => void }) {
           </button>
         )}
 
-        {/* Mobile menu toggle */}
-        <button
-          className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-      </div>
+        {/* Mobile menu */}
+        <div ref={mobileMenuRef} className="relative md:hidden">
+          <button
+            className={cn(
+              "inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors",
+              "hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              menuOpen && "bg-accent text-foreground"
+            )}
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-controls={mobileMenuId}
+            aria-expanded={menuOpen}
+            aria-haspopup="dialog"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
 
-      {/* Mobile nav */}
-      {menuOpen && (
-        <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          {menuOpen && (
+            <div
+              id={mobileMenuId}
+              role="dialog"
+              aria-label="Site navigation"
+              className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(calc(100vw-2rem),18rem)] origin-top-right overflow-hidden rounded-lg border border-border bg-card p-2 text-card-foreground shadow-2xl shadow-black/40 animate-fade-in"
             >
-              {link.label}
-            </Link>
-          ))}
-          {user ? (
-            <button
-              onClick={() => { signOut(); setMenuOpen(false); }}
-              className="w-full text-left block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            >
-              Sign out ({user.email})
-            </button>
-          ) : (
-            <button
-              onClick={() => { openAuthModal(); setMenuOpen(false); }}
-              className="w-full text-left block px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-accent/50"
-            >
-              Sign in
-            </button>
+              <div className="space-y-1">
+                {navLinks.map((link) => {
+                  const isActive = pathname.startsWith(link.href);
+
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className={cn(
+                        "flex min-h-10 items-center rounded-md px-3 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="my-2 h-px bg-border" />
+
+              {user ? (
+                <button
+                  onClick={() => {
+                    signOut();
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full min-h-10 items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                  title={`Signed in as ${user.email}`}
+                >
+                  <span className="min-w-0 truncate">{user.email}</span>
+                  <LogOut className="h-4 w-4 shrink-0" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    openAuthModal();
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full min-h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Sign in
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </nav>
   );
 }
