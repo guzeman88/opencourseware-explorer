@@ -152,6 +152,7 @@ export async function fetchStrictSubjectCourses(
 ): Promise<PaginatedList<CourseSummary>> {
   const byCurrentSubject = await fetchCourses({
     subject_slug: subjectSlug,
+    has_video_lectures: true,
     page_size: pageSize,
     sort_by: "relevance",
     sort_dir: "desc",
@@ -160,6 +161,7 @@ export async function fetchStrictSubjectCourses(
     strictSubjectPhrases(subjectSlug).map((phrase) =>
       fetchCourses({
         q: phrase,
+        has_video_lectures: true,
         page_size: pageSize,
         sort_by: "view_count",
         sort_dir: "desc",
@@ -174,7 +176,7 @@ export async function fetchStrictSubjectCourses(
   }
 
   const items = Array.from(merged.values()).filter((course) =>
-    isStrictSubjectCourse(course, subjectSlug)
+    course.source_key !== "nptel" && isStrictSubjectCourse(course, subjectSlug)
   );
 
   return {

@@ -14,6 +14,7 @@ const CONCURRENCY = 12;
 async function fetchCandidates(phrase: string) {
   const url = new URL(`${UPSTREAM}/api/v1/courses`);
   url.searchParams.set("q", phrase);
+  url.searchParams.set("has_video_lectures", "true");
   url.searchParams.set("page_size", String(PAGE_SIZE));
   url.searchParams.set("sort_by", "view_count");
   url.searchParams.set("sort_dir", "desc");
@@ -32,7 +33,7 @@ async function countSubject(slug: string) {
     for (const course of result) candidates.set(course.id, course);
   }
   return Array.from(candidates.values()).filter((course) =>
-    isStrictSubjectTitle(course.title, slug)
+    course.source_key !== "nptel" && isStrictSubjectTitle(course.title, slug)
   ).length;
 }
 
