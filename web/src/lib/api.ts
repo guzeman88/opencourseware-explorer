@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isStrictSubjectCourse, strictSubjectPhrases } from "@/lib/subject-matching";
 import type {
   Course,
   CourseSummary,
@@ -143,6 +144,47 @@ export async function fetchStrictSubjectCounts(
   }
 
   return counts;
+}
+
+export async function fetchStrictSubjectCourses(
+  subjectSlug: string,
+  pageSize = 100
+): Promise<PaginatedList<CourseSummary>> {
+  const byCurrentSubject = await fetchCourses({
+    subject_slug: subjectSlug,
+    page_size: pageSize,
+    sort_by: "relevance",
+    sort_dir: "desc",
+  });
+  const phraseResults = await Promise.all(
+    strictSubjectPhrases(subjectSlug).map((phrase) =>
+      fetchCourses({
+        q: phrase,
+        page_size: pageSize,
+        sort_by: "view_count",
+        sort_dir: "desc",
+      })
+    )
+  );
+
+  const merged = new Map<string, CourseSummary>();
+  for (const course of byCurrentSubject.items) merged.set(course.id, course);
+  for (const result of phraseResults) {
+    for (const course of result.items) merged.set(course.id, course);
+  }
+
+  const items = Array.from(merged.values()).filter((course) =>
+    isStrictSubjectCourse(course, subjectSlug)
+  );
+
+  return {
+    ...byCurrentSubject,
+    items,
+    total: items.length,
+    page: 1,
+    page_size: pageSize,
+    pages: items.length > 0 ? Math.ceil(items.length / pageSize) : 0,
+  };
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────

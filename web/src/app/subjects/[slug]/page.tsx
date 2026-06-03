@@ -7,8 +7,7 @@ import Link from "next/link";
 import { ChevronLeft, LayoutGrid, List } from "lucide-react";
 import { CourseCard } from "@/components/course-card";
 import { CourseCardSkeleton } from "@/components/ui/skeleton";
-import { fetchCourses } from "@/lib/api";
-import { isStrictSubjectCourse, strictSubjectPhrases } from "@/lib/subject-matching";
+import { fetchStrictSubjectCourses } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { CourseSummary } from "@/types";
 
@@ -55,30 +54,11 @@ export default function SubjectPage() {
 
   const { data: coursesData, isLoading } = useQuery({
     queryKey: ["subject-courses", slug],
-    queryFn: async () => {
-      const byCurrentSubject = await fetchCourses({
-        subject_slug: slug,
-        page_size: 100,
-        sort_by: "relevance",
-        sort_dir: "desc",
-      });
-      const phraseResults = await Promise.all(
-        strictSubjectPhrases(slug).map((phrase) =>
-          fetchCourses({ q: phrase, page_size: 100, sort_by: "view_count", sort_dir: "desc" })
-        )
-      );
-      const merged = new Map<string, CourseSummary>();
-      for (const course of byCurrentSubject.items) merged.set(course.id, course);
-      for (const result of phraseResults) {
-        for (const course of result.items) merged.set(course.id, course);
-      }
-      return { ...byCurrentSubject, items: Array.from(merged.values()) };
-    },
+    queryFn: () => fetchStrictSubjectCourses(slug),
     enabled: !!slug,
   });
 
-  const rawCourses = coursesData?.items ?? [];
-  const courses = rawCourses.filter((course) => isStrictSubjectCourse(course, slug));
+  const courses = coursesData?.items ?? [];
   const total = courses.length;
 
   return (

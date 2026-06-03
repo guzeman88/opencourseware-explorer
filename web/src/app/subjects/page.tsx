@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchStrictSubjectCounts, fetchSubjects } from "@/lib/api";
+import { fetchSubjects } from "@/lib/api";
 import { STRICT_SUBJECT_COUNTS } from "@/lib/strict-subject-counts";
 import Link from "next/link";
 import type { Subject } from "@/types";
@@ -347,12 +347,6 @@ const FIELDS: FieldDef[] = [
 const MAPPED_SLUGS = new Set(
   FIELDS.flatMap((f) => f.subfields.flatMap((sf) => sf.slugs))
 );
-const PRIORITY_COUNT_SLUGS = [
-  "proof-writing",
-  "logic",
-  "discrete-mathematics",
-  "combinatorics",
-];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SubjectsPage() {
@@ -360,17 +354,7 @@ export default function SubjectsPage() {
     queryKey: ["subjects"],
     queryFn: () => fetchSubjects(false, true),
   });
-  const { data: strictCounts = {} } = useQuery({
-    queryKey: ["strict-subject-counts"],
-    queryFn: () => fetchStrictSubjectCounts(Array.from(MAPPED_SLUGS)),
-    staleTime: 5 * 60 * 1000,
-  });
-  const { data: priorityCounts = {} } = useQuery({
-    queryKey: ["strict-subject-counts", "priority"],
-    queryFn: () => fetchStrictSubjectCounts(PRIORITY_COUNT_SLUGS),
-    staleTime: 5 * 60 * 1000,
-  });
-  const countMap = { ...STRICT_SUBJECT_COUNTS, ...strictCounts, ...priorityCounts };
+  const countMap = STRICT_SUBJECT_COUNTS;
 
   const subjectMap = new Map<string, Subject>();
   for (const s of data?.items ?? []) {
