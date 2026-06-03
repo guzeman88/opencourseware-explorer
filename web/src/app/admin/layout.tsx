@@ -13,6 +13,7 @@ import {
   X,
   BarChart2,
   Clock,
+  Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/admin/sources", label: "Sources", icon: BarChart2 },
   { href: "/admin/universities", label: "Universities", icon: GraduationCap },
   { href: "/admin/courses", label: "Courses", icon: BookOpen },
+  { href: "/admin/course-audit", label: "Tag Audit", icon: Tags },
   { href: "/admin/pending-review", label: "Pending Review", icon: Clock },
   { href: "/admin/scraper", label: "Scraper Jobs", icon: Play },
 ];
