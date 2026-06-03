@@ -22,15 +22,15 @@ function CourseListRow({ course }: { course: CourseSummary }) {
   return (
     <Link
       href={`/courses/${course.slug}`}
-      className="grid grid-cols-[2fr,1fr,auto] items-start gap-x-6 gap-y-0 px-4 py-3 hover:bg-muted/60 transition-colors group"
+      className="grid grid-cols-[minmax(0,1.45fr)_minmax(5rem,0.8fr)_4.75rem] sm:grid-cols-[minmax(0,2fr)_minmax(8rem,1fr)_7rem] items-start gap-x-3 sm:gap-x-6 gap-y-0 px-4 py-3 hover:bg-muted/60 transition-colors group"
     >
-      <p className="text-sm font-medium leading-snug group-hover:text-primary transition-colors break-words">
+      <p className="min-w-0 text-sm font-medium leading-snug group-hover:text-primary transition-colors break-words">
         {course.title}
       </p>
-      <p className="text-sm text-muted-foreground leading-snug break-words">
+      <p className="min-w-0 truncate text-sm text-muted-foreground leading-snug">
         {course.university_name}
       </p>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
+      <div className="flex min-w-0 items-center justify-end gap-2 text-xs text-muted-foreground whitespace-nowrap">
         {course.level && (
           <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-muted border border-border/50">
             {LEVEL_LABEL[course.level] ?? course.level}
