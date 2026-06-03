@@ -410,17 +410,14 @@ export default function SubjectsPage() {
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-8">
-      <h1 className="text-2xl font-bold mb-1">Subjects</h1>
-      <p className="text-muted-foreground mb-8">
-        Browse courses by field, subfield, and subject area.
-      </p>
+      <h1 className="text-2xl font-bold mb-4">Subjects</h1>
 
       <div className="columns-2 md:columns-3 lg:columns-4 gap-x-6">
         {renderedFields.map((field) =>
           field.subfields.map((sf, sfIdx) => (
             <div
               key={`${field.name}-${sf.name}`}
-              className={`break-inside-avoid ${sfIdx === 0 ? "mt-8" : "mt-4"}`}
+              className="break-inside-avoid mb-4"
             >
               {sfIdx === 0 && (
                 <p className="mb-2 text-sm font-semibold text-foreground border-b border-border pb-1.5">
