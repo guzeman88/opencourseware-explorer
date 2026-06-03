@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { levelLabel, levelColor, formatDuration, cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Play,
   ExternalLink,
@@ -16,6 +16,7 @@ import {
   Clock,
   Eye,
   ChevronDown,
+  ChevronLeft,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
@@ -36,6 +37,7 @@ interface CoursePageProps {
 
 export default function CoursePage({ params }: CoursePageProps) {
   const { data: course, isLoading, error } = useCourse(params.id);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialIndex = Math.max(0, parseInt(searchParams.get("v") ?? "0", 10));
   const [activeVideoIndex, setActiveVideoIndex] = useState(initialIndex);
@@ -84,6 +86,21 @@ export default function CoursePage({ params }: CoursePageProps) {
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-8">
+      <button
+        type="button"
+        onClick={() => {
+          if (window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/courses");
+          }
+        }}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back
+      </button>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">

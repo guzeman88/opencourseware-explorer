@@ -33,7 +33,9 @@ async function countSubject(slug: string) {
     for (const course of result) candidates.set(course.id, course);
   }
   return Array.from(candidates.values()).filter((course) =>
-    course.source_key !== "nptel" && isStrictSubjectTitle(course.title, slug)
+    course.source_key !== "nptel" &&
+    course.total_videos > 0 &&
+    isStrictSubjectTitle(course.title, slug)
   ).length;
 }
 

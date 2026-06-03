@@ -176,7 +176,9 @@ export async function fetchStrictSubjectCourses(
   }
 
   const items = Array.from(merged.values()).filter((course) =>
-    course.source_key !== "nptel" && isStrictSubjectCourse(course, subjectSlug)
+    course.source_key !== "nptel" &&
+    course.total_videos > 0 &&
+    isStrictSubjectCourse(course, subjectSlug)
   );
 
   return {

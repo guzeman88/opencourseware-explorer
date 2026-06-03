@@ -27,7 +27,7 @@ function CourseListRow({ course }: { course: CourseSummary }) {
       <p className="min-w-0 text-sm font-medium leading-snug group-hover:text-primary transition-colors break-words">
         {course.title}
       </p>
-      <p className="min-w-0 truncate text-sm text-muted-foreground leading-snug">
+      <p className="min-w-0 break-words text-sm text-muted-foreground leading-snug [overflow-wrap:anywhere]">
         {course.university_name}
       </p>
       <div className="flex min-w-0 items-center justify-end gap-2 text-xs text-muted-foreground whitespace-nowrap">
