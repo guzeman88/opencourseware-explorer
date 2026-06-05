@@ -71,7 +71,15 @@ SUB_PLAYLIST_FRAGMENTS = (
 )
 
 COURSE_CODE_RE = re.compile(
-    r"\b([A-Z]{2,5}|CS|CSE|EE|EECS|MATH|PHYS|CHEM|BIO|ECON|STAT)\s*[-:]?\s*\d{2,4}[A-Z]?\b"
+    r"\b(CS|CSE|EE|EECS|MATH|PHYS|CHEM|BIO|ECON|STAT)\s*[-:]?\s*\d{2,4}[A-Z]?\b"
+)
+
+NON_PARENT_FRAGMENTS = NON_COURSE_FRAGMENTS + (
+    "all videos",
+    "library",
+    "playlist",
+    "section",
+    "walkthrough",
 )
 
 
@@ -96,6 +104,11 @@ class Issue:
     reasons: tuple[str, ...]
     suggested_action: str
     suggested_title: str
+    parent_action: str = ""
+    parent_course_id: str = ""
+    parent_course_title: str = ""
+    parent_confidence: int = 0
+    parent_reason: str = ""
 
 
 def psycopg_url(url: str) -> str:
@@ -181,6 +194,130 @@ def likely_real_course(course: CourseRow) -> bool:
     )
 
 
+def has_lecture_title_shape(title: str) -> bool:
+    return any(pattern.search(title) for pattern in LECTURE_TITLE_PATTERNS)
+
+
+def has_non_parent_signal(title: str) -> bool:
+    normalized = normalize(title)
+    return any(fragment in normalized for fragment in NON_PARENT_FRAGMENTS)
+
+
+def base_title_candidate(title: str) -> str:
+    original_title = title
+    title = re.sub(r"^\s*\d{1,2}(?:\.\d+)?\s*[:\-]\s*", "", title).strip()
+    if " - " in title:
+        if not has_lecture_title_shape(original_title):
+            return ""
+        tail = title.rsplit(" - ", 1)[1].strip()
+        if len(tail) >= 8 and not has_non_parent_signal(tail):
+            return tail
+    if " | " in title:
+        head = title.split(" | ", 1)[0].strip()
+        if len(head) >= 8 and not has_non_parent_signal(head):
+            return head
+        return ""
+    title = re.sub(r"\bweek\s+\d+\b", "", title, flags=re.I).strip(" -:")
+    title = re.sub(r"\bwalkthroughs?\b", "", title, flags=re.I).strip(" -:")
+    if has_lecture_title_shape(original_title) and not has_non_parent_signal(title):
+        return title.strip()
+    return ""
+
+
+def course_code_key(title: str) -> str:
+    match = COURSE_CODE_RE.search(title)
+    if match:
+        return normalize(match.group(0))
+    if re.search(r"\bcs50\b", title, re.I):
+        year = re.search(r"\b(20\d{2})\b", title)
+        return f"cs50 {year.group(1)}" if year else "cs50"
+    return ""
+
+
+def parent_candidates(issue: Issue, courses: list[CourseRow]) -> Issue:
+    course = issue.course
+    title_norm = normalize(course.title)
+    base = base_title_candidate(course.title)
+    base_norm = normalize(base)
+    code = course_code_key(course.title)
+    source_courses = [
+        other
+        for other in courses
+        if other.course_id != course.course_id and other.source_key == course.source_key
+    ]
+
+    scored: list[tuple[int, CourseRow, str]] = []
+    for other in source_courses:
+        other_norm = normalize(other.title)
+        if not other_norm or other_norm == title_norm:
+            continue
+        if (
+            code
+            and code != "cs50"
+            and course_code_key(other.title) == code
+            and not inspect_course(other)
+            and not has_non_parent_signal(other.title)
+        ):
+            scored.append((95, other, f"same source and course code '{code}'"))
+        elif base_norm and other_norm == base_norm and not has_non_parent_signal(other.title):
+            scored.append((90, other, "same source and exact inferred parent title"))
+
+    if scored:
+        score, parent, reason = sorted(
+            scored,
+            key=lambda item: (-item[0], -item[1].total_videos, item[1].title),
+        )[0]
+        return Issue(
+            course=issue.course,
+            score=issue.score,
+            reasons=issue.reasons,
+            suggested_action=issue.suggested_action,
+            suggested_title=issue.suggested_title,
+            parent_action="merge_existing_course",
+            parent_course_id=parent.course_id,
+            parent_course_title=parent.title,
+            parent_confidence=score,
+            parent_reason=reason,
+        )
+
+    if base_norm and base_norm != title_norm and len(base_norm) >= 8:
+        return Issue(
+            course=issue.course,
+            score=issue.score,
+            reasons=issue.reasons,
+            suggested_action=issue.suggested_action,
+            suggested_title=base,
+            parent_action="create_or_rename_parent_course",
+            parent_course_title=base,
+            parent_confidence=60,
+            parent_reason="inferred parent title from repeated suffix/delimiter",
+        )
+
+    if code:
+        return Issue(
+            course=issue.course,
+            score=issue.score,
+            reasons=issue.reasons,
+            suggested_action=issue.suggested_action,
+            suggested_title=code.upper(),
+            parent_action="review_course_code_parent",
+            parent_course_title=code.upper(),
+            parent_confidence=45,
+            parent_reason="course code detected but no existing parent row found",
+        )
+
+    return Issue(
+        course=issue.course,
+        score=issue.score,
+        reasons=issue.reasons,
+        suggested_action=issue.suggested_action,
+        suggested_title=issue.suggested_title,
+        parent_action="unpublish_no_parent_found",
+        parent_confidence=30,
+        parent_reason="no reliable existing or inferred parent course",
+    )
+
+
 def inspect_course(course: CourseRow) -> Issue | None:
     title = course.title
     normalized = normalize(title)
@@ -237,10 +374,17 @@ def inspect_course(course: CourseRow) -> Issue | None:
 
 
 def audit(courses: list[CourseRow]) -> list[Issue]:
-    issues = [issue for course in courses if (issue := inspect_course(course))]
+    raw_issues = [issue for course in courses if (issue := inspect_course(course))]
+    issues = [parent_candidates(issue, courses) for issue in raw_issues]
     return sorted(
         issues,
-        key=lambda issue: (-issue.score, issue.suggested_action, issue.course.source_key, issue.course.title),
+        key=lambda issue: (
+            issue.parent_action,
+            -issue.parent_confidence,
+            -issue.score,
+            issue.course.source_key,
+            issue.course.title,
+        ),
     )
 
 
@@ -262,6 +406,11 @@ def write_csv(issues: list[Issue], path: Path) -> None:
                 "playlist_id",
                 "source_url",
                 "reasons",
+                "parent_action",
+                "parent_course_id",
+                "parent_course_title",
+                "parent_confidence",
+                "parent_reason",
                 "first_video_titles",
             ]
         )
@@ -281,6 +430,11 @@ def write_csv(issues: list[Issue], path: Path) -> None:
                     course.youtube_playlist_id,
                     course.source_url,
                     " | ".join(issue.reasons),
+                    issue.parent_action,
+                    issue.parent_course_id,
+                    issue.parent_course_title,
+                    issue.parent_confidence,
+                    issue.parent_reason,
                     " || ".join(course.video_titles[:8]),
                 ]
             )
@@ -305,6 +459,10 @@ def write_html(issues: list[Issue], path: Path, csv_path: Path) -> None:
             f"<td>{escape(course.university_name)}</td>"
             f"<td>{course.total_videos}</td>"
             f"<td>{escape(' | '.join(issue.reasons))}</td>"
+            f"<td>{escape(issue.parent_action)}</td>"
+            f"<td>{escape(issue.parent_course_title)}</td>"
+            f"<td>{issue.parent_confidence}</td>"
+            f"<td>{escape(issue.parent_reason)}</td>"
             f"<td>{escape(' || '.join(course.video_titles[:8]))}</td>"
             f"<td>{escape(course.youtube_playlist_id)}</td>"
             f"<td>{escape(course.source_url)}</td>"
@@ -360,7 +518,7 @@ th:nth-child(6), td:nth-child(6) {{ width:80px; }}
 </header>
 <main>
 <table>
-<thead><tr><th>Action</th><th>Score</th><th>Course Title</th><th>Source</th><th>Institution</th><th>Videos</th><th>Reasons</th><th>First Video Titles</th><th>Playlist ID</th><th>Source URL</th></tr></thead>
+<thead><tr><th>Action</th><th>Score</th><th>Course Title</th><th>Source</th><th>Institution</th><th>Videos</th><th>Reasons</th><th>Parent Action</th><th>Parent Course</th><th>Parent Confidence</th><th>Parent Reason</th><th>First Video Titles</th><th>Playlist ID</th><th>Source URL</th></tr></thead>
 <tbody>
 {''.join(rows)}
 </tbody>
