@@ -1,4 +1,5 @@
 import { HomeCourseRows } from "@/components/home-course-rows";
+import { filterCatalogReadyPage } from "@/lib/catalog-quality";
 import type { CourseSummary, PaginatedList } from "@/types";
 
 const API =
@@ -10,7 +11,7 @@ async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> |
   try {
     const res = await fetch(`${API}/api/v1${path}`, { next: { revalidate: 300 } });
     if (!res.ok) return undefined;
-    return res.json();
+    return filterCatalogReadyPage(await res.json());
   } catch {
     return undefined;
   }
@@ -18,8 +19,8 @@ async function serverFetch(path: string): Promise<PaginatedList<CourseSummary> |
 
 export default async function HomePage() {
   const [featured, computerScience] = await Promise.all([
-    serverFetch("/courses/featured?page_size=18&has_video_lectures=true"),
-    serverFetch("/courses?subject_slug=computer-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true"),
+    serverFetch("/courses/featured?page_size=18&has_video_lectures=true&catalog_ready=true"),
+    serverFetch("/courses?subject_slug=computer-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true&catalog_ready=true"),
   ]);
 
   return (

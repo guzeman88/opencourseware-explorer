@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS courses (
   total_videos INTEGER NOT NULL DEFAULT 0,
   total_duration_seconds INTEGER NOT NULL DEFAULT 0,
   view_count INTEGER NOT NULL DEFAULT 0,
+  is_published BOOLEAN NOT NULL DEFAULT FALSE,
   search_vector TEXT,
   id UUID NOT NULL DEFAULT gen_random_uuid(),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -124,6 +125,7 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE INDEX IF NOT EXISTS ix_courses_course_number ON courses (course_number);
 CREATE INDEX IF NOT EXISTS ix_courses_department_id ON courses (department_id);
 CREATE INDEX IF NOT EXISTS ix_courses_level ON courses (level);
+CREATE INDEX IF NOT EXISTS ix_courses_is_published ON courses (is_published);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_courses_slug ON courses (slug);
 CREATE INDEX IF NOT EXISTS ix_courses_source_key ON courses (source_key);
 CREATE INDEX IF NOT EXISTS ix_courses_source_key_number ON courses (source_key, course_number);

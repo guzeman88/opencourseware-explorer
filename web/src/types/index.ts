@@ -161,6 +161,7 @@ export interface CourseFilters {
   source_key?: string;
   has_video_lectures?: boolean;
   has_thumbnail?: boolean;
+  catalog_ready?: boolean;
   page?: number;
   page_size?: number;
   sort_by?: "title" | "view_count" | "created_at" | "total_videos" | "relevance";

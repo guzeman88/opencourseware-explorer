@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectRelevance
 from app.models.subject import Subject
 from app.models.university import University
+from app.models.video import Video
 
 
 @pytest_asyncio.fixture
@@ -31,6 +32,7 @@ async def courses(db_session: AsyncSession, uni: University) -> list[Course]:
             has_video_lectures=True,
             total_videos=35,
             course_number="18.06",
+            is_published=True,
         ),
         Course(
             university_id=uni.id,
@@ -41,6 +43,7 @@ async def courses(db_session: AsyncSession, uni: University) -> list[Course]:
             has_video_lectures=False,
             total_videos=0,
             course_number="6.006",
+            is_published=True,
         ),
         Course(
             university_id=uni.id,
@@ -50,9 +53,69 @@ async def courses(db_session: AsyncSession, uni: University) -> list[Course]:
             source_key="mit_ocw",
             has_video_lectures=True,
             total_videos=20,
+            is_published=True,
+        ),
+        Course(
+            university_id=uni.id,
+            title="Stale Video Placeholder",
+            slug="stale-video-placeholder-mit",
+            level=CourseLevel.undergraduate,
+            source_key="mit_ocw",
+            has_video_lectures=True,
+            total_videos=0,
+            is_published=True,
+        ),
+        Course(
+            university_id=uni.id,
+            title="NPTEL Linear Algebra",
+            slug="nptel-linear-algebra",
+            level=CourseLevel.undergraduate,
+            source_key="nptel",
+            has_video_lectures=True,
+            total_videos=30,
+            is_published=True,
+        ),
+        Course(
+            university_id=uni.id,
+            title="Admissions",
+            slug="admissions-mit",
+            level=CourseLevel.other,
+            source_key="mit_ocw",
+            has_video_lectures=True,
+            total_videos=8,
+            is_published=True,
         ),
     ]
     db_session.add_all(items)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Video(
+                course_id=items[0].id,
+                youtube_id="linear00001",
+                title="Lecture 1: Linear Algebra",
+                order=0,
+            ),
+            Video(
+                course_id=items[2].id,
+                youtube_id="database001",
+                title="Lecture 1: Databases",
+                order=0,
+            ),
+            Video(
+                course_id=items[4].id,
+                youtube_id="nptel000001",
+                title="Lecture 1: NPTEL Linear Algebra",
+                order=0,
+            ),
+            Video(
+                course_id=items[5].id,
+                youtube_id="admission001",
+                title="Welcome to Admissions",
+                order=0,
+            ),
+        ]
+    )
     await db_session.commit()
     return items
 
@@ -63,7 +126,7 @@ async def test_list_courses_paginated(client: AsyncClient, courses: list[Course]
     assert resp.status_code == 200
     body = resp.json()
     assert len(body["items"]) <= 2
-    assert body["total"] >= 3
+    assert body["total"] == 2
 
 
 @pytest.mark.asyncio
@@ -73,6 +136,11 @@ async def test_list_courses_filter_video(client: AsyncClient, courses: list[Cour
     body = resp.json()
     for item in body["items"]:
         assert item["has_video_lectures"] is True
+        assert item["total_videos"] > 0
+    titles = {item["title"] for item in body["items"]}
+    assert "Stale Video Placeholder" not in titles
+    assert "NPTEL Linear Algebra" not in titles
+    assert "Admissions" not in titles
 
 
 @pytest.mark.asyncio
@@ -132,6 +200,7 @@ async def test_subject_relevance_uses_sidecar_scores(
         has_video_lectures=True,
         total_videos=12,
         view_count=1,
+        is_published=True,
     )
     weak = Course(
         university_id=uni.id,
@@ -142,11 +211,24 @@ async def test_subject_relevance_uses_sidecar_scores(
         has_video_lectures=True,
         total_videos=16,
         view_count=999,
+        is_published=True,
     )
     db_session.add_all([subject, exact, weak])
     await db_session.flush()
     db_session.add_all(
         [
+            Video(
+                course_id=exact.id,
+                youtube_id="discrete001",
+                title="Lecture 1: Discrete Mathematics",
+                order=0,
+            ),
+            Video(
+                course_id=weak.id,
+                youtube_id="physiology1",
+                title="Lecture 1: Physiology",
+                order=0,
+            ),
             CourseSubject(course_id=exact.id, subject_id=subject.id),
             CourseSubject(course_id=weak.id, subject_id=subject.id),
             CourseSubjectRelevance(
@@ -193,8 +275,18 @@ async def test_strict_relevance_allows_multi_subject_title_matches(
         has_video_lectures=True,
         total_videos=8,
         view_count=1,
+        is_published=True,
     )
     db_session.add_all([logic, proof, course])
+    await db_session.flush()
+    db_session.add(
+        Video(
+            course_id=course.id,
+            youtube_id="logicproof1",
+            title="Lecture 1: Logic and Proof",
+            order=0,
+        )
+    )
     await db_session.commit()
 
     logic_resp = await client.get(

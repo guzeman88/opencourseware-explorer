@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.catalog_quality import catalog_ready_condition
 from app.models.course import Course, CourseSubject
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
@@ -35,6 +36,7 @@ def _course_count_subq():
             func.count(CourseSubject.course_id).label("course_count"),
         )
         .join(Course, Course.id == CourseSubject.course_id)
+        .where(catalog_ready_condition(Course))
         .group_by(CourseSubject.subject_id)
         .subquery()
     )
@@ -78,7 +80,15 @@ async def list_subjects(
         subjects.append(subj)
 
     if strict_counts and subjects:
-        titles = list((await db.execute(select(Course.title))).scalars().all())
+        titles = list(
+            (
+                await db.execute(
+                    select(Course.title).where(catalog_ready_condition(Course))
+                )
+            )
+            .scalars()
+            .all()
+        )
         for subj in subjects:
             subj.course_count = sum(
                 1 for title in titles if strict_subject_matches_title(title, subj.slug)

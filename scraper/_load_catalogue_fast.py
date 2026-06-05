@@ -73,7 +73,7 @@ def insert_course(cur, course: dict, uni_id: str, dept_id: str, slug: str):
                 course.get("instructor"),
                 course.get("year"),
                 course.get("semester"),
-                bool(playlist_id),
+                False,
                 0,  # video_count — backfill later
                 playlist_id,
                 uni_id, dept_id,

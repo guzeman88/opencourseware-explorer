@@ -3,6 +3,7 @@ import {
   isStrictSubjectTitle,
   strictSubjectPhrases,
 } from "@/lib/subject-matching";
+import { isCatalogReadyCourse } from "@/lib/catalog-quality";
 import type { CourseSummary, PaginatedList } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -33,8 +34,7 @@ async function countSubject(slug: string) {
     for (const course of result) candidates.set(course.id, course);
   }
   return Array.from(candidates.values()).filter((course) =>
-    course.source_key !== "nptel" &&
-    course.total_videos > 0 &&
+    isCatalogReadyCourse(course) &&
     isStrictSubjectTitle(course.title, slug)
   ).length;
 }

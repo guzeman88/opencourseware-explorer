@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.catalog_quality import catalog_ready_condition
 from app.crud import list_universities, get_university_by_slug, get_university_by_id
 from app.crud import list_courses
 from app.database import get_db
@@ -28,6 +29,7 @@ async def _get_course_counts(db: AsyncSession, university_ids: list) -> dict:
     result = await db.execute(
         select(Course.university_id, func.count(Course.id).label("cnt"))
         .where(Course.university_id.in_(university_ids))
+        .where(catalog_ready_condition(Course))
         .group_by(Course.university_id)
     )
     return {row.university_id: row.cnt for row in result}
@@ -76,6 +78,8 @@ async def get_university_courses(
         level=CourseLevel(level) if level else None,
         has_video_lectures=has_video_lectures,
         has_thumbnail=has_thumbnail,
+        is_published=True,
+        catalog_ready=True,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

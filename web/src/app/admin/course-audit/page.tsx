@@ -39,6 +39,7 @@ export default function AdminCourseAuditPage() {
     queryFn: ({ pageParam = 1 }) =>
       fetchCourses({
         has_video_lectures: true,
+        catalog_ready: false,
         page: pageParam,
         page_size: PAGE_SIZE,
         sort_by: "title",

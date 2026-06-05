@@ -8,6 +8,7 @@ import { CourseCardSkeleton } from "@/components/ui/skeleton";
 import {
   fetchFeaturedCourses,
   fetchCourses,
+  fetchStrictSubjectCourses,
   fetchUniversityCourses,
 } from "@/lib/api";
 import type { CourseLevel, PaginatedList, CourseSummary } from "@/types";
@@ -76,8 +77,9 @@ export const CourseRow = memo(function CourseRow({
       if (fetchType === "featured") return fetchFeaturedCourses(36);
       if (fetchType === "university" && universitySlug)
         return fetchUniversityCourses(universitySlug, { page_size: 36, sort_by: "view_count", sort_dir: "desc", has_video_lectures: true, has_thumbnail: true });
+      if (fetchType === "subject" && subjectSlug)
+        return fetchStrictSubjectCourses(subjectSlug, 36, false, { has_thumbnail: true });
       return fetchCourses({
-        subject_slug: fetchType === "subject" ? subjectSlug : undefined,
         level: fetchType === "level" ? level : undefined,
         q: fetchType === "query" ? queryString : undefined,
         page_size: 36,

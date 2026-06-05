@@ -30,8 +30,27 @@ CHANNEL_PLAYLIST_URLS = {
     "cambridge": "https://www.youtube.com/@cambridgeuniversity/playlists",
 }
 
+def normalized_tokens(value: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", value.lower())
+        if len(token) > 2
+    }
+
+
 def similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+
+def strong_title_match(course_title: str, playlist_title: str, score: float) -> bool:
+    if score < 0.82:
+        return False
+    course_tokens = normalized_tokens(course_title)
+    playlist_tokens = normalized_tokens(playlist_title)
+    if not course_tokens:
+        return False
+    overlap = len(course_tokens & playlist_tokens) / len(course_tokens)
+    return overlap >= 0.75
 
 
 def fetch_channel_playlists(channel_url: str) -> list[dict]:
@@ -148,7 +167,7 @@ def main():
                     best_score = score
                     best_pl = pl
 
-            if not best_pl or best_score < 0.45:
+            if not best_pl or not strong_title_match(title, best_pl["title"], best_score):
                 print(f"  ✗ [{best_score:.2f}] No match for: {title[:55]}")
                 continue
 

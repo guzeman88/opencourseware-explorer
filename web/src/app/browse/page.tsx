@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useUniversities } from "@/hooks/use-universities";
-import { fetchUniversityCourses, fetchCourses, fetchSubjects } from "@/lib/api";
+import { fetchUniversityCourses, fetchCourses, fetchStrictSubjectCourses, fetchSubjects } from "@/lib/api";
 import type { CourseSummary, Subject, University } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -219,15 +219,7 @@ function SubjectSection({ subject }: { subject: Subject }) {
   const { data, isLoading } = useQuery({
     queryKey: ["browse_subject", subject.slug],
     queryFn: async () => {
-      const first = await fetchCourses({ subject_slug: subject.slug, page_size: 100 });
-      if (first.total <= 100) return first;
-      const extraPages = Math.ceil((first.total - 100) / 100);
-      const rest = await Promise.all(
-        Array.from({ length: extraPages }, (_, i) =>
-          fetchCourses({ subject_slug: subject.slug, page: i + 2, page_size: 100 })
-        )
-      );
-      return { ...first, items: [...first.items, ...rest.flatMap((r) => r.items)] };
+      return fetchStrictSubjectCourses(subject.slug, 100);
     },
     enabled: open,
   });

@@ -42,7 +42,7 @@ def _cache_key(filters: CourseFilters) -> str:
         f"{_CACHE_PREFIX}"
         f"{filters.q}|{filters.university_slug}|{filters.subject_slug}|"
         f"{filters.level}|{filters.source_key}|{filters.has_video_lectures}|"
-        f"{filters.has_thumbnail}|"
+        f"{filters.has_thumbnail}|{filters.catalog_ready}|"
         f"{filters.page}|{filters.page_size}|"
         f"{filters.sort_by}|{filters.sort_dir}"
     )
@@ -141,6 +141,7 @@ async def list_courses_endpoint(
     source_key: str | None = Query(None),
     has_video_lectures: bool | None = Query(None),
     has_thumbnail: bool | None = Query(None),
+    catalog_ready: bool = Query(True),
     page: int = Query(1, ge=1),
     page_size: int = Query(24, ge=1, le=100),
     sort_by: str = Query("title"),
@@ -156,6 +157,7 @@ async def list_courses_endpoint(
         has_video_lectures=has_video_lectures,
         has_thumbnail=has_thumbnail,
         is_published=True,
+        catalog_ready=catalog_ready,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
@@ -183,6 +185,7 @@ async def featured_courses(
         has_video_lectures=True,
         has_thumbnail=True,
         is_published=True,
+        catalog_ready=True,
         page=1,
         page_size=page_size,
         sort_by="view_count",

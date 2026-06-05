@@ -96,6 +96,7 @@ EXCLUDE_TITLE_WORDS = {
     "news", "updates", "highlights", "recap",
     "anniversary", "milestone", "celebration of",
     "job talk", "faculty search", "candidate talk",
+    "admissions", "live clips", "season ", "student life",
 }
 
 COURSE_INDICATOR_PATTERNS = re.compile(
@@ -251,28 +252,15 @@ COURSE_INDICATOR_PATTERNS = re.compile(
 )
 
 ALWAYS_TRUST_SOURCE_KEYS = {
-    # University OCW channels (curated playlists only)
-    "mit_ocw", "yale", "simons", "perimeter", "ias", "ictp",
-    "gatech", "tudelft", "cs50", "fields", "newton", "slmath", "ihp", "hausdorff",
+    # Dedicated OCW/course channels and structured educator channels only.
+    "mit_ocw", "yale",
     # Educator channels — all playlists are structured courses
     "prof_leonard", "drtefor", "neso_academy", "eigensteve", "statquest",
     "brian_douglas", "michelvanbiezen", "octutor", "prof_dave",
     "ben_eater", "fastai", "reducible", "jacob_sorber", "patrickjmt",
-    # Major research universities — playlists are mostly academic content
-    # (exclusion filter still applies, but no positive indicator required)
-    "oxford", "cambridge", "harvard", "princeton", "columbia",
-    "caltech", "jhu", "uchicago", "duke", "cornell",
-    "ubc", "mcgill", "waterloo", "utoronto",
-    "melbourne", "unsw", "anu",
-    "nus", "hkust", "hku",
-    "kcl", "lse", "bristol", "warwick", "manchester", "glasgow", "edinburgh",
-    "tum", "eth", "epfl", "kth",
-    # Note: stanford has non-course playlists on @stanfordonline so we apply the filter
-    # Newly discovered educator channels
     "borcherds", "schuller", "bright_side_math", "walter_lewin",
     "prof_macauley", "bill_kinney", "james_cook_math", "ictp_diploma",
-    "ictp_math", "impa", "zewail_ocw", "aims_south_africa",
-    "math_at_hse", "oxford_mathematics", "uppsala_algebra",
+    "zewail_ocw", "aims_south_africa", "oxford_mathematics",
 }
 
 

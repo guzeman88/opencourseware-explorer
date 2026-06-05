@@ -1,4 +1,5 @@
 import axios from "axios";
+import { filterCatalogReadyPage, isCatalogReadyCourse } from "@/lib/catalog-quality";
 import { isStrictSubjectCourse, strictSubjectPhrases } from "@/lib/subject-matching";
 import type {
   Course,
@@ -56,7 +57,7 @@ export async function fetchCourses(
     "/courses",
     { params: filters }
   );
-  return data;
+  return filterCatalogReadyPage(data, filters.catalog_ready !== false);
 }
 
 export async function fetchFeaturedCourses(
@@ -66,7 +67,7 @@ export async function fetchFeaturedCourses(
     "/courses/featured",
     { params: { page_size: limit } }
   );
-  return data;
+  return filterCatalogReadyPage(data);
 }
 
 export async function fetchCourse(slugOrId: string): Promise<Course> {
@@ -102,7 +103,7 @@ export async function fetchUniversityCourses(
     `/universities/${slug}/courses`,
     { params: filters }
   );
-  return data;
+  return filterCatalogReadyPage(data, filters.catalog_ready !== false);
 }
 
 // ─── Subjects ─────────────────────────────────────────────────────────────────
@@ -148,21 +149,48 @@ export async function fetchStrictSubjectCounts(
 
 export async function fetchStrictSubjectCourses(
   subjectSlug: string,
-  pageSize = 100
+  pageSize = 100,
+  exhaustive = true,
+  extraFilters: CourseFilters = {}
 ): Promise<PaginatedList<CourseSummary>> {
-  const byCurrentSubject = await fetchCourses({
+  const fetchAllPages = async (filters: CourseFilters) => {
+    const first = await fetchCourses({
+      ...extraFilters,
+      ...filters,
+      page: 1,
+      page_size: pageSize,
+    });
+    const pages = Math.max(1, first.pages ?? 1);
+    if (!exhaustive || pages === 1) return first;
+
+    const rest = await Promise.all(
+      Array.from({ length: pages - 1 }, (_, index) =>
+        fetchCourses({
+          ...extraFilters,
+          ...filters,
+          page: index + 2,
+          page_size: pageSize,
+        })
+      )
+    );
+
+    return {
+      ...first,
+      items: [...first.items, ...rest.flatMap((page) => page.items)],
+    };
+  };
+
+  const byCurrentSubject = await fetchAllPages({
     subject_slug: subjectSlug,
     has_video_lectures: true,
-    page_size: pageSize,
     sort_by: "relevance",
     sort_dir: "desc",
   });
   const phraseResults = await Promise.all(
     strictSubjectPhrases(subjectSlug).map((phrase) =>
-      fetchCourses({
+      fetchAllPages({
         q: phrase,
         has_video_lectures: true,
-        page_size: pageSize,
         sort_by: "view_count",
         sort_dir: "desc",
       })
@@ -176,8 +204,7 @@ export async function fetchStrictSubjectCourses(
   }
 
   const items = Array.from(merged.values()).filter((course) =>
-    course.source_key !== "nptel" &&
-    course.total_videos > 0 &&
+    isCatalogReadyCourse(course) &&
     isStrictSubjectCourse(course, subjectSlug)
   );
 
@@ -201,7 +228,7 @@ export async function searchCourses(
     "/search",
     { params: { q, ...filters } }
   );
-  return data;
+  return filterCatalogReadyPage(data, filters.catalog_ready !== false);
 }
 
 // ─── Roadmaps ─────────────────────────────────────────────────────────────────

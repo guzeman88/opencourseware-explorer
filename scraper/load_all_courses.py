@@ -4387,7 +4387,7 @@ def insert_course(cur, course: dict, uni_id: str, dept_id: str, slug: str) -> Op
                 course.get("instructor"),
                 course.get("year"),
                 course.get("semester"),
-                bool(course.get("playlist_id")),
+                bool(course.get("playlist_id")) and course.get("video_count", 0) > 0,
                 course.get("video_count", 0),
                 course.get("playlist_id"),
                 uni_id,

@@ -78,6 +78,7 @@ class Course(Base):
 
     # Stats
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # Full-text search column (populated via trigger / migration)
     search_vector: Mapped[str | None] = mapped_column(

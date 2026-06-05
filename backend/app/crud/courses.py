@@ -7,6 +7,7 @@ from sqlalchemy import case, func, inspect as sa_inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.catalog_quality import catalog_ready_condition
 from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectRelevance
 from app.models.university import University
 from app.models.subject import Subject
@@ -158,6 +159,15 @@ async def list_courses(
         count_query = count_query.where(
             Course.has_video_lectures == filters.has_video_lectures
         )
+
+    if filters.is_published is not None and not filters.catalog_ready:
+        query = query.where(Course.is_published == filters.is_published)
+        count_query = count_query.where(Course.is_published == filters.is_published)
+
+    if filters.catalog_ready:
+        ready = catalog_ready_condition(Course)
+        query = query.where(ready)
+        count_query = count_query.where(ready)
 
     if filters.has_thumbnail is True:
         query = query.where(Course.thumbnail_url.isnot(None))
