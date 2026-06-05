@@ -27,6 +27,9 @@ postgres_data/
 .vercel
 .env*.local
 scraper/tag_audit_report.csv
+scraper/*_audit_*.html
+scraper/course_title_integrity_report.csv
+scraper/course_title_integrity_report.html
 scraper/tag_backups/
 
 # Local Netlify folder
