@@ -15,11 +15,13 @@ import ast
 import csv
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 import json
 import os
 from pathlib import Path
 import re
 import time
+import unicodedata
 import uuid
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -182,6 +184,14 @@ class Course:
     existing_subjects: frozenset[str]
 
 
+@dataclass(frozen=True)
+class CourseEvidence:
+    title: str
+    full_title: str
+    description: str
+    video_text: str
+
+
 @dataclass
 class ProposedTag:
     course_id: str
@@ -216,8 +226,10 @@ def psycopg_url(url: str) -> str:
 
 
 def normalize(value: str) -> str:
+    value = unicodedata.normalize("NFKD", value)
+    value = "".join(char for char in value if not unicodedata.combining(char))
     value = value.lower()
-    value = re.sub(r"[^a-z0-9+#.]+", " ", value)
+    value = re.sub(r"[^a-z0-9+#]+", " ", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
@@ -277,15 +289,26 @@ def distinctive_tokens(phrases: list[str]) -> set[str]:
     return {token for token in tokens if len(token) > 2 and token not in GENERIC_TOKENS}
 
 
+@lru_cache(maxsize=None)
+def course_evidence(course: Course) -> CourseEvidence:
+    return CourseEvidence(
+        title=normalize(strict_title_scope(course.title)),
+        full_title=normalize(course.title),
+        description=normalize(course.description),
+        video_text=normalize(" ".join(course.video_titles[:40])),
+    )
+
+
 def score_subject(
     course: Course,
     prepared: PreparedSubject,
 ) -> ProposedTag | None:
     subject = prepared.subject
-    title = normalize(strict_title_scope(course.title))
-    full_title = normalize(course.title)
-    description = normalize(course.description)
-    video_text = normalize(" ".join(course.video_titles[:40]))
+    evidence = course_evidence(course)
+    title = evidence.title
+    full_title = evidence.full_title
+    description = evidence.description
+    video_text = evidence.video_text
     phrases = prepared.phrases
     tokens = prepared.tokens
 
@@ -371,6 +394,7 @@ def suppress_rollups(tags: list[ProposedTag], rollups: dict[str, list[str]]) -> 
 def heuristic_subject_slugs(course: Course) -> list[tuple[str, int, str]]:
     title = normalize(course.title)
     raw_title = course.title
+    source = course.source_key
     matches: list[tuple[str, int, str]] = []
 
     def add(slug: str, score: int, reason: str) -> None:
@@ -400,6 +424,160 @@ def heuristic_subject_slugs(course: Course) -> list[tuple[str, int, str]]:
         add("python", 76, "title indicates Python")
     if "c#" in raw_title.lower():
         add("programming", 72, "title indicates programming language")
+    if source == "ictp_diploma":
+        if "cmp eps" in title or "electrons and phonons" in title:
+            add("condensed-matter", 90, "ICTP diploma code/title indicates condensed matter")
+            add("solid-state-physics", 88, "ICTP title indicates solid-state physics")
+        if "cmp pt" in title or "phase transitions" in title:
+            add("condensed-matter", 90, "ICTP diploma code/title indicates condensed matter")
+            add("statistical-mechanics", 88, "ICTP title indicates phase transitions")
+        if "hep ll" in title or "lie groups and lie algebras" in title:
+            add("group-theory", 90, "ICTP code/title indicates Lie groups and Lie algebras")
+            add("representation-theory", 86, "ICTP title indicates Lie algebra representations")
+        if "esp sg" in title or "space geodesy" in title or "insar" in title:
+            add("earth-science", 88, "ICTP diploma code/title indicates geoscience")
+            add("geology", 78, "ICTP title indicates geodesy")
+        if "qls bio" in title or "biophysics" in title:
+            add("biology", 82, "ICTP diploma code/title indicates biophysics")
+            add("physics", 78, "ICTP diploma code/title indicates biophysics")
+
+    if re.search(r"\bmit\s+11\s+", title):
+        add("urban-planning", 82, "MIT 11 course number indicates urban studies/planning")
+    if re.search(r"\bmit\s+21f\s+", title):
+        add("language", 82, "MIT 21F course number indicates language")
+    if re.search(r"\bmit\s+21m\s+", title):
+        add("music", 82, "MIT 21M course number indicates music")
+    if re.search(r"\bmit\s+3\s+", title):
+        add("materials-science", 82, "MIT 3 course number indicates materials science")
+    if re.search(r"\bmit\s+6\s+013\b", title) or "electromagnetics" in title:
+        add("electromagnetism", 86, "title indicates electromagnetics")
+        add("electrical-engineering", 78, "MIT 6.013 is electrical engineering")
+    if "nanomaker" in title:
+        add("nanotechnology", 82, "title indicates nanotechnology")
+    if "digital lab techniques" in title:
+        add("chemistry", 78, "title indicates laboratory chemistry techniques")
+
+    if "data 102" in title and "data inference and decisions" in title:
+        add("data-science", 90, "Berkeley Data 102 title indicates data science")
+        add("statistics", 84, "Berkeley Data 102 title indicates statistical inference")
+        add("decision-theory", 76, "Berkeley Data 102 title indicates decisions")
+    if "cme296" in title or "large vision models" in title:
+        add("computer-vision", 90, "title indicates computer vision")
+        add("generative-models", 84, "title indicates diffusion models")
+        add("deep-learning", 80, "title indicates large vision models")
+    if "darwin" in title and "legacy" in title:
+        add("evolution", 84, "title indicates Darwin and evolution")
+        add("biology", 74, "title indicates Darwin and biology")
+    if "fourier transforms" in title or "fourier transform" in title:
+        add("harmonic-analysis", 84, "title indicates Fourier transforms")
+        add("signal-processing", 76, "Fourier transforms are signal-processing evidence")
+    if "human emotion" in title:
+        add("psychology", 82, "title indicates human emotion")
+    if "bible study" in title:
+        add("religious-studies", 82, "title indicates Bible study")
+        add("religion", 78, "title indicates Bible study")
+    if "masterpieces of western art" in title:
+        add("art-history", 86, "title indicates western art history")
+    if "einstein vacuum equations" in title:
+        add("general-relativity", 88, "title indicates Einstein vacuum equations")
+        add("relativity", 80, "title indicates relativity")
+    if "physical problem solving" in title:
+        add("physics", 80, "title indicates physics problem solving")
+    if "lyapunov" in title:
+        add("differential-equations", 80, "title indicates Lyapunov exponents")
+        add("control-systems", 76, "title indicates stability analysis")
+    if "lead lag compensator" in title or "lead lag compensators" in title:
+        add("control-systems", 84, "title indicates control compensators")
+    if "bode plot" in title or "bode plots" in title:
+        add("control-systems", 82, "title indicates Bode plots")
+    if "matrix groups" in title:
+        add("group-theory", 84, "title indicates matrix groups")
+        add("linear-algebra", 78, "title indicates matrix groups")
+    if "elliptic functions" in title:
+        add("complex-analysis", 84, "title indicates elliptic functions")
+    if "semigroups and their representations" in title:
+        add("representation-theory", 84, "title indicates semigroup representations")
+        add("group-theory", 76, "title indicates semigroups")
+    if title == "prealgebra" or "pre algebra" in title:
+        add("algebra", 82, "title indicates prealgebra")
+    if "covariance and variance" in title or "bayes theorem" in title:
+        add("statistics", 84, "title indicates statistics")
+        add("probability", 78, "title indicates probability")
+    if "kalman filter" in title:
+        add("control-systems", 84, "title indicates Kalman filtering")
+        add("signal-processing", 76, "title indicates filtering")
+    if "fundamental investing" in title:
+        add("finance", 82, "title indicates investing")
+    if "application of stacks" in title:
+        add("data-structures", 82, "title indicates stack data structures")
+        add("computer-science", 74, "title indicates data structures")
+    if "context free grammar" in title or "cfgs" in title:
+        add("theory-of-computing", 86, "title indicates formal languages")
+        add("computer-science", 74, "title indicates formal grammars")
+    if "cisco packet tracer" in title:
+        add("networking", 84, "title indicates packet networking")
+        add("computer-networks", 82, "title indicates networking")
+    if "code smells" in title:
+        add("software-engineering", 82, "title indicates code quality")
+    if "discrete markov chains" in title:
+        add("stochastic-processes", 88, "title indicates Markov chains")
+        add("probability", 78, "title indicates stochastic processes")
+    if "homological stability" in title:
+        add("homological-algebra", 86, "title indicates homological methods")
+        add("algebraic-topology", 78, "title indicates homological stability")
+    if "quiver moduli" in title or "moduli spaces" in title:
+        add("algebraic-geometry", 82, "title indicates moduli spaces")
+        add("representation-theory", 76, "title indicates quivers")
+    if "p adic numbers" in title or "p-adic numbers" in raw_title.lower():
+        add("number-theory", 86, "title indicates p-adic numbers")
+    if "gromov hyperbolic groups" in title:
+        add("group-theory", 86, "title indicates hyperbolic groups")
+        add("geometry", 76, "title indicates geometric group theory")
+    if "grothendieck duality" in title or "toric varieties" in title or "k3 surfaces" in title:
+        add("algebraic-geometry", 86, "title indicates algebraic geometry")
+    if "fluid flows" in title or "concentrated vorticity" in title:
+        add("fluid-dynamics", 84, "title indicates fluid flows")
+    if "isoperimetric inequalities" in title:
+        add("geometry", 82, "title indicates geometric inequalities")
+        add("analysis", 74, "title indicates inequalities")
+    if "lie algebras" in title:
+        add("group-theory", 86, "title indicates Lie algebras")
+        add("representation-theory", 82, "title indicates Lie algebra representations")
+    if "motives and l functions" in title or "zagier salam" in title:
+        add("number-theory", 84, "title indicates L-functions/number theory")
+        add("algebraic-geometry", 76, "title indicates motives")
+    if "nonlinear pdes" in title or "nonlinear pde" in title:
+        add("differential-equations", 86, "title indicates PDEs")
+    if "pseudorandomness" in title:
+        add("theory-of-computing", 84, "title indicates pseudorandomness")
+        add("algorithms", 74, "title indicates theoretical computer science")
+    if "rational points" in title:
+        add("number-theory", 84, "title indicates rational points")
+        add("algebraic-geometry", 78, "title indicates arithmetic geometry")
+    if "asymptotic methods" in title:
+        add("analysis", 80, "title indicates asymptotic methods")
+        add("applied-mathematics", 74, "title indicates mathematical methods")
+    if "complex networks" in title:
+        add("graph-theory", 82, "title indicates networks")
+        add("networking", 72, "title indicates networks")
+    if "supersymmetry" in title:
+        add("theoretical-physics", 82, "title indicates supersymmetry")
+        add("mathematics", 72, "title indicates mathematical physics")
+    if "symmetric functions" in title or "young diagrams" in title:
+        add("combinatorics", 84, "title indicates symmetric functions")
+        add("representation-theory", 78, "title indicates Young diagrams")
+    if "graphs and randomness" in title:
+        add("graph-theory", 86, "title indicates graphs")
+        add("probability", 78, "title indicates randomness")
+    if "hasse diagram" in title or "partially ordered sets" in title:
+        add("discrete-mathematics", 84, "title indicates partially ordered sets")
+        add("set-theory", 76, "title indicates ordered sets")
+    if "hyperbolic manifolds" in title:
+        add("geometry", 84, "title indicates hyperbolic manifolds")
+        add("topology", 76, "title indicates manifolds")
+    if "laplace transform" in title:
+        add("differential-equations", 82, "title indicates Laplace transforms")
+        add("signal-processing", 74, "title indicates transforms")
 
     return matches
 
@@ -494,6 +672,21 @@ def load_db_data(conn) -> tuple[list[Course], list[Subject]]:
     blockers_sql = " AND ".join(["c.title NOT ILIKE %s" for _ in NON_COURSE_TITLE_FRAGMENTS])
     cur.execute(
         f"""
+        WITH subject_agg AS (
+          SELECT
+            cs.course_id,
+            array_agg(DISTINCT s.slug) FILTER (WHERE s.slug IS NOT NULL) AS subject_slugs
+          FROM course_subjects cs
+          JOIN subjects s ON s.id = cs.subject_id
+          GROUP BY cs.course_id
+        ),
+        video_agg AS (
+          SELECT
+            course_id,
+            array_agg(title ORDER BY "order") FILTER (WHERE title IS NOT NULL) AS video_titles
+          FROM videos
+          GROUP BY course_id
+        )
         SELECT
           c.id::text,
           c.title,
@@ -501,22 +694,16 @@ def load_db_data(conn) -> tuple[list[Course], list[Subject]]:
           c.source_key,
           COALESCE(c.source_url, ''),
           COALESCE(c.course_number, ''),
-          COALESCE(array_agg(DISTINCT s.slug) FILTER (WHERE s.slug IS NOT NULL), '{{}}')
+          COALESCE(sa.subject_slugs, '{{}}'),
+          COALESCE(va.video_titles, '{{}}')
         FROM courses c
-        LEFT JOIN course_subjects cs ON cs.course_id = c.id
-        LEFT JOIN subjects s ON s.id = cs.subject_id
+        LEFT JOIN subject_agg sa ON sa.course_id = c.id
+        JOIN video_agg va ON va.course_id = c.id
         WHERE c.is_published = TRUE
           AND c.has_video_lectures = TRUE
           AND c.total_videos > 0
           AND NOT (c.source_key = ANY(%s))
           AND {blockers_sql}
-          AND EXISTS (
-            SELECT 1
-            FROM videos v
-            WHERE v.course_id = c.id
-            LIMIT 1
-          )
-        GROUP BY c.id, c.title, c.description, c.source_key, c.source_url, c.course_number
         ORDER BY c.title
         """,
         [list(NON_CATALOG_SOURCE_KEYS), *[f"%{fragment}%" for fragment in NON_COURSE_TITLE_FRAGMENTS]],
@@ -529,7 +716,7 @@ def load_db_data(conn) -> tuple[list[Course], list[Subject]]:
             source_key=row[3],
             source_url=row[4] or "",
             course_number=row[5] or "",
-            video_titles=(),
+            video_titles=tuple(row[7] or ()),
             existing_subjects=frozenset(row[6] or []),
         )
         for row in cur.fetchall()
@@ -643,25 +830,28 @@ def apply_tags(conn, courses: list[Course], result: ReconcileResult) -> Path:
         "INSERT INTO course_subjects (course_id, subject_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
         rows,
     )
-    cur.execute(
-        "DELETE FROM course_subject_relevance WHERE source = %s AND version = %s",
-        (SOURCE, VERSION),
-    )
-    cur.executemany(
-        """
-        INSERT INTO course_subject_relevance
-          (id, course_id, subject_id, score, relationship, reason, source, version)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (course_id, subject_id) DO UPDATE SET
-          score = EXCLUDED.score,
-          relationship = EXCLUDED.relationship,
-          reason = EXCLUDED.reason,
-          source = EXCLUDED.source,
-          version = EXCLUDED.version,
-          updated_at = now()
-        """,
-        relevance_rows,
-    )
+    cur.execute("SELECT to_regclass('public.course_subject_relevance')")
+    has_relevance_table = cur.fetchone()[0] is not None
+    if has_relevance_table:
+        cur.execute(
+            "DELETE FROM course_subject_relevance WHERE source = %s AND version = %s",
+            (SOURCE, VERSION),
+        )
+        cur.executemany(
+            """
+            INSERT INTO course_subject_relevance
+              (id, course_id, subject_id, score, relationship, reason, source, version)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (course_id, subject_id) DO UPDATE SET
+              score = EXCLUDED.score,
+              relationship = EXCLUDED.relationship,
+              reason = EXCLUDED.reason,
+              source = EXCLUDED.source,
+              version = EXCLUDED.version,
+              updated_at = now()
+            """,
+            relevance_rows,
+        )
     conn.commit()
     return backup_path
 

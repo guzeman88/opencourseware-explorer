@@ -30,6 +30,8 @@ scraper/tag_audit_report.csv
 scraper/*_audit_*.html
 scraper/catalog_title_repair_report.csv
 scraper/catalog_title_repair_backups/
+scraper/untagged_catalog_repair_report.csv
+scraper/untagged_catalog_repair_backups/
 scraper/course_title_integrity_report.csv
 scraper/course_title_integrity_report.html
 scraper/course_title_integrity_standalone.html
