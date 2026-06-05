@@ -26,6 +26,8 @@ postgres_data/
 .turbo/
 .vercel
 .env*.local
+scraper/tag_audit_report.csv
+scraper/tag_backups/
 
 # Local Netlify folder
 .netlify

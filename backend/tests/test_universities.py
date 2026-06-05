@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.university import University
 from app.models.course import Course, CourseLevel
+from app.models.video import Video
 
 
 @pytest_asyncio.fixture
@@ -33,10 +34,20 @@ async def sample_course(db_session: AsyncSession, sample_university: University)
         source_key="test",
         has_video_lectures=True,
         total_videos=10,
+        is_published=True,
     )
     db_session.add(course)
     await db_session.commit()
     await db_session.refresh(course)
+    db_session.add(
+        Video(
+            course_id=course.id,
+            title="Lecture 1",
+            youtube_id="testing001",
+            order=1,
+        )
+    )
+    await db_session.commit()
     return course
 
 
