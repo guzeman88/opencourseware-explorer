@@ -450,7 +450,7 @@ export default function SubjectsPage() {
     accent: field.accent,
     subfields: field.subfields.map((sf) => ({
       name: sf.name,
-      // Show every slug — zero count if not in DB or no video courses yet
+      // Keep the taxonomy available while showing only subjects with courses.
       subjects: sf.slugs.map((slug) => {
         const s = subjectMap.get(slug);
         return {
@@ -458,9 +458,9 @@ export default function SubjectsPage() {
           name: s?.name ?? slugToName(slug),
           course_count: countMap[slug] ?? s?.course_count ?? 0,
         };
-      }),
-    })),
-  }));
+      }).filter((subject) => subject.course_count > 0),
+    })).filter((subfield) => subfield.subjects.length > 0),
+  })).filter((field) => field.subfields.length > 0);
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-8">
