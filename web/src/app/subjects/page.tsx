@@ -22,7 +22,7 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "mathematics", "calculus", "linear-algebra", "algebra",
           "differential-equations", "precalculus", "trigonometry",
-          "proof-writing", "applied-mathematics",
+          "proof-writing", "applied-mathematics", "integration",
         ],
       },
       {
@@ -51,7 +51,7 @@ const FIELDS: FieldDef[] = [
         name: "Discrete & Combinatorics",
         slugs: [
           "discrete-mathematics", "combinatorics", "graph-theory",
-          "set-theory", "logic", "number-theory",
+          "set-theory", "logic",
         ],
       },
       {
@@ -59,6 +59,8 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "probability", "statistics", "stochastic-processes",
           "bayesian-statistics", "mathematical-statistics", "stochastic-calculus",
+          "bayesian-methods", "probabilistic-models", "regression",
+          "time-series", "causal-inference", "statistical-computing",
         ],
       },
       {
@@ -66,6 +68,7 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "optimization", "numerical-methods", "numerical-analysis",
           "operations-research", "mathematical-optimization", "convex-optimization",
+          "linear-programming", "simulation", "scientific-computing",
         ],
       },
     ],
@@ -102,7 +105,7 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "relativity", "general-relativity", "special-relativity",
           "theoretical-physics", "string-theory", "astrophysics",
-          "cosmology", "astronomy", "planetary-science",
+          "cosmology", "astronomy", "planetary-science", "planets",
         ],
       },
     ],
@@ -118,14 +121,15 @@ const FIELDS: FieldDef[] = [
           "computer-vision", "natural-language-processing", "reinforcement-learning",
           "large-language-models", "neural-networks", "generative-models",
           "ai-ethics", "ai-safety", "ai-agents", "meta-learning",
+          "unsupervised-learning", "graph-neural-networks",
+          "image-processing", "3d-reconstruction", "rendering",
         ],
       },
       {
         name: "Algorithms & Theory",
         slugs: [
           "algorithms", "data-structures", "theory-of-computing",
-          "computational-complexity", "information-theory", "discrete-mathematics",
-          "graph-theory", "combinatorics",
+          "computational-complexity", "information-theory", "coding-theory",
         ],
       },
       {
@@ -135,6 +139,11 @@ const FIELDS: FieldDef[] = [
           "computer-architecture", "distributed-systems", "networking",
           "computer-networks", "embedded-systems", "systems-programming",
           "parallel-computing", "high-performance-computing",
+          "systems", "computing", "hardware", "microprocessors", "internet",
+          "internet-of-things", "cloud-computing", "devops", "linux",
+          "autonomous-systems", "cyber-physical-systems",
+          "decentralized-systems", "information-technology",
+          "information-science", "computer-science-and-engineering",
         ],
       },
       {
@@ -143,7 +152,12 @@ const FIELDS: FieldDef[] = [
           "programming", "software-engineering", "programming-languages",
           "web-development", "databases", "sql", "mobile-development",
           "game-development", "computer-graphics", "human-computer-interaction",
-          "compilers",
+          "compilers", "c", "c-programming", "r", "r-programming", "python",
+          "javascript", "java", "go-programming", "html", "css", "react",
+          "node-js", "typescript", "swift", "lua", "haskell",
+          "assembly-language", "object-oriented-programming",
+          "functional-programming", "ios-development", "ui-design",
+          "game-design", "systems-design",
         ],
       },
       {
@@ -151,6 +165,7 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "cybersecurity", "cryptography", "computer-security",
           "digital-forensics", "systems-security", "formal-verification", "privacy",
+          "zero-knowledge-proofs", "smart-contracts", "solidity",
         ],
       },
       {
@@ -172,6 +187,7 @@ const FIELDS: FieldDef[] = [
           "electrical-engineering", "signal-processing", "control-systems",
           "electronics", "circuits", "digital-systems", "power-systems",
           "vlsi", "dsp", "digital-electronics", "control-theory",
+          "communications", "digital-design",
         ],
       },
       {
@@ -179,6 +195,7 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "mechanical-engineering", "engineering", "robotics",
           "mechatronics", "manufacturing", "vibrations", "heat-transfer",
+          "engineering-design", "metallurgy",
         ],
       },
       {
@@ -186,14 +203,14 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "civil-engineering", "structural-engineering", "geotechnical-engineering",
           "transportation-engineering", "water-resources", "structural-analysis",
-          "urban-planning",
+          "urban-planning", "transportation",
         ],
       },
       {
         name: "Chemical & Bio",
         slugs: [
           "chemical-engineering", "bioengineering", "biological-engineering",
-          "nanotechnology",
+          "nanotechnology", "biotechnology",
         ],
       },
       {
@@ -217,7 +234,7 @@ const FIELDS: FieldDef[] = [
           "genomics", "bioinformatics", "microbiology", "immunology",
           "physiology", "botany", "computational-biology",
           "computational-neuroscience", "biochemistry", "animal-science",
-          "plant-biology", "origins-of-life",
+          "plant-biology", "origins-of-life", "agriculture", "food-science",
         ],
       },
       {
@@ -236,13 +253,18 @@ const FIELDS: FieldDef[] = [
         ],
       },
       {
+        name: "General Science",
+        slugs: ["science", "science-communication"],
+      },
+      {
         name: "Medicine & Health",
         slugs: [
           "medicine", "anatomy", "epidemiology", "public-health", "health",
           "nutrition", "global-health", "clinical-trials", "pharmacology",
           "biostatistics", "forensic-science", "mental-health",
           "reproductive-health", "child-health", "maternal-health",
-          "infectious-disease", "global-health",
+          "infectious-disease", "human-body", "sports-science", "gerontology",
+          "health-informatics", "biomedical-informatics", "environmental-health",
         ],
       },
     ],
@@ -257,7 +279,7 @@ const FIELDS: FieldDef[] = [
           "economics", "microeconomics", "macroeconomics", "finance",
           "game-theory", "econometrics", "behavioral-economics", "accounting",
           "international-economics", "international-trade", "economic-history",
-          "political-economy",
+          "political-economy", "decision-theory",
         ],
       },
       {
@@ -266,7 +288,8 @@ const FIELDS: FieldDef[] = [
           "political-science", "international-relations", "public-policy", "law",
           "constitutional-law", "comparative-politics", "global-politics",
           "legal-studies", "criminal-justice", "human-rights", "civil-rights",
-          "environmental-law",
+          "environmental-law", "policy", "health-policy", "science-policy",
+          "environmental-policy", "environmental-justice", "criminology",
         ],
       },
       {
@@ -274,13 +297,22 @@ const FIELDS: FieldDef[] = [
         slugs: [
           "psychology", "cognitive-science", "social-psychology",
           "developmental-psychology", "behavioral-science", "cognitive-psychology",
+          "behavior", "brain", "consciousness", "child-development",
         ],
       },
       {
         name: "Sociology & Anthropology",
         slugs: [
           "sociology", "social-science", "social-sciences", "anthropology",
-          "social-theory", "demographics",
+          "social-theory", "demographics", "gender-studies",
+          "african-american-studies", "american-studies",
+        ],
+      },
+      {
+        name: "Education & Communication",
+        slugs: [
+          "education", "education-technology", "communication", "journalism",
+          "information-literacy",
         ],
       },
     ],
@@ -293,22 +325,24 @@ const FIELDS: FieldDef[] = [
         name: "History",
         slugs: [
           "history", "american-history", "ancient-history", "world-history",
-          "european-history", "medieval-history", "art-history",
+          "european-history", "medieval-history",
           "western-civilization", "media-history",
         ],
       },
       {
-        name: "Philosophy & Ethics",
+        name: "Philosophy, Ethics & Religion",
         slugs: [
-          "philosophy", "ethics", "logic", "philosophy-of-mind",
-          "ancient-philosophy", "political-philosophy",
+          "philosophy", "ethics", "philosophy-of-mind",
+          "ancient-philosophy", "political-philosophy", "religion",
+          "religious-studies", "islam", "mythology",
         ],
       },
       {
         name: "Language & Literature",
         slugs: [
           "literature", "linguistics", "english", "writing", "language",
-          "poetry", "literary-theory",
+          "poetry", "literary-theory", "arabic", "chinese", "french",
+          "german", "japanese", "spanish",
         ],
       },
       {
@@ -317,6 +351,10 @@ const FIELDS: FieldDef[] = [
           "music", "arts", "architecture", "design", "music-theory",
           "film-studies", "theater", "photography", "animation", "art-history",
         ],
+      },
+      {
+        name: "General Humanities",
+        slugs: ["humanities"],
       },
     ],
   },
@@ -328,7 +366,7 @@ const FIELDS: FieldDef[] = [
         name: "Business",
         slugs: [
           "business", "entrepreneurship", "management", "marketing",
-          "leadership", "project-management", "operations-research", "logistics",
+          "leadership", "project-management", "logistics",
           "human-resources",
         ],
       },
@@ -347,6 +385,17 @@ const FIELDS: FieldDef[] = [
 const MAPPED_SLUGS = new Set(
   FIELDS.flatMap((f) => f.subfields.flatMap((sf) => sf.slugs))
 );
+
+// These are ingestion labels rather than useful subjects. Keep the source data
+// intact, but do not surface them as destinations on the Subjects page.
+const HIDDEN_SUBJECT_SLUGS = new Set([
+  "introduction",
+  "general",
+  "theory",
+  "development",
+  "multidisciplinary",
+  "humanities-and-social-sciences",
+]);
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SubjectsPage() {
@@ -388,7 +437,12 @@ export default function SubjectsPage() {
       ...subject,
       course_count: countMap[subject.slug] ?? subject.course_count ?? 0,
     }))
-    .filter((s) => !MAPPED_SLUGS.has(s.slug) && (s.course_count ?? 0) > 0)
+    .filter(
+      (s) =>
+        !MAPPED_SLUGS.has(s.slug) &&
+        !HIDDEN_SUBJECT_SLUGS.has(s.slug) &&
+        (s.course_count ?? 0) > 0
+    )
     .sort((a, b) => (b.course_count ?? 0) - (a.course_count ?? 0));
 
   const renderedFields: RenderedField[] = FIELDS.map((field) => ({
