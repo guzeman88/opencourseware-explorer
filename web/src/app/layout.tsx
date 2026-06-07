@@ -48,13 +48,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" style={{ backgroundColor: "#0f172a" }}>
+    <html lang="en" className="dark" style={{ backgroundColor: "#0a0a0a" }}>
       <head>
         <link rel="apple-touch-startup-image" href="/launch-screen.png" />
       </head>
       <body
         className={`${inter.variable} min-h-screen bg-background antialiased`}
-        style={{ backgroundColor: "#0f172a" }}
+        style={{ backgroundColor: "#0a0a0a" }}
       >
         <Suspense>
           <GoogleAnalytics />
