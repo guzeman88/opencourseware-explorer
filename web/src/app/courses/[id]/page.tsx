@@ -2,9 +2,8 @@
 
 import { useCourse } from "@/hooks/use-courses";
 import { CourseDetailSkeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { levelLabel, levelColor, formatDuration, cn } from "@/lib/utils";
+import { formatDuration, cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -140,22 +139,6 @@ export default function CoursePage({ params }: CoursePageProps) {
 
           {/* Course title & meta */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-xs font-medium",
-                  levelColor(course.level)
-                )}
-              >
-                {levelLabel(course.level)}
-              </span>
-              {course.subjects.map((s) => (
-                <Badge key={s.id} variant="secondary">
-                  {s.name}
-                </Badge>
-              ))}
-            </div>
-
             <h1 className="text-2xl md:text-3xl font-bold">{course.title}</h1>
 
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
