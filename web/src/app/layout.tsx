@@ -56,6 +56,15 @@ export default function RootLayout({
         className={`${inter.variable} min-h-screen bg-background antialiased`}
         style={{ backgroundColor: "#0a0a0a" }}
       >
+        <div id="app-splash" aria-hidden="true">
+          <img
+            src="/launch-screen.png"
+            alt=""
+            width="1290"
+            height="2796"
+          />
+        </div>
+        <script src="/splash-dismiss.js" defer />
         <Suspense>
           <GoogleAnalytics />
         </Suspense>
