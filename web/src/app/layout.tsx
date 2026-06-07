@@ -11,16 +11,10 @@ const splashBackground = "#0a0a0a";
 
 const criticalSplashCss = `
   html,body{margin:0;padding:0;background:${splashBackground}}
-  #app-shell{display:none}
-  #app-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding-bottom:10vh;box-sizing:border-box}
-  #app-splash .splash-icon{width:90px;height:90px;display:flex;align-items:center;justify-content:center}
+  #app-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;align-items:center;justify-content:center;padding-bottom:10vh;box-sizing:border-box;pointer-events:none;animation:splash-failsafe 180ms ease-out 1400ms forwards}
+  #app-splash .splash-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
   #app-splash .splash-icon svg{width:100%;height:100%}
-  #app-splash .splash-title{color:#fafafa;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-  #app-splash .splash-dots{display:flex;gap:6px;margin-top:4px}
-  #app-splash .splash-dots span{width:6px;height:6px;border-radius:50%;background:rgba(214,43,43,.45);animation:splash-dot 1.4s ease-in-out infinite}
-  #app-splash .splash-dots span:nth-child(2){animation-delay:.2s}
-  #app-splash .splash-dots span:nth-child(3){animation-delay:.4s}
-  @keyframes splash-dot{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
+  @keyframes splash-failsafe{to{opacity:0;visibility:hidden}}
 `;
 
 export const metadata: Metadata = {
@@ -93,15 +87,10 @@ export default function RootLayout({
               </g>
             </svg>
           </div>
-          <div className="splash-title">The Commons</div>
-          <div className="splash-dots"><span /><span /><span /></div>
         </div>
         <script dangerouslySetInnerHTML={{ __html: `
           if(navigator.standalone||window.matchMedia('(display-mode: standalone)').matches||new URLSearchParams(location.search).has('standalone')){
             document.getElementById('app-splash').style.display='none';
-            var s=document.createElement('style');
-            s.textContent='#app-shell{display:block!important}';
-            document.head.appendChild(s);
           }
         `}} />
         <div id="app-shell">
@@ -112,7 +101,9 @@ export default function RootLayout({
             <AppShell>{children}</AppShell>
           </QueryProvider>
         </div>
-        <script src="/splash-dismiss.js" defer />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (()=>{const s=document.getElementById('app-splash');if(!s||s.style.display==='none')return;setTimeout(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{s.style.animation='none';s.style.transition='opacity 180ms ease-out';s.style.opacity='0';setTimeout(()=>s.remove(),200)})),550)})();
+        `}} />
       </body>
     </html>
   );
