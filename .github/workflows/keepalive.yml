@@ -11,19 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Warm Render + Vercel CDN proxy cache
+      - name: Warm Render + Netlify public API cache
         run: |
-          BASE="https://opencourseware-explorer.vercel.app/api/v1"
+          BASE="https://opencourseware-explorer.netlify.app/api/v1"
           # Ping health directly on Render to keep it from sleeping
           curl -s -o /dev/null --max-time 55 "https://opencourseware-api.onrender.com/health" &
-          # Warm the Vercel proxy CDN cache for all above-fold course rows (parallel)
-          curl -s -o /dev/null "$BASE/courses/featured?page_size=18&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=computer-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=machine-learning&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=mathematics&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=artificial-intelligence&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=algorithms&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=physics&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
-          curl -s -o /dev/null "$BASE/courses?subject_slug=data-science&page_size=18&sort_by=view_count&sort_dir=desc&has_video_lectures=true" &
+          # Warm the four course rows shown at launch.
+          curl -s -o /dev/null "$BASE/courses/featured?page_size=36" &
+          curl -s -o /dev/null "$BASE/courses?subject_slug=computer-science&page_size=36&has_thumbnail=true" &
+          curl -s -o /dev/null "$BASE/courses?subject_slug=machine-learning&page_size=36&has_thumbnail=true" &
+          curl -s -o /dev/null "$BASE/courses?subject_slug=artificial-intelligence&page_size=36&has_thumbnail=true" &
           wait
           echo "Cache warmed"

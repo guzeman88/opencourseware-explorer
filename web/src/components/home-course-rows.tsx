@@ -17,8 +17,10 @@ type RowConfig = {
   queryString?: string;
 };
 
-const INITIAL_DEFERRED_ROWS = 3;
-const ROW_BATCH_SIZE = 8;
+// Two server-rendered rows plus two immediate client rows gives the first four
+// content rows quickly without flooding a phone with the entire homepage.
+const INITIAL_DEFERRED_ROWS = 2;
+const ROW_BATCH_SIZE = 2;
 
 const deferredRows: RowConfig[] = [
   { title: "Machine Learning & AI", queryKey: "ml", fetchType: "subject", subjectSlug: "machine-learning" },
@@ -166,6 +168,8 @@ interface HomeCourseRowsProps {
 
 export function HomeCourseRows({ featured, computerScience }: HomeCourseRowsProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingBatchRef = useRef(false);
+  const batchTimerRef = useRef<number>();
   const [visibleDeferredRows, setVisibleDeferredRows] = useState(INITIAL_DEFERRED_ROWS);
 
   useEffect(() => {
@@ -179,16 +183,29 @@ export function HomeCourseRows({ featured, computerScience }: HomeCourseRowsProp
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
+        if (!entry.isIntersecting || loadingBatchRef.current) return;
+        loadingBatchRef.current = true;
+        observer.unobserve(sentinel);
         setVisibleDeferredRows((count) =>
           Math.min(count + ROW_BATCH_SIZE, deferredRows.length)
         );
+        batchTimerRef.current = window.setTimeout(() => {
+          loadingBatchRef.current = false;
+          if (sentinel.isConnected) {
+            observer.observe(sentinel);
+          }
+        }, 500);
       },
-      { rootMargin: "900px" }
+      { rootMargin: "300px" }
     );
 
     observer.observe(sentinel);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (batchTimerRef.current !== undefined) {
+        window.clearTimeout(batchTimerRef.current);
+      }
+    };
   }, []);
 
   const rowsToRender = deferredRows.slice(0, visibleDeferredRows);
@@ -211,8 +228,12 @@ export function HomeCourseRows({ featured, computerScience }: HomeCourseRowsProp
         initialData={computerScience}
       />
 
-      {rowsToRender.map((row) => (
-        <CourseRow key={row.queryKey} {...row} />
+      {rowsToRender.map((row, index) => (
+        <CourseRow
+          key={row.queryKey}
+          {...row}
+          priority={index < INITIAL_DEFERRED_ROWS}
+        />
       ))}
 
       {visibleDeferredRows < deferredRows.length ? (

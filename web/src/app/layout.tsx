@@ -49,10 +49,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" style={{ backgroundColor: "#0a0a0a" }}>
+    <html lang="en" className="dark" style={{ backgroundColor: "#0f172a" }}>
+      <head>
+        <link rel="preload" as="image" href="/launch-screen.png" />
+        <link rel="apple-touch-startup-image" href="/launch-screen.png" />
+      </head>
       <body
         className={`${inter.variable} min-h-screen bg-background antialiased`}
-        style={{ backgroundColor: "#0a0a0a" }}
+        style={{ backgroundColor: "#0f172a" }}
       >
         {/* Keyframe + splash styles inlined in the HTML so they apply before any external CSS loads */}
         {/* eslint-disable-next-line react/no-danger */}
@@ -67,26 +71,17 @@ export default function RootLayout({
             position: "fixed",
             inset: 0,
             zIndex: 9999,
-            background: "#0a0a0a",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "20px",
+            background: "#0f172a",
             pointerEvents: "none",
           }}
         >
           <img
-            src="/icons/icon-192.png"
+            id="app-launch-image"
+            src="/launch-screen.png"
             alt=""
             aria-hidden="true"
-            width="88"
-            height="88"
-            style={{ borderRadius: "18px" }}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
-          <span style={{ color: "#fafafa", fontSize: "1.5rem", fontWeight: 600, letterSpacing: "-0.02em", fontFamily: "system-ui, sans-serif" }}>
-            The Commons
-          </span>
         </div>
         <Suspense>
           <GoogleAnalytics />

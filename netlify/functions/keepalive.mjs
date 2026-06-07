@@ -1,13 +1,17 @@
-// Pings the Render backend every 5 minutes so it never spins down.
-// Render free tier sleeps after ~15 min of inactivity causing 15-30s cold starts.
+// Netlify's scheduled function is the primary free keepalive for Render.
+// GitHub Actions remains a best-effort backup because scheduled runs can drift.
 
 export default async () => {
   try {
-    await fetch("https://opencourseware-api.onrender.com/health", {
+    const response = await fetch("https://opencourseware-api.onrender.com/health", {
       signal: AbortSignal.timeout(10000),
     });
-  } catch {
-    // Ignore — the point is just to send traffic, not to handle the response.
+
+    if (!response.ok) {
+      console.error(`Render keepalive returned ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Render keepalive failed", error);
   }
 };
 

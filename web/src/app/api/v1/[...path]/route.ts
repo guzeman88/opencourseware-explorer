@@ -1,15 +1,13 @@
 /**
- * Proxy for Render API.
- * Routes /api/v1/* → Render backend with Vercel CDN caching for GET requests.
- * This turns 100+ slow browser→Render round-trips into fast edge hits.
+ * Proxy for the Render API.
+ * Public GET requests are cached at the hosting CDN edge while authenticated
+ * requests and mutations always pass through uncached.
  *
- * Note: using Node.js runtime (not edge) to avoid the 15s edge execution limit.
- * Vercel CDN caches based on Cache-Control headers with either runtime.
- * Netlify CDN is told not to cache (Netlify-CDN-Cache-Control: no-store) so
- * it doesn't incorrectly share a single cached response across different query params.
+ * The Node.js runtime avoids the shorter edge execution limit during a Render
+ * cold start. Netlify-Vary keeps distinct filtered catalog queries isolated.
  */
 
-// Always dynamic — never statically pre-rendered or cached in the Next.js build.
+// Always dynamic so the route is never pre-rendered into the Next.js build.
 export const dynamic = "force-dynamic";
 
 const UPSTREAM =
@@ -23,14 +21,13 @@ async function handler(
   const url = new URL(req.url);
   const upstream = `${UPSTREAM}/api/v1/${params.path.join("/")}${url.search}`;
 
-  // Forward all headers except host
   const fwdHeaders = new Headers(req.headers);
   fwdHeaders.delete("host");
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
 
-  // Buffer the body first — passing req.body (ReadableStream) directly to fetch
-  // can fail in some Node.js versions when the stream hasn't been fully consumed.
+  // Buffer request bodies because forwarding the original stream can fail
+  // when the Node.js runtime has not fully consumed it.
   let bodyBuffer: ArrayBuffer | undefined;
   if (hasBody) {
     try {
@@ -57,13 +54,10 @@ async function handler(
 
   const resHeaders = new Headers(upstreamRes.headers);
 
-  // Node.js fetch (undici) auto-decompresses gzip/br, so the body is already
-  // plain text — remove Content-Encoding so the browser doesn't try to decompress again.
+  // Node.js fetch auto-decompresses gzip and brotli, so remove stale headers.
   resHeaders.delete("content-encoding");
-  resHeaders.delete("content-length"); // length changed after decompression
+  resHeaders.delete("content-length");
 
-  // Cache public GET reads at Vercel's CDN edge for 5 min (stale-while-revalidate for 1 hr)
-  // Never cache authenticated requests or mutations
   const isPublicRead =
     req.method === "GET" &&
     upstreamRes.ok &&
@@ -72,16 +66,19 @@ async function handler(
   resHeaders.set(
     "Cache-Control",
     isPublicRead
-      // s-maxage=3600: Vercel CDN serves from cache for 1 hour.
-      // stale-while-revalidate=86400: stale cache served while revalidating.
       ? "public, s-maxage=3600, stale-while-revalidate=86400"
       : "no-store"
   );
 
-  // Netlify's CDN must not cache API responses — it ignores query params in
-  // its cache key, causing every subject slug to serve the same response.
-  // This header overrides s-maxage for Netlify only; Vercel CDN ignores it.
-  resHeaders.set("Netlify-CDN-Cache-Control", "no-store");
+  resHeaders.set(
+    "Netlify-CDN-Cache-Control",
+    isPublicRead
+      ? "public, durable, s-maxage=3600, stale-while-revalidate=86400"
+      : "no-store"
+  );
+  if (isPublicRead) {
+    resHeaders.set("Netlify-Vary", "query");
+  }
 
   return new Response(upstreamRes.body, {
     status: upstreamRes.status,

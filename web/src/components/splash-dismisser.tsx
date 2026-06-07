@@ -7,7 +7,6 @@ export function SplashDismisser() {
     if (!el) return;
     const splashEl = el;
 
-    let timeoutId: number | undefined;
     let removeTimeoutId: number | undefined;
     let didDismiss = false;
 
@@ -15,25 +14,15 @@ export function SplashDismisser() {
       if (didDismiss) return;
       didDismiss = true;
 
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          splashEl.style.animation = "splash-out 0.35s ease-out both";
-          splashEl.addEventListener("animationend", () => splashEl.remove(), { once: true });
-          removeTimeoutId = window.setTimeout(() => splashEl.remove(), 700);
-        });
-      });
+      splashEl.style.animation = "splash-out 0.2s ease-out both";
+      splashEl.addEventListener("animationend", () => splashEl.remove(), { once: true });
+      removeTimeoutId = window.setTimeout(() => splashEl.remove(), 400);
     }
 
-    if (document.readyState === "complete") {
-      dismiss();
-    } else {
-      window.addEventListener("load", dismiss, { once: true });
-      timeoutId = window.setTimeout(dismiss, 2500);
-    }
+    // Do not wait for thumbnails, API requests, or the full window load event.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(dismiss));
 
     return () => {
-      window.removeEventListener("load", dismiss);
-      if (timeoutId) window.clearTimeout(timeoutId);
       if (removeTimeoutId) window.clearTimeout(removeTimeoutId);
     };
   }, []);
