@@ -10,13 +10,16 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const splashBackground = "#0a0a0a";
 
 const criticalSplashCss = `
-  html,body{margin:0;padding:0;background:${splashBackground}}
-  #app-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;align-items:center;justify-content:center;padding-bottom:10vh;box-sizing:border-box;pointer-events:none;animation:splash-failsafe 180ms ease-out 1400ms forwards}
-  .app-resume-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;align-items:center;justify-content:center;padding-bottom:10vh;box-sizing:border-box;pointer-events:none;animation:splash-failsafe 180ms ease-out 900ms forwards}
-  #app-splash .splash-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
-  .app-resume-splash .splash-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
-  #app-splash .splash-icon svg,.app-resume-splash .splash-icon svg{width:100%;height:100%}
-  @keyframes splash-failsafe{to{opacity:0;visibility:hidden}}
+  html,body{margin:0;padding:0;background:${splashBackground};overflow:hidden}
+  #loading{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding-bottom:10vh;box-sizing:border-box}
+  .ld-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
+  .ld-icon svg{width:100%;height:100%}
+  .ld-title{color:#fafafa;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  .ld-dots{display:flex;gap:6px;margin-top:4px}
+  .ld-dots span{width:6px;height:6px;border-radius:50%;background:rgba(214,43,43,.45);animation:ld-dot 1.4s ease-in-out infinite}
+  .ld-dots span:nth-child(2){animation-delay:.2s}
+  .ld-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes ld-dot{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
 `;
 
 export const metadata: Metadata = {
@@ -80,8 +83,8 @@ export default function RootLayout({
         className={`${inter.variable} min-h-screen bg-background antialiased`}
         style={{ background: splashBackground }}
       >
-        <div id="app-splash" aria-hidden="true">
-          <div className="splash-icon">
+        <div id="loading" aria-hidden="true">
+          <div className="ld-icon">
             <svg viewBox="0 0 32 32" role="presentation">
               <g transform="translate(4,4) scale(0.833333)" stroke="#d62b2b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none">
                 <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
@@ -89,8 +92,20 @@ export default function RootLayout({
               </g>
             </svg>
           </div>
+          <div className="ld-title">The Commons</div>
+          <div className="ld-dots"><span /><span /><span /></div>
         </div>
-        <div id="app-shell">
+        <script dangerouslySetInnerHTML={{ __html: `
+          if(navigator.standalone||window.matchMedia('(display-mode: standalone)').matches||new URLSearchParams(location.search).has('standalone')){
+            document.getElementById('loading').style.display='none';
+            document.documentElement.style.overflow='auto';
+            document.body.style.overflow='auto';
+            var appStyle=document.createElement('style');
+            appStyle.textContent='#app{display:block!important}';
+            document.head.appendChild(appStyle);
+          }
+        `}} />
+        <div id="app" style={{ display: "none" }}>
           <Suspense>
             <GoogleAnalytics />
           </Suspense>
