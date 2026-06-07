@@ -12,8 +12,10 @@ const splashBackground = "#0a0a0a";
 const criticalSplashCss = `
   html,body{margin:0;padding:0;background:${splashBackground}}
   #app-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;align-items:center;justify-content:center;padding-bottom:10vh;box-sizing:border-box;pointer-events:none;animation:splash-failsafe 180ms ease-out 1400ms forwards}
+  .app-resume-splash{position:fixed;inset:0;z-index:99999;background:${splashBackground};display:flex;align-items:center;justify-content:center;padding-bottom:10vh;box-sizing:border-box;pointer-events:none;animation:splash-failsafe 180ms ease-out 900ms forwards}
   #app-splash .splash-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
-  #app-splash .splash-icon svg{width:100%;height:100%}
+  .app-resume-splash .splash-icon{width:158px;height:158px;display:flex;align-items:center;justify-content:center}
+  #app-splash .splash-icon svg,.app-resume-splash .splash-icon svg{width:100%;height:100%}
   @keyframes splash-failsafe{to{opacity:0;visibility:hidden}}
 `;
 
@@ -88,11 +90,6 @@ export default function RootLayout({
             </svg>
           </div>
         </div>
-        <script dangerouslySetInnerHTML={{ __html: `
-          if(navigator.standalone||window.matchMedia('(display-mode: standalone)').matches||new URLSearchParams(location.search).has('standalone')){
-            document.getElementById('app-splash').style.display='none';
-          }
-        `}} />
         <div id="app-shell">
           <Suspense>
             <GoogleAnalytics />
@@ -101,9 +98,7 @@ export default function RootLayout({
             <AppShell>{children}</AppShell>
           </QueryProvider>
         </div>
-        <script dangerouslySetInnerHTML={{ __html: `
-          (()=>{const s=document.getElementById('app-splash');if(!s||s.style.display==='none')return;setTimeout(()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{s.style.animation='none';s.style.transition='opacity 180ms ease-out';s.style.opacity='0';setTimeout(()=>s.remove(),200)})),550)})();
-        `}} />
+        <script src="/splash-runtime.js" defer />
       </body>
     </html>
   );
