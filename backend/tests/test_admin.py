@@ -81,3 +81,39 @@ async def test_admin_stats_counts(auth_client: AsyncClient, db_session: AsyncSes
     assert body["total_universities"] >= 1
     assert body["total_courses"] >= 1
     assert body["courses_with_video"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_admin_publish_changes_only_publication_state(
+    auth_client: AsyncClient, db_session: AsyncSession
+):
+    uni = University(name="Publish Uni", slug="publish-uni", source_key="test")
+    db_session.add(uni)
+    await db_session.flush()
+    course = Course(
+        university_id=uni.id,
+        title="Preserved Course",
+        slug="preserved-course",
+        level=CourseLevel.undergraduate,
+        source_key="test",
+        description="Must remain unchanged",
+        is_published=False,
+    )
+    db_session.add(course)
+    await db_session.commit()
+
+    resp = await auth_client.patch(
+        f"/api/v1/admin/courses/{course.id}/publish?published=true"
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["is_published"] is True
+    await db_session.refresh(course)
+    assert course.is_published is True
+    assert course.description == "Must remain unchanged"
+
+    resp = await auth_client.patch(
+        f"/api/v1/admin/courses/{course.id}/publish?published=false"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_published"] is False

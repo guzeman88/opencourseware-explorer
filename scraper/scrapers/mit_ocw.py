@@ -26,10 +26,10 @@ OCW_COURSE_LIST = f"{OCW_BASE}/search/?t=&l=&f=Lecture+Videos"
 
 def _parse_level(raw: str) -> str:
     raw = raw.strip().lower()
-    if "grad" in raw:
-        return "graduate"
     if "under" in raw or "ug" in raw:
         return "undergraduate"
+    if "grad" in raw:
+        return "graduate"
     if "professional" in raw:
         return "professional"
     return "other"

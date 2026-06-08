@@ -1,0 +1,94 @@
+{
+  "captured_at": "2026-06-08T22:53:06.561613+00:00",
+  "database": {
+    "counts": {
+      "course_subject_relevance": 0,
+      "course_subjects": 27773,
+      "courses": 9741,
+      "departments": 0,
+      "roadmap_entries": 0,
+      "roadmaps": 0,
+      "scraper_jobs": 0,
+      "subjects": 433,
+      "universities": 174,
+      "user_library_courses": 0,
+      "user_watch_history": 0,
+      "users": 1,
+      "videos": 157384
+    },
+    "integrity": {
+      "courses_flagged_video": 7362,
+      "courses_with_zero_total_videos": 3830,
+      "courses_without_video_rows": 4265,
+      "flagged_video_with_zero_total": 1451,
+      "orphan_course_subjects": 0,
+      "orphan_library_rows": 0,
+      "orphan_watch_history_rows": 0,
+      "published_courses": 5248,
+      "total_videos_counter_sum": 164343,
+      "unlinked_roadmap_entries": 0
+    }
+  },
+  "git": {
+    "branch": "codex/preservation-first-repair",
+    "head": "50fc007135f0d2c9d3adb88cab5a0d168b1e975b",
+    "status": "## codex/preservation-first-repair\n M .gitignore\n M OPERATIONS.md\n M backend/app/crud/courses.py\n M backend/app/routers/admin.py\n M backend/migrations/versions/g2h3i4j5k6l7_add_course_is_published.py\n M backend/tests/test_admin.py\n M scraper/_audit_db.py\n M scraper/_check_railway.py\n M scraper/_check_schema.py\n M scraper/_run_migrate_published.py\n M scraper/fetch_videos_api.py\n M scraper/scrapers/mit_ocw.py\n M web/__tests__/components/course-card.test.tsx\n M web/__tests__/components/navbar.test.tsx\n M web/jest.config.js\n?? COMPREHENSIVE_REPAIR_ROADMAP.md\n?? backend/migrations/versions/h3i4j5k6l7m8_add_roadmaps.py\n?? backend/tests/test_roadmaps.py\n?? preservation/\n?? scripts/capture_preservation_baseline.py\n?? scripts/create_logical_backup.py\n?? web/__tests__/test-utils.tsx"
+  },
+  "public_api": {
+    "courses": {
+      "elapsed_ms": 744,
+      "page": 1,
+      "page_size": 1,
+      "pages": 9741,
+      "returned_items": 1,
+      "total": 9741
+    },
+    "discrete_mathematics": {
+      "elapsed_ms": 1058,
+      "page": 1,
+      "page_size": 100,
+      "pages": 1,
+      "returned_items": 47,
+      "total": 47,
+      "zero_video_items": 21
+    },
+    "featured": {
+      "elapsed_ms": 714,
+      "page": 1,
+      "page_size": 1,
+      "pages": 1,
+      "returned_items": 1,
+      "total": 7362
+    },
+    "roadmaps": {
+      "elapsed_ms": 528,
+      "page": 1,
+      "page_size": 1,
+      "returned_items": 0,
+      "total": 0
+    },
+    "subjects": {
+      "elapsed_ms": 1061,
+      "nonzero_subjects": 407,
+      "page": 1,
+      "page_size": 500,
+      "pages": 1,
+      "returned_items": 433,
+      "sample_counts": {
+        "combinatorics": 215,
+        "discrete-mathematics": 62,
+        "logic": 131,
+        "proof-writing": 219
+      },
+      "total": 433
+    },
+    "universities": {
+      "elapsed_ms": 596,
+      "page": 1,
+      "page_size": 1,
+      "pages": 174,
+      "returned_items": 1,
+      "total": 174
+    }
+  }
+}

@@ -60,7 +60,7 @@ except ImportError:
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 DATABASE_URL  = os.environ.get("DATABASE_URL", "")
-YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "AIzaSyDJLo-Ihewwvy_ojVe1TnWsZQ2pRjHcLn0")
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 DRY_RUN       = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
 FORCE         = os.environ.get("FORCE", "").lower() in ("1", "true", "yes")
 ONLY_SOURCES  = set(filter(None, os.environ.get("ONLY", "").split(",")))

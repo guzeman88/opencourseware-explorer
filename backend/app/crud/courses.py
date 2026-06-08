@@ -105,14 +105,15 @@ async def list_courses(
         query = query.where(Course.university_id.in_(sub))
         count_query = count_query.where(Course.university_id.in_(sub))
 
-    use_strict_subject_relevance = (
-        filters.subject_slug is not None and filters.sort_by == "relevance"
-    )
     use_scored_subject_relevance = (
         filters.subject_slug is not None
         and filters.sort_by == "relevance"
-        and not use_strict_subject_relevance
         and await _subject_has_relevance_scores(db, filters.subject_slug)
+    )
+    use_strict_subject_relevance = (
+        filters.subject_slug is not None
+        and filters.sort_by == "relevance"
+        and not use_scored_subject_relevance
     )
 
     if filters.subject_slug and use_strict_subject_relevance:

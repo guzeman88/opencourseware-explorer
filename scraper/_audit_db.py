@@ -2,7 +2,9 @@ import os
 import psycopg2
 import psycopg2.extras
 
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://neondb_owner:npg_O1SmkveyKXw2@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require")
+DB_URL = os.environ.get("DATABASE_URL")
+if not DB_URL:
+    raise SystemExit("DATABASE_URL is required")
 conn = psycopg2.connect(DB_URL)
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

@@ -1,8 +1,12 @@
+import os
+
 import psycopg2
-conn = psycopg2.connect(
-    'postgresql://postgres:nfMWCACJCkSCRLgMlDGVSzjCigUIrLHc@tramway.proxy.rlwy.net:11497/railway',
-    connect_timeout=15
-)
+
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    raise SystemExit("DATABASE_URL is required")
+
+conn = psycopg2.connect(database_url, connect_timeout=15)
 cur = conn.cursor()
 cur.execute('SELECT COUNT(*) FROM videos')
 print('videos:', cur.fetchone()[0])

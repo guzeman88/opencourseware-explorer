@@ -51,7 +51,7 @@ function SearchContent() {
       ) : courses.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <Search className="h-12 w-12 mx-auto opacity-30 mb-3" />
-          <p>No courses found for "{q}"</p>
+          <p>No courses found for &quot;{q}&quot;</p>
           <p className="text-sm mt-1">Try a different search term</p>
         </div>
       ) : (

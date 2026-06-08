@@ -1,6 +1,10 @@
+import os
+
 import psycopg2
 
-DB = "postgresql://neondb_owner:npg_O1SmkveyKXw2@ep-blue-leaf-aq4lk4jf.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DB = os.environ.get("DATABASE_URL")
+if not DB:
+    raise SystemExit("DATABASE_URL is required")
 conn = psycopg2.connect(DB)
 cur = conn.cursor()
 

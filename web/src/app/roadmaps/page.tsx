@@ -165,7 +165,7 @@ export default function RoadmapsPage() {
     staleTime: 60_000,
   });
 
-  const allRoadmaps = data?.items ?? [];
+  const allRoadmaps = useMemo(() => data?.items ?? [], [data?.items]);
 
   // Derive fields with counts
   const fieldCounts = useMemo(() => {

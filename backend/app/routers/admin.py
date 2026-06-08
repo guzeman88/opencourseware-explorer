@@ -220,11 +220,14 @@ async def admin_set_course_published(
     published: bool = Query(..., description="True to publish, False to unpublish"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Legacy endpoint retained for compatibility; publication flag is no longer stored."""
+    """Set the explicit publication state without altering unrelated course fields."""
     course = await get_course_by_id(db, course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="Not found")
-    updated = await update_course(db, course, CourseUpdate())
+    await update_course(db, course, CourseUpdate(is_published=published))
+    updated = await get_course_by_id(db, course_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Not found")
     from app.routers.courses import _build_course_read
     return _build_course_read(updated)
 

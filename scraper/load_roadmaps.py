@@ -5,6 +5,7 @@ course sequences from the universities in our DB.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 import uuid
@@ -1354,6 +1355,14 @@ def build_slug_candidates(course_number: str | None, course_title: str) -> list[
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="commit roadmap changes; default behavior exercises the full load then rolls back",
+    )
+    args = parser.parse_args()
+
     psycopg2.extras.register_uuid()
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
@@ -1443,11 +1452,18 @@ def main():
 
         print(f"  OK  {rm['title']} ({len(rm['courses'])} entries)")
 
-    conn.commit()
+    if args.apply:
+        conn.commit()
+    else:
+        conn.rollback()
     cur.close()
     conn.close()
 
-    print(f"\nDone. {inserted_roadmaps} roadmaps, {inserted_entries} entries. Skipped: {skipped}")
+    mode = "Applied" if args.apply else "Dry run rolled back"
+    print(
+        f"\n{mode}. {inserted_roadmaps} roadmaps, "
+        f"{inserted_entries} entries. Skipped: {skipped}"
+    )
 
 
 if __name__ == "__main__":

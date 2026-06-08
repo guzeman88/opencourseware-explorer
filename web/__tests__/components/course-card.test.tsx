@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { CourseCard } from "@/components/course-card";
 import type { CourseSummary } from "@/types";
+import { renderWithProviders } from "../test-utils";
 
 const mockCourse: CourseSummary = {
   id: "1",
@@ -39,28 +40,28 @@ jest.mock("next/link", () => ({
 
 describe("CourseCard", () => {
   it("renders course title", () => {
-    render(<CourseCard course={mockCourse} />);
+    renderWithProviders(<CourseCard course={mockCourse} />);
     expect(screen.getByText("Introduction to Computer Science")).toBeTruthy();
   });
 
   it("renders university name", () => {
-    render(<CourseCard course={mockCourse} />);
-    expect(screen.getByText("MIT")).toBeTruthy();
+    renderWithProviders(<CourseCard course={mockCourse} />);
+    expect(screen.getAllByText("MIT")).toHaveLength(2);
   });
 
   it("links to course page", () => {
-    render(<CourseCard course={mockCourse} />);
+    renderWithProviders(<CourseCard course={mockCourse} />);
     const link = screen.getByRole("link");
     expect(link.getAttribute("href")).toBe("/courses/intro-to-cs");
   });
 
   it("shows video count badge", () => {
-    render(<CourseCard course={mockCourse} />);
+    renderWithProviders(<CourseCard course={mockCourse} />);
     expect(screen.getByText("24")).toBeTruthy();
   });
 
-  it("shows level badge", () => {
-    render(<CourseCard course={mockCourse} />);
-    expect(screen.getByText("Undergraduate")).toBeTruthy();
+  it("offers a save-to-library action", () => {
+    renderWithProviders(<CourseCard course={mockCourse} />);
+    expect(screen.getByLabelText("Save to library")).toBeTruthy();
   });
 });

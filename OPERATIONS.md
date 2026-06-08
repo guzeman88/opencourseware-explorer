@@ -2,6 +2,10 @@
 
 This is the single source of truth for building, running, deploying, and maintaining The Commons. If something is not in here, add it.
 
+All repair and modernization work must follow the preservation-first gates in
+**[COMPREHENSIVE_REPAIR_ROADMAP.md](COMPREHENSIVE_REPAIR_ROADMAP.md)**. Essential
+features, data, and rollback procedures are tracked under `preservation/`.
+
 ---
 
 ## Table of Contents

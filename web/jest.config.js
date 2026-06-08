@@ -2,7 +2,8 @@
 const config = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
-  setupFilesAfterFramework: ["<rootDir>/jest.setup.ts"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/.netlify/"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^.+\\.(svg|png|jpg|jpeg|gif|webp)$": "<rootDir>/__mocks__/fileMock.js",

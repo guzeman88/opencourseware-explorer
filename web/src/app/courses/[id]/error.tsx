@@ -18,7 +18,7 @@ export default function CourseError({
     <div className="max-w-screen-xl mx-auto px-4 md:px-8 py-16 flex flex-col items-center space-y-4">
       <h2 className="text-xl font-semibold text-foreground">Course unavailable</h2>
       <p className="text-muted-foreground text-sm text-center max-w-sm">
-        We couldn't load this course. It may have been removed or there was a
+        We couldn&apos;t load this course. It may have been removed or there was a
         network error.
       </p>
       <div className="flex gap-3">

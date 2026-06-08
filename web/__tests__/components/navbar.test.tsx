@@ -1,5 +1,6 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { Navbar } from "@/components/navbar";
+import { renderWithProviders } from "../test-utils";
 
 // Stub next/navigation
 const mockPush = jest.fn();
@@ -21,11 +22,11 @@ jest.mock("next/link", () => ({
 describe("Navbar", () => {
   beforeEach(() => {
     mockPush.mockClear();
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
   });
 
   it("renders logo text", () => {
-    expect(screen.getByText("OCW Explorer")).toBeTruthy();
+    expect(screen.getByText("The Commons")).toBeTruthy();
   });
 
   it("renders navigation links", () => {

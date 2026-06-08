@@ -117,7 +117,7 @@ export default function SourcesAnalysisPage() {
       <div>
         <h1 className="text-2xl font-bold">Sources Analysis</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Coverage overview — how many courses are available per source vs. how many we've indexed
+          Coverage overview — how many courses are available per source vs. how many we&apos;ve indexed
         </p>
       </div>
 
