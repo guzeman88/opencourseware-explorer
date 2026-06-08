@@ -6,6 +6,20 @@ All repair and modernization work must follow the preservation-first gates in
 **[COMPREHENSIVE_REPAIR_ROADMAP.md](COMPREHENSIVE_REPAIR_ROADMAP.md)**. Essential
 features, data, and rollback procedures are tracked under `preservation/`.
 
+The GitHub repository must define a `RENDER_DEPLOY_HOOK_URL` Actions secret for
+the Render API service. The deploy workflow passes the exact Git commit to this
+hook. After deployment, `/health` must report that same commit in `git_commit`;
+an unknown or mismatched fingerprint blocks production acceptance.
+
+Render deploy-hook setup:
+
+1. In the Render API service, create or copy its deploy hook URL.
+2. Add it to GitHub Actions as the `RENDER_DEPLOY_HOOK_URL` repository secret.
+3. Confirm Render is linked to `main` and either enables auto-deploy after CI or
+   relies on the guarded GitHub hook.
+4. Verify `/health.git_commit` exactly matches the released Git commit before
+   accepting the deployment.
+
 ---
 
 ## Table of Contents

@@ -32,6 +32,11 @@ Captured on 2026-06-08 before functional or production-data repairs.
 - Public Discrete Mathematics results include records reporting zero videos.
 - Strict subject-count computation and course relevance results do not share one
   authoritative membership source.
+- Live Render `/openapi.json` does not expose the checked-in `catalog_ready`
+  course parameter or `strict_counts` subject parameter.
+- Live Render reports all 9,741 courses from the public endpoint, while the
+  current preservation shadow audit identifies 4,067 current catalog-ready
+  courses. Render is not serving the current Git backend.
 
 ## Stop Conditions Currently Active
 
@@ -40,6 +45,8 @@ Captured on 2026-06-08 before functional or production-data repairs.
 - Do not deploy broad dependency or authentication changes until frontend
   regression tests are reliable.
 - Do not remove uncertain courses, videos, tags, or memberships.
+- Do not deploy the Subjects page count-source repair until Render serves the
+  matching backend; a frontend-only release would make counts less reliable.
 
 ## Next Safe Work
 

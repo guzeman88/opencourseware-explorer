@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchSubjects } from "@/lib/api";
-import { STRICT_SUBJECT_COUNTS } from "@/lib/strict-subject-counts";
 import Link from "next/link";
 import type { Subject } from "@/types";
 
@@ -403,8 +402,6 @@ export default function SubjectsPage() {
     queryKey: ["subjects"],
     queryFn: () => fetchSubjects(false, true),
   });
-  const countMap = STRICT_SUBJECT_COUNTS;
-
   const subjectMap = new Map<string, Subject>();
   for (const s of data?.items ?? []) {
     subjectMap.set(s.slug, s);
@@ -435,7 +432,7 @@ export default function SubjectsPage() {
   const otherSubjects = [...(data?.items ?? [])]
     .map((subject) => ({
       ...subject,
-      course_count: countMap[subject.slug] ?? subject.course_count ?? 0,
+      course_count: subject.course_count ?? 0,
     }))
     .filter(
       (s) =>
@@ -453,11 +450,11 @@ export default function SubjectsPage() {
       // Keep the taxonomy available while showing only subjects with courses.
       subjects: sf.slugs.map((slug) => {
         const s = subjectMap.get(slug);
-        return {
-          slug,
-          name: s?.name ?? slugToName(slug),
-          course_count: countMap[slug] ?? s?.course_count ?? 0,
-        };
+          return {
+            slug,
+            name: s?.name ?? slugToName(slug),
+            course_count: s?.course_count ?? 0,
+          };
       }).filter((subject) => subject.course_count > 0),
     })).filter((subfield) => subfield.subjects.length > 0),
   })).filter((field) => field.subfields.length > 0);

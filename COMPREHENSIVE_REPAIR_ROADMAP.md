@@ -64,12 +64,12 @@ workflow continues to operate.
 
 ## Phase 2: Catalog and Video Integrity
 
-- [ ] Inventory every catalog eligibility rule and consumer.
-- [ ] Define one authoritative public-course invariant.
-- [ ] Generate and review eligibility decisions in shadow mode.
+- [x] Inventory every catalog eligibility rule and consumer.
+- [x] Define one authoritative public-course invariant.
+- [x] Generate and review eligibility decisions in shadow mode.
 - [ ] Persist eligibility status and inspectable exclusion reasons.
 - [ ] Migrate consumers one at a time to authoritative eligibility.
-- [ ] Audit video flags, counters, playlists, and video rows.
+- [x] Audit video flags, counters, playlists, and video rows.
 - [ ] Recover videos where credible evidence exists.
 - [ ] Recalculate counters from verified video records.
 - [ ] Retain but hide unresolved invalid courses.
@@ -89,7 +89,7 @@ valid course or video is lost.
 - [ ] Generate proposed memberships without replacing current tags.
 - [ ] Preserve uncertain memberships for review.
 - [ ] Promote approved memberships atomically with rollback support.
-- [ ] Replace static counts and full-catalog runtime scans.
+- [-] Replace static counts and full-catalog runtime scans.
 - [ ] Verify every displayed subject count equals its result total.
 - [ ] Consolidate tagging into a dry-run-first controlled pipeline.
 - [ ] Block accidental production mutation by maintenance scripts.
@@ -227,3 +227,32 @@ Stop and investigate if:
   lint clean; production frontend build clean; tracked-tree secret scan clean.
 - CI deploy workflow now requires the passing quality gate before existing
   Vercel and Netlify hooks run.
+
+### 2026-06-08 - Catalog integrity shadow audit
+
+- Added an additive `course_catalog_eligibility` sidecar migration and a
+  dry-run-first audit. Neither public filtering nor course records were changed.
+- The verified backup is directly usable by the audit through PostgreSQL
+  COPY-text decoding; a regression test covers escaped JSON content.
+- Shadow results across all 9,741 courses: 4,067 eligible, 3,388 review, and
+  2,286 excluded for having no video rows and no credible video evidence.
+- Preservation finding: 1,979 courses have credible video evidence but no video
+  rows. They remain review candidates and must be recovered or reviewed before
+  exclusion.
+- Four courses have video-counter mismatches but remain eligible because their
+  verified video rows are preserved as the stronger evidence.
+- Live Render discrepancy: production `/openapi.json` lacks the checked-in
+  `catalog_ready` and `strict_counts` parameters, and the public courses API
+  reports all 9,741 courses instead of the 4,067 current catalog-ready courses.
+  This proves Render is not serving the current Git backend and blocks a safe
+  frontend-only subject-count deployment.
+- Removed the Subjects page dependency on the hardcoded strict-count snapshot
+  in code. Deployment remains blocked until Render serves the matching backend.
+- Added an additive persisted strict-subject-count sidecar with a safe runtime
+  fallback when the migration or generated counts are absent.
+- Backup dry run evaluated all 433 subjects against 4,067 current catalog-ready
+  courses; 279 subjects have nonzero exact-title results. No subject membership
+  or production record changed.
+- Added Render commit fingerprints to `/health` and a guarded deploy-hook step.
+  GitHub currently has no `RENDER_DEPLOY_HOOK_URL` secret, so configuring that
+  external hook remains required before Render can join Git-based deployments.

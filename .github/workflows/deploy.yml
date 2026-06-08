@@ -66,3 +66,13 @@ jobs:
           curl -s -X POST \
             "https://api.netlify.com/build_hooks/6a109dba40b10b6810218ca4" \
             | jq .
+
+      - name: Trigger Render deploy hook for this commit
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          curl --fail --silent --show-error --request POST \
+            "${RENDER_DEPLOY_HOOK_URL}&ref=${DEPLOY_COMMIT}" \
+            | jq .

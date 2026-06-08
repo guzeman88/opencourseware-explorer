@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import sys
 from collections.abc import AsyncGenerator
 
@@ -63,7 +64,7 @@ app = FastAPI(
     version="1.0.0",
     description=(
         "API for browsing thousands of free university courses from MIT OCW, "
-        "Yale, Stanford, NPTEL, Berkeley, and more."
+        "Yale, Stanford, Berkeley, and more."
     ),
     docs_url="/docs",
     redoc_url="/redoc",
@@ -94,4 +95,9 @@ app.include_router(admin.router, prefix="/api/v1")
 
 @app.get("/health", tags=["health"])
 async def health_check():
-    return {"status": "ok", "version": "1.0.0"}
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "git_commit": os.environ.get("RENDER_GIT_COMMIT", "unknown"),
+        "git_branch": os.environ.get("RENDER_GIT_BRANCH", "unknown"),
+    }

@@ -2,15 +2,35 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect as sa_inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.catalog_quality import catalog_ready_condition
 from app.models.course import Course, CourseSubject
+from app.models.catalog_eligibility import SubjectCatalogCount
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
+from app.subject_counts import STRICT_COUNT_POLICY_VERSION
 from app.subject_matching import strict_subject_matches_title
+
+
+_HAS_SUBJECT_COUNT_TABLE: bool | None = None
+
+
+async def _has_subject_count_table(db: AsyncSession) -> bool:
+    global _HAS_SUBJECT_COUNT_TABLE
+    if _HAS_SUBJECT_COUNT_TABLE is not None:
+        return _HAS_SUBJECT_COUNT_TABLE
+
+    def check(sync_session) -> bool:
+        return sa_inspect(sync_session.get_bind()).has_table("subject_catalog_counts")
+
+    try:
+        _HAS_SUBJECT_COUNT_TABLE = await db.run_sync(check)
+    except Exception:
+        _HAS_SUBJECT_COUNT_TABLE = False
+    return _HAS_SUBJECT_COUNT_TABLE
 
 
 async def get_subject_by_slug(db: AsyncSession, slug: str) -> Subject | None:
@@ -80,19 +100,45 @@ async def list_subjects(
         subjects.append(subj)
 
     if strict_counts and subjects:
-        titles = list(
-            (
-                await db.execute(
-                    select(Course.title).where(catalog_ready_condition(Course))
+        persisted_counts: dict[uuid.UUID, int] = {}
+        if await _has_subject_count_table(db):
+            persisted_counts = {
+                subject_id: course_count
+                for subject_id, course_count in (
+                    await db.execute(
+                        select(
+                            SubjectCatalogCount.subject_id,
+                            SubjectCatalogCount.course_count,
+                        ).where(
+                            SubjectCatalogCount.subject_id.in_(
+                                [subject.id for subject in subjects]
+                            ),
+                            SubjectCatalogCount.policy_version
+                            == STRICT_COUNT_POLICY_VERSION,
+                        )
+                    )
                 )
+            }
+
+        if persisted_counts:
+            for subj in subjects:
+                subj.course_count = persisted_counts.get(subj.id, 0)
+        else:
+            titles = list(
+                (
+                    await db.execute(
+                        select(Course.title).where(catalog_ready_condition(Course))
+                    )
+                )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
-        for subj in subjects:
-            subj.course_count = sum(
-                1 for title in titles if strict_subject_matches_title(title, subj.slug)
-            )
+            for subj in subjects:
+                subj.course_count = sum(
+                    1
+                    for title in titles
+                    if strict_subject_matches_title(title, subj.slug)
+                )
 
     return subjects, total
 

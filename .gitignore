@@ -37,6 +37,7 @@ scraper/course_title_integrity_report.html
 scraper/course_title_integrity_standalone.html
 scraper/tag_backups/
 preservation/private-backups/
+preservation/reports/
 
 # Local Netlify folder
 .netlify
