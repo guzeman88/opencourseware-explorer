@@ -24,6 +24,11 @@ const criticalSplashCss = `
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://opencourseware-explorer.netlify.app"),
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "The Commons",
+  },
   title: {
     default: "The Commons",
     template: "%s | The Commons",
@@ -66,6 +71,7 @@ export default function RootLayout({
       <head>
         <style dangerouslySetInnerHTML={{ __html: criticalSplashCss }} />
         <meta name="theme-color" content={splashBackground} />
+        <link rel="apple-touch-startup-image" href="/icons/splash-iphone_pmax.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/splash-iphone_se.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_x.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_mini.png" />
@@ -77,6 +83,7 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_pmax.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_16pro.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_16pmax.png" />
+        <link rel="apple-touch-startup-image" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3)" href="/icons/splash-iphone_air.png" />
         <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="/icons/splash-ipad_pro.png" />
       </head>
       <body
