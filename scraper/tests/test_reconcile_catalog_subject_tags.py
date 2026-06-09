@@ -1,6 +1,9 @@
 from scraper.reconcile_catalog_subject_tags import (
     Course,
+    ProposedTag,
+    ReconcileResult,
     Subject,
+    build_membership_rows,
     build_proposals,
 )
 
@@ -56,3 +59,26 @@ def test_logic_and_proof_gets_both_direct_subjects_without_discrete_rollup():
 
 def test_combinatorics_does_not_roll_up_to_discrete_math():
     assert proposed_slugs("Enumerative Combinatorics") == {"combinatorics"}
+
+
+def test_membership_rows_include_required_ids():
+    result = ReconcileResult(
+        proposed={
+            "course-1": [
+                ProposedTag(
+                    course_id="course-1",
+                    subject_slug="logic",
+                    subject_id="subject-1",
+                    score=100,
+                    relationship="title_match",
+                    reason="exact title match",
+                )
+            ]
+        }
+    )
+
+    rows = build_membership_rows(result)
+
+    assert len(rows) == 1
+    assert rows[0][0]
+    assert rows[0][1:] == ("course-1", "subject-1")

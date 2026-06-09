@@ -12,9 +12,9 @@ from app.models.course import Course, CourseLevel, CourseSubject, CourseSubjectR
 from app.models.university import University
 from app.models.subject import Subject
 from app.schemas.course import CourseCreate, CourseFilters, CourseUpdate
+from app.subject_counts import MIN_SUBJECT_RELEVANCE_SCORE
 from app.subject_matching import strict_subject_title_condition
 
-MIN_SUBJECT_RELEVANCE_SCORE = 40
 _HAS_RELEVANCE_TABLE: bool | None = None
 
 

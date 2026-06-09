@@ -8,8 +8,11 @@ Comprehensive subject tagger for production DB.
 from __future__ import annotations
 import os, re, psycopg2
 
-DATABASE_URL = os.environ["DATABASE_URL"]
-conn = psycopg2.connect(DATABASE_URL, sslmode="require" if "railway" in DATABASE_URL else "prefer")
+from mutation_guard import require_explicit_apply
+
+
+DATABASE_URL = require_explicit_apply("Run the legacy production subject tagger.")
+conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 
 # ---------------------------------------------------------------------------

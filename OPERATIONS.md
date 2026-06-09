@@ -6,10 +6,12 @@ All repair and modernization work must follow the preservation-first gates in
 **[COMPREHENSIVE_REPAIR_ROADMAP.md](COMPREHENSIVE_REPAIR_ROADMAP.md)**. Essential
 features, data, and rollback procedures are tracked under `preservation/`.
 
-The GitHub repository must define a `RENDER_DEPLOY_HOOK_URL` Actions secret for
-the Render API service. The deploy workflow passes the exact Git commit to this
-hook. After deployment, `/health` must report that same commit in `git_commit`;
-an unknown or mismatched fingerprint blocks production acceptance.
+The GitHub repository must define `NETLIFY_DEPLOY_HOOK_URL`,
+`VERCEL_DEPLOY_HOOK_URL`, and `RENDER_DEPLOY_HOOK_URL` Actions secrets. Deploy
+hook URLs are credentials and must never be committed. The Render workflow
+passes the exact Git commit to its hook. After deployment, `/health` must report
+that same commit in `git_commit`; an unknown or mismatched fingerprint blocks
+production acceptance.
 
 Render deploy-hook setup:
 
@@ -19,6 +21,20 @@ Render deploy-hook setup:
    relies on the guarded GitHub hook.
 4. Verify `/health.git_commit` exactly matches the released Git commit before
    accepting the deployment.
+
+### Domain Sources of Truth
+
+| Domain | Source of truth | Operational owner |
+|---|---|---|
+| Source code and release history | GitHub `main` plus reviewed task branches | Repository maintainer |
+| Production web | Netlify deploy tied to a pushed Git commit | Netlify dashboard owner |
+| Production API | Render deploy tied to `/health.git_commit` | Render dashboard owner |
+| Persistent production data | Neon PostgreSQL | Neon dashboard owner |
+| Catalog eligibility | `backend/app/catalog_quality.py` plus versioned eligibility sidecar | Backend/catalog maintainer |
+| Subject memberships and relevance | `course_subjects`, versioned `course_subject_relevance`, and `preservation/SUBJECT_MEMBERSHIP_POLICY.md` | Catalog maintainer |
+| Roadmaps | `roadmaps` and ordered `roadmap_entries` tables | Content maintainer |
+| User accounts, library, and progress | Neon user relationship tables | Backend/data maintainer |
+| Repair evidence and rollback | `COMPREHENSIVE_REPAIR_ROADMAP.md` and `preservation/` | Repair lead |
 
 ---
 
@@ -50,7 +66,7 @@ Users
   ▼
 Netlify CDN  ──────────────────────────────────────────────────────────────
   │  https://opencourseware-explorer.netlify.app                          │
-  │  Next.js 14 App Router (Netlify Next.js plugin)                       │
+  │  Next.js 15 App Router (Netlify Next.js plugin)                       │
   │  ISR: homepage revalidates every 300s                                 │
   │                                                                       │
   │  Built from: opencourseware/web/                                      │
@@ -72,7 +88,7 @@ Neon (serverless PostgreSQL)  ────────────────�
      Branch: main
      Database: neondb
      Region: us-east-1
-     9,726 courses · 15,425 course_subjects tags
+     9,741 courses · 27,773 course_subjects memberships (restore-verified)
 ```
 
 ### Service Accounts
@@ -97,8 +113,8 @@ Neon (serverless PostgreSQL)  ────────────────�
 
 | What | Where |
 |------|-------|
-| All 9,726 courses | `courses` table |
-| All 15,425 subject tags | `course_subjects` table |
+| All 9,741 course records | `courses` table |
+| All 27,773 approved subject memberships | `course_subjects` table |
 | All universities | `universities` table |
 | All subjects taxonomy | `subjects` table |
 | User accounts | `users` table |
@@ -122,9 +138,13 @@ postgresql+asyncpg://neondb_owner:<password>@ep-blue-leaf-aq4lk4jf.c-8.us-east-1
 | `opencourseware/scraper/discovered_channels.json` | YouTube channel IDs discovered during scraping | Medium — can be re-discovered |
 | `opencourseware/scraper/channel_scrape_progress.json` | Checkpoint file for long scrape runs | Low — only used mid-run |
 
-### No Local Database
+### Local and Isolated Databases
 
-There is no local PostgreSQL instance that matters. All data is on Neon. Running scrapers locally writes directly to Neon via `DATABASE_URL`.
+Neon is the production source of truth, but local databases are still valuable
+and potentially destructive targets. Never rely on a script's fallback
+connection. Set `DATABASE_URL` explicitly, identify the target port, and use
+the `commons_restore_test` Docker Compose project on port 5433 for restore and
+repair verification. See `preservation/RESTORE_VERIFICATION.md`.
 
 ### Git Repository
 
@@ -138,7 +158,7 @@ All source code is at `github.com/guzeman88/opencourseware-explorer`. The workin
 
 **Rule 1: Never run `DROP TABLE`, `TRUNCATE`, or `DELETE FROM` on Neon without a backup.**
 
-**Rule 2: Never run `tag_courses.py` with `RESET_TAGS=1` without first verifying the tagging logic is correct.** This wipes and rebuilds all 15,425 subject tags.
+**Rule 2: Do not run legacy `tag_courses.py` or `tag_courses_prod.py` for normal maintenance.** Use the report-only-first `reconcile_catalog_subject_tags.py` pipeline and verify its backup before `--apply`.
 
 **Rule 3: Never run `alembic downgrade` on the production database without a backup.**
 
@@ -188,7 +208,7 @@ pg_restore `
 |------|:--:|-----|
 | Course metadata (title, URL, description) | ✅ Yes | Re-run scrapers |
 | YouTube video data | ✅ Yes | Re-run `scrape_all_playlists_api.py` |
-| Subject tags | ✅ Yes | Re-run `tag_courses.py` |
+| Subject memberships | Partial | Restore the backup first; use the controlled reconciler only after review |
 | Thumbnails | ✅ Yes | Re-run `backfill_thumbnails.py` |
 | User accounts | ❌ No | Must restore from backup |
 | User bookmarks (Library) | ❌ No | Must restore from backup |
@@ -356,7 +376,7 @@ On startup (`lifespan` in `main.py`):
 ## 7. Web Frontend (Next.js)
 
 **Location:** `opencourseware/web/`  
-**Framework:** Next.js 14.2.35 (App Router)  
+**Framework:** Next.js 15.5.18 (App Router)
 **Deployed:** Netlify — `https://opencourseware-explorer.netlify.app`  
 **Build trigger:** every push to `main`
 
@@ -412,6 +432,16 @@ layout.tsx
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 
+### Service-Worker Cleanup Rationale
+
+`web/public/sw.js` and `web/src/components/pwa-register.tsx` intentionally
+remove old service workers and caches. Earlier service workers cached pages and
+could keep serving stale or broken HTML on installed phones after a deploy.
+The cleanup worker deletes those caches, claims existing clients, and then
+unregisters itself. Preserve this behavior until a versioned cache-migration
+and offline strategy has passed fresh-install, upgrade, offline, reconnection,
+and home-screen launch verification.
+
 ---
 
 ## 8. Mobile App (Expo)
@@ -447,26 +477,27 @@ $env:YOUTUBE_API_KEY = "<key>"
 
 | Script | What it does | When to run |
 |--------|-------------|-------------|
-| `tag_courses.py` | Keyword-tags all courses into subjects | After a bulk data load, or to fix tag coverage. Use `$env:RESET_TAGS="1"` to wipe and rebuild all tags. |
+| `reconcile_catalog_subject_tags.py` | Generates inspectable subject proposals; `--apply` backs up and promotes atomically | Run report-only first after catalog changes |
 | `scrape_all_playlists_api.py` | Fetches YouTube playlist metadata (video count, duration, thumbnail) for all courses with a `youtube_playlist_id` | When new courses are added or video data is stale |
 | `backfill_thumbnails.py` | Fills in missing thumbnails from YouTube API or OG image fallback | After bulk load if thumbnails are missing |
 | `load_roadmaps.py` | Loads learning roadmap data into the `roadmaps` table | When updating roadmap content |
 | `load_mit_csv.py` / `load_csv_fast.py` | Loads MIT OCW courses from the CSV file | When re-seeding MIT data |
 | `scrape_nptel_full.py` | Scrapes NPTEL courses | When updating NPTEL content |
 | `scrape_harvard_full.py` | Scrapes Harvard courses | When updating Harvard content |
-| `fix_labels_and_publish.py` | Sets `is_published=True` for courses meeting quality criteria | After bulk load |
+| `fix_labels_and_publish.py` | Legacy bulk publication repair; requires explicit `--apply` | Use only with a fresh backup and reviewed target |
 
 ### Tag System
 
-`tag_courses.py` maps keyword rules → subject slugs. Current stats: **15,425 tags across 9,726 courses (73.8% coverage)**.
-
-To reset and rebuild all tags:
+`course_subjects` contains 27,773 restore-verified approved memberships.
+`course_subject_relevance` stores inspectable score/reason evidence. Generate a
+proposal report before any promotion:
 ```powershell
-$env:RESET_TAGS = "1"
-.venv\Scripts\python.exe opencourseware\scraper\tag_courses.py
+.venv\Scripts\python.exe opencourseware\scraper\reconcile_catalog_subject_tags.py `
+  --report opencourseware\preservation\reports\subject-tag-proposals.csv
 ```
 
-> **⚠️ Warning:** `RESET_TAGS=1` deletes ALL rows in `course_subjects` before rebuilding. Do not run this if you have made manual tag edits you want to keep.
+The controlled apply path refuses untagged courses, exports affected
+memberships, and promotes membership/relevance rows in one transaction.
 
 ### One-off Fix Scripts (`_` prefix)
 
@@ -511,10 +542,10 @@ alembic upgrade head
 ```
 universities    ← source institutions
 departments     ← optional sub-groupings within a university
-courses         ← 9,726 rows; core entity
+courses         ← 9,741 rows; core entity
   └── videos    ← YouTube video records per course
-  └── course_subjects  ← many-to-many: courses ↔ subjects (15,425 rows)
-subjects        ← subject taxonomy (~150 rows)
+  └── course_subjects  ← many-to-many: courses ↔ subjects (27,773 rows)
+subjects        ← subject taxonomy (433 rows)
 users           ← user accounts (email + hashed password)
 user_library_courses  ← user bookmarks (user_id, course_id)
 roadmaps        ← learning roadmap definitions
@@ -590,7 +621,9 @@ git push origin main
 # Trigger a manual deploy in Render dashboard, OR enable auto-deploy from main
 ```
 
-**⚠️ `render.yaml` currently contains plaintext credentials** (`ADMIN_PASSWORD`, a legacy `DATABASE_URL`). These values are overridden by Render dashboard env vars at runtime, but the file should be cleaned up — replace them with `sync: false` placeholders.
+`backend/render.yaml` contains no plaintext credentials. `DATABASE_URL`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `CORS_ORIGINS` use `sync: false`; verify
+their authorized dashboard values before deployment.
 
 ### Deployment Checklist (before any production push)
 
@@ -668,55 +701,43 @@ with psycopg.connect(os.environ['DATABASE_URL'].replace('+asyncpg', '')) as conn
 
 ## 13. Known Bugs & Technical Debt
 
-These are confirmed bugs that need fixing. Prioritised highest to lowest.
+These are verified current gaps. Resolved historical items were removed from
+this list; Git history remains available for context.
 
-### 🔴 Critical
+### Critical
 
-**1. `users.py` router is not mounted in `main.py`**  
-File: `backend/app/main.py`  
-The `users` router (`/users/register`, `/users/login`, `/users/me`, `/users/me/library`) is never imported or registered. All auth and Library endpoints return 404 in production.  
-Fix: add `from app.routers import users` and `app.include_router(users.router, prefix="/api/v1")` to `main.py`.
+**1. Production backend is not tied to the current Git commit**
+Live Render `/health` does not yet report a commit fingerprint, and its
+OpenAPI schema lacks checked-in catalog parameters. Configure the guarded
+Render deploy hook and require an exact `/health.git_commit` match.
 
-**2. Admin login token/cookie mismatch**  
-File: `web/src/middleware.ts` + `web/src/app/admin/login/`  
-The edge middleware checks for an `ocw_session` **httpOnly cookie**, but the admin login page stores the token in `localStorage["ocw_token"]`. The cookie is never set, so the middleware redirects every request — the admin panel is permanently inaccessible.  
-Fix: either set a cookie on login response, or change the middleware to accept the Bearer token via an `Authorization` header.
+**2. Exposed historical credentials require external rotation**
+The current tree is clean, but Git history contains old database, YouTube, and
+deploy-hook credentials. Rotate each authorized consumer before revocation.
 
-**3. `render.yaml` contains plaintext credentials**  
-File: `backend/render.yaml`  
-`ADMIN_PASSWORD` and a legacy `DATABASE_URL` are committed in plaintext. While Render dashboard env vars override these at runtime, they should be removed from the file.  
-Fix: replace with `sync: false` entries and set values only in Render dashboard.
+### High
 
-### 🟡 High
-
-**4. No Sentry on the backend**  
-`sentry-sdk` is not in `requirements.txt`. Backend crashes on Render are invisible.  
-Fix: add `sentry-sdk[fastapi]>=2.0` to `requirements.txt`, initialise in `run.py` or `main.py`.
-
-**5. No silent token refresh**  
+**3. No silent token refresh**
 When a JWT expires, the 401 interceptor clears localStorage and the user is silently signed out mid-session. There is no refresh endpoint.  
 Fix: add `POST /api/v1/users/refresh` to the backend returning a new token; call it from the 401 interceptor before clearing state.
 
-**6. Browse page loads all courses on category expand**  
+**4. Browse page loads all courses on category expand**
 File: `web/src/app/browse/page.tsx`  
 When a university or subject section is expanded, all courses for that section are fetched with no pagination. With large universities (e.g. NPTEL ~3,200 courses) this causes a large query and slow render.  
 Fix: add cursor-based pagination with a "load more" button.
 
-**7. `render.yaml` / `SECRET_KEY` default**  
+**5. Production secret/dashboard values are unverified**
 If `SECRET_KEY` is not set in Render dashboard env vars, the default `"change-me-in-production"` is used, making all JWTs forgeable.  
-Fix: verify `SECRET_KEY` is set in Render. `openssl rand -hex 32` to generate.
+Fix: verify `SECRET_KEY`, database, CORS, admin, Sentry, and deploy-hook values
+through their authorized dashboards before accepting a production deployment.
 
-### 🟢 Medium
+### Medium
 
-**8. Full-text search uses `ilike`**  
-`list_courses` does `Course.title.ilike('%query%')` — a sequential scan with no index. Will degrade as course count grows.  
-Fix: add a `pg_trgm` GIN index on `courses.title`.
-
-**9. No Privacy Policy page**  
+**6. No Privacy Policy page**
 Required before collecting analytics data (GA4) or accepting user registrations (GDPR/CCPA).  
 Fix: add a `/privacy` route with a basic privacy policy.
 
-**10. No per-route `loading.tsx`**  
+**7. No per-route `loading.tsx`**
 Only the root `loading.tsx` exists. `/courses`, `/library`, `/roadmaps` have no loading skeleton.  
 Fix: add `loading.tsx` per route for smoother transitions.
 
@@ -735,7 +756,8 @@ To activate: set `NEXT_PUBLIC_SENTRY_DSN` in Netlify dashboard.
 
 ### Sentry (Backend)
 
-Not yet configured. See bug #4 in §13.
+The backend initializes Sentry when `SENTRY_DSN` is configured. Dashboard
+configuration and live event delivery remain unverified.
 
 ### Uptime Monitoring
 
@@ -763,14 +785,14 @@ trackEvent({ action: "bookmark_added", category: "library", label: courseId });
 
 ## 15. Common Runbook Tasks
 
-### Re-tag all courses (subject taxonomy rebuild)
+### Audit and reconcile subject memberships
 
 ```powershell
 cd "C:\Users\Jorge DeGuzeman\Desktop\code-projects\Courses"
 $env:DATABASE_URL = "postgresql://..."
-$env:RESET_TAGS = "1"
-.venv\Scripts\python.exe opencourseware\scraper\tag_courses.py
-# Expected: ~15,000 tags inserted across ~9,726 courses
+.venv\Scripts\python.exe opencourseware\scraper\reconcile_catalog_subject_tags.py `
+  --report opencourseware\preservation\reports\subject-tag-proposals.csv
+# Review the report and backup plan before any --apply run.
 ```
 
 ### Backfill missing thumbnails

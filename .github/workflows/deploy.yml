@@ -33,6 +33,9 @@ jobs:
       - name: Test scraper
         run: python -m pytest -q scraper/tests
 
+      - name: Test preservation scripts
+        run: python -m pytest -q scripts/tests
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -47,6 +50,10 @@ jobs:
         working-directory: web
         run: npm test -- --runInBand
 
+      - name: Lint web
+        working-directory: web
+        run: npm run lint
+
       - name: Build web
         working-directory: web
         run: npm run build
@@ -56,15 +63,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Vercel deploy hook
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          curl -s -X POST \
-            "https://api.vercel.com/v1/integrations/deploy/prj_GSGPTvGL4NcbkOfEuALxfYciKoJD/nISy3LKS9k" \
+          curl --fail --silent --show-error --request POST \
+            "${VERCEL_DEPLOY_HOOK_URL}" \
             | jq .
 
       - name: Trigger Netlify deploy hook
+        if: ${{ secrets.NETLIFY_DEPLOY_HOOK_URL != '' }}
+        env:
+          NETLIFY_DEPLOY_HOOK_URL: ${{ secrets.NETLIFY_DEPLOY_HOOK_URL }}
         run: |
-          curl -s -X POST \
-            "https://api.netlify.com/build_hooks/6a109dba40b10b6810218ca4" \
+          curl --fail --silent --show-error --request POST \
+            "${NETLIFY_DEPLOY_HOOK_URL}" \
             | jq .
 
       - name: Trigger Render deploy hook for this commit

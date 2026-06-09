@@ -18,8 +18,8 @@ total_videos > 0 (videos fetched and counted from YouTube). This script:
   6. Prints a full before/after report
 
 Usage:
-  py -3.13 verify_and_fix_video_courses.py
-  DATABASE_URL=postgresql://... py -3.13 verify_and_fix_video_courses.py
+  py -3.13 verify_and_fix_video_courses.py --help
+  DATABASE_URL=postgresql://... py -3.13 verify_and_fix_video_courses.py --apply
 
 Workers / rate-limit:
   Set WORKERS env var (default 6) to control parallel yt-dlp threads.
@@ -27,6 +27,7 @@ Workers / rate-limit:
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 import time
@@ -36,29 +37,26 @@ import psycopg2
 import psycopg2.extras
 import yt_dlp
 
+parser = argparse.ArgumentParser(
+    description="Verify playlists and rewrite video/publication state."
+)
+parser.add_argument(
+    "--apply",
+    action="store_true",
+    help="perform the destructive verification and rewrite",
+)
+args = parser.parse_args()
+if not args.apply:
+    raise SystemExit(
+        "Refusing to mutate a database without --apply. "
+        "Create a verified backup and set DATABASE_URL explicitly first."
+    )
+
 # ── DB connection ──────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-if DATABASE_URL:
-    # Railway or explicit URL
-    _ssl = "require" if ("rlwy.net" in DATABASE_URL or "railway" in DATABASE_URL.lower()) else "prefer"
-    conn = psycopg2.connect(DATABASE_URL, sslmode="disable")
-else:
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
-            user="postgres",
-            password=os.environ.get("POSTGRES_SUPERUSER_PASSWORD", "postgres"),
-        )
-    except Exception:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
-            user=os.environ.get("POSTGRES_USER", "ocw"),
-            password=os.environ.get("POSTGRES_PASSWORD", ""),
-        )
+if not DATABASE_URL:
+    raise SystemExit("DATABASE_URL is required for --apply.")
+conn = psycopg2.connect(DATABASE_URL)
 
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 WORKERS = int(os.environ.get("WORKERS", "6"))

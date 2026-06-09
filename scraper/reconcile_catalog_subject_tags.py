@@ -798,6 +798,14 @@ def backup_existing_tags(conn, courses: list[Course]) -> Path:
     return path
 
 
+def build_membership_rows(result: ReconcileResult) -> list[tuple[str, str, str]]:
+    return [
+        (str(uuid.uuid4()), tag.course_id, tag.subject_id)
+        for tags in result.proposed.values()
+        for tag in tags
+    ]
+
+
 def apply_tags(conn, courses: list[Course], result: ReconcileResult) -> Path:
     if result.untagged:
         raise RuntimeError(
@@ -805,11 +813,7 @@ def apply_tags(conn, courses: list[Course], result: ReconcileResult) -> Path:
         )
     backup_path = backup_existing_tags(conn, courses)
     course_ids = [course.id for course in courses]
-    rows = [
-        (tag.course_id, tag.subject_id)
-        for tags in result.proposed.values()
-        for tag in tags
-    ]
+    rows = build_membership_rows(result)
     relevance_rows = [
         (
             str(uuid.uuid4()),
@@ -827,7 +831,8 @@ def apply_tags(conn, courses: list[Course], result: ReconcileResult) -> Path:
     cur = conn.cursor()
     cur.execute("DELETE FROM course_subjects WHERE course_id = ANY(%s)", (course_ids,))
     cur.executemany(
-        "INSERT INTO course_subjects (course_id, subject_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+        "INSERT INTO course_subjects (id, course_id, subject_id) VALUES (%s, %s, %s) "
+        "ON CONFLICT DO NOTHING",
         rows,
     )
     cur.execute("SELECT to_regclass('public.course_subject_relevance')")

@@ -1,5 +1,13 @@
-import psycopg2, os
-conn = psycopg2.connect(os.environ["DATABASE_URL"], sslmode="disable")
+import psycopg2
+
+from mutation_guard import require_explicit_apply
+
+
+DATABASE_URL = require_explicit_apply(
+    "Permanently delete NPTEL courses.",
+    require_delete_confirmation=True,
+)
+conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 
 cur.execute("""

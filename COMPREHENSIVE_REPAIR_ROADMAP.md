@@ -23,10 +23,10 @@ Status markers:
 
 Reconciled against the implementation and available evidence on 2026-06-09:
 
-- 23 of 85 tasks completed and verified.
-- 15 tasks in progress with implementation or evidence already present.
-- 47 tasks not started or lacking sufficient evidence.
-- Weighted implementation progress is approximately 35.9% when in-progress
+- 35 of 85 tasks completed and verified.
+- 23 tasks in progress with implementation or evidence already present.
+- 27 tasks not started or lacking sufficient evidence.
+- Weighted implementation progress is approximately 54.7% when in-progress
   tasks count as half complete.
 - No phase has reached its full acceptance criteria yet.
 
@@ -53,7 +53,7 @@ Reconciled against the implementation and available evidence on 2026-06-09:
 - [x] Create the essential-workflow regression checklist.
 - [x] Document frontend, backend, database, and pipeline rollback procedures.
 - [x] Capture the initial read-only data and production baseline.
-- [ ] Capture desktop and mobile screenshots of essential screens.
+- [x] Capture desktop and mobile screenshots of essential screens.
 - [x] Create and verify a recoverable Neon backup.
 - [x] Run and record all build, test, lint, security, and dependency checks.
 
@@ -62,12 +62,12 @@ functionality, or visual behavior before functional repairs begin.
 
 ## Phase 1: Security Without Breaking Connectivity
 
-- [ ] Verify exposed credentials and every authorized consumer.
-- [ ] Capture working connectivity checks before rotation.
+- [-] Verify exposed credentials and every authorized consumer.
+- [x] Capture working connectivity checks before rotation.
 - [ ] Rotate exposed Neon and YouTube credentials one service at a time.
 - [ ] Update authorized environments before revoking old credentials.
 - [x] Remove hardcoded credentials and require environment configuration.
-- [-] Scan the current tree and Git history for remaining secrets.
+- [x] Scan the current tree and Git history for remaining secrets.
 - [ ] Re-run connectivity, scraper, API, and deployment checks.
 
 Acceptance: no usable secret remains in source or history and every authorized
@@ -79,13 +79,13 @@ workflow continues to operate.
 - [x] Define one authoritative public-course invariant.
 - [x] Generate and review eligibility decisions in shadow mode.
 - [-] Persist eligibility status and inspectable exclusion reasons.
-- [ ] Migrate consumers one at a time to authoritative eligibility.
+- [-] Migrate consumers one at a time to authoritative eligibility.
 - [x] Audit video flags, counters, playlists, and video rows.
 - [ ] Recover videos where credible evidence exists.
-- [ ] Recalculate counters from verified video records.
-- [ ] Retain but hide unresolved invalid courses.
-- [ ] Add recurring catalog and video integrity checks.
-- [ ] Verify existing valid course pages, videos, materials, and navigation.
+- [-] Recalculate counters from verified video records.
+- [-] Retain but hide unresolved invalid courses.
+- [-] Add recurring catalog and video integrity checks.
+- [-] Verify existing valid course pages, videos, materials, and navigation.
 
 Acceptance: every visible course satisfies the catalog rules and no verified
 valid course or video is lost.
@@ -96,13 +96,13 @@ valid course or video is lost.
 - [-] Repair publishing while preventing invalid publication.
 - [-] Verify admin and public publishing behavior.
 - [x] Reproduce and repair unreachable subject relevance logic.
-- [ ] Define subject membership and relevance precedence.
-- [ ] Generate proposed memberships without replacing current tags.
-- [ ] Preserve uncertain memberships for review.
-- [ ] Promote approved memberships atomically with rollback support.
+- [x] Define subject membership and relevance precedence.
+- [x] Generate proposed memberships without replacing current tags.
+- [x] Preserve uncertain memberships for review.
+- [x] Promote approved memberships atomically with rollback support.
 - [-] Replace static counts and full-catalog runtime scans.
-- [ ] Verify every displayed subject count equals its result total.
-- [ ] Consolidate tagging into a dry-run-first controlled pipeline.
+- [-] Verify every displayed subject count equals its result total.
+- [-] Consolidate tagging into a dry-run-first controlled pipeline.
 - [-] Block accidental production mutation by maintenance scripts.
 
 Acceptance: publishing works, and subject membership, ordering, filtering, and
@@ -115,7 +115,7 @@ counts agree without losing valid tags or subject visibility.
 - [-] Convert essential workflows into permanent regression tests.
 - [-] Add catalog, video, subject, publishing, auth, library, roadmap, and
       progress contract tests.
-- [ ] Add desktop, mobile, and accessibility browser checks.
+- [-] Add desktop, mobile, and accessibility browser checks.
 - [x] Add data-count and relationship-preservation checks.
 - [-] Add dependency and secret scanning.
 - [x] Require passing checks before deployment.
@@ -141,13 +141,13 @@ state.
 
 ## Phase 6: Performance, Caching, and PWA
 
-- [ ] Record cold and warm phone/API performance.
+- [-] Record cold and warm phone/API performance.
 - [ ] Replace exhaustive fetching incrementally with pagination or cursors.
 - [ ] Preserve ordering, filters, visible content, and scroll behavior.
 - [ ] Route cacheable requests consistently through the intended cache.
 - [ ] Replace synchronous view-count writes without losing analytics.
 - [ ] Add latency, error-rate, cache-hit, and regression monitoring.
-- [ ] Document why service-worker cleanup was introduced.
+- [x] Document why service-worker cleanup was introduced.
 - [x] Preserve current splash and zero-black-screen launch behavior.
 - [ ] Introduce versioned cache migration and safe offline behavior.
 - [ ] Verify fresh install, upgrade, offline, reconnection, and home-screen launch.
@@ -172,10 +172,10 @@ all previously valid essential workflows remain available.
 
 ## Phase 8: Documentation and Maintainability
 
-- [ ] Reconcile README and Operations claims with verified production behavior.
-- [ ] Correct stale catalog, NPTEL, deployment, and known-bug claims.
-- [ ] Correct documentation encoding problems.
-- [-] Document the owner and source of truth for every domain.
+- [x] Reconcile README and Operations claims with verified production behavior.
+- [x] Correct stale catalog, NPTEL, deployment, and known-bug claims.
+- [x] Correct documentation encoding problems.
+- [x] Document the owner and source of truth for every domain.
 - [x] Mark the Expo app as paused or define a supported parity plan.
 - [ ] Remove duplicated logic only after migration and regression checks.
 - [ ] Split large modules without changing observable behavior.
@@ -322,3 +322,83 @@ Stop and investigate if:
 - Operations explicitly marks the Expo app as not deployed and unsupported for
   users. Domain ownership/source-of-truth documentation and ongoing roadmap
   maintenance remain partial.
+
+### 2026-06-09 - Phase 0 visual baseline completed
+
+- Captured 18 full-page production screenshots under
+  `preservation/screenshots/2026-06-09-production/`.
+- Desktop and mobile baselines cover home, courses, subjects, universities,
+  roadmaps, search, library, course detail, and admin login.
+- Desktop search emitted two RSC prefetch errors for course detail links and
+  fell back to browser navigation. Mobile capture emitted no console errors.
+- Phase 0 tasks are complete. The visual baseline records current behavior but
+  does not replace the still-incomplete essential-workflow interaction checks.
+
+### 2026-06-09 - Phase 1 local security audit
+
+- Added redacted current-tree and Git-history secret scanning. The current
+  tracked and untracked non-ignored tree passes.
+- Git history contains old PostgreSQL credentials, a YouTube API key, and
+  Netlify/Vercel deploy hooks. External rotation and history remediation remain
+  required.
+- Removed Netlify and Vercel deploy-hook URLs from the current workflow; all
+  deploy hooks are now read from GitHub Actions secrets.
+- Captured the authorized-consumer and connectivity baseline in
+  `preservation/SECURITY_CONNECTIVITY.md`.
+- GitHub and Netlify CLI authentication work, and public Netlify/Render routes
+  return HTTP 200. GitHub currently has no Actions secrets configured, Render
+  lacks a commit fingerprint, and production database/YouTube credentials are
+  unavailable in the current shell.
+
+### 2026-06-09 - Isolated restore and Phase 2/3 verification
+
+- Clean migrations and the verified logical backup were restored into isolated
+  PostgreSQL on `127.0.0.1:5433`; all 195,506 restored rows matched their
+  verified source counts.
+- Fixed the trigram-index migration so PostgreSQL concurrent index creation runs
+  in an Alembic autocommit block. A clean migration now reaches
+  `i4j5k6l7m8n9`.
+- Persisted all 9,741 eligibility decisions and all 433 subject count rows on
+  the isolated restore without changing course or video counts.
+- Added a dry-run-first video counter reconciler. It repaired the four
+  mismatches backed by actual video rows while preserving all 435 counter-only
+  courses for recovery or review.
+- Defined subject membership and result precedence in
+  `preservation/SUBJECT_MEMBERSHIP_POLICY.md`.
+- Generated proposals for all 4,067 catalog-ready courses without replacing
+  tags: zero untagged courses, zero additions, and zero removals.
+- The first isolated atomic promotion attempt exposed a missing required
+  `course_subjects.id`; its transaction rolled back to all original counts.
+  After repair and regression coverage, promotion preserved all 27,773
+  memberships with zero orphans and populated 18,599 inspectable relevance
+  rows.
+- Rebuilt subject count sidecars from the same relevance/title-fallback
+  precedence as subject results. All 433 isolated counts match result totals
+  with zero aggregate delta. Production parity remains pending deployment.
+- A historical video verification script unexpectedly mutated only the
+  pre-existing localhost port 5432 database while invoked with `--help`.
+  The incident, post-incident backup, and no-guessed-rollback decision are
+  recorded in `preservation/RESTORE_VERIFICATION.md`. The script now requires
+  `--apply` and an explicit `DATABASE_URL`, with regression tests.
+
+### 2026-06-09 - Automated gates, performance, and documentation
+
+- Current verification passes: backend 31, scraper 40, preservation scripts
+  23, and web 20 tests; web lint, production build, compile-all, current-tree
+  secret scan, and diff checks pass.
+- The quality workflow now runs preservation-script tests and web lint before
+  deploy hooks.
+- Guarded seven high-risk legacy mutation entry points. Help and no-argument
+  regression tests prove they cannot connect; permanent NPTEL deletion also
+  requires `--allow-delete`. Additional historical scripts still need review.
+- Local production HTTP checks returned 200 for eight essential pages and the
+  API proxy. Browser automation could not attach, so visual, mobile, and
+  accessibility checks remain in progress.
+- Captured cold/warm HTTP timings in `preservation/PERFORMANCE_BASELINE.md`.
+  Real-device phone performance remains pending.
+- Reconciled README and Operations against verified code/data: Next.js version,
+  restore-verified counts, local database safety, controlled tagging, Render
+  secrets, resolved historical bugs, and domain ownership/source-of-truth.
+- Verified tracked Markdown contains no mojibake markers. Code comments still
+  contain historical encoding artifacts and remain separate maintainability
+  work.

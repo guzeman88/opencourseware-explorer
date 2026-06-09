@@ -9,7 +9,6 @@ import os
 import psycopg2
 import re
 
-CONN_STR = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpassword@127.0.0.1:5432/opencourseware")
 # Set RESET_TAGS=1 to wipe all course_subjects before retagging (clean slate).
 RESET_FIRST = os.environ.get("RESET_TAGS", "0") == "1"
 
@@ -893,7 +892,9 @@ def extract_mit_dept(source_url: str | None) -> str | None:
 
 
 def main():
-    conn = psycopg2.connect(CONN_STR)
+    from mutation_guard import require_explicit_apply
+
+    conn = psycopg2.connect(require_explicit_apply("Run the legacy additive subject tagger."))
     cur = conn.cursor()
 
     # Load subject slug → id

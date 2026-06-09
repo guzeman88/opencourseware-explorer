@@ -14,8 +14,8 @@ This script:
   4. Reports what was cleaned up, grouped by source_key
 
 Usage:
-  py -3.13 cleanup_false_positives.py
-  DATABASE_URL=postgresql://... py -3.13 cleanup_false_positives.py
+  py -3.13 cleanup_false_positives.py --help
+  DATABASE_URL=postgresql://... py -3.13 cleanup_false_positives.py --apply
 """
 from __future__ import annotations
 
@@ -25,25 +25,11 @@ import re
 import psycopg2
 import psycopg2.extras
 
+from mutation_guard import require_explicit_apply
+
 # ── DB connection ──────────────────────────────────────────────────────────────
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
-if DATABASE_URL:
-    conn = psycopg2.connect(DATABASE_URL)
-else:
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
-            user="postgres",
-            password=os.environ.get("POSTGRES_SUPERUSER_PASSWORD", "postgres"),
-        )
-    except Exception:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"), port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"), user=os.environ.get("POSTGRES_USER", "ocw"),
-            password=os.environ.get("POSTGRES_PASSWORD", ""),
-        )
+DATABASE_URL = require_explicit_apply("Unpublish false-positive courses.")
+conn = psycopg2.connect(DATABASE_URL)
 
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

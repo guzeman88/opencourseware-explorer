@@ -15,14 +15,14 @@ Ties (multiple courses for same match key) are broken by:
   - Prefer shorter slug (avoids -2/-3 duplicates)
 
 Run:
-  py -3.13 -u match_roadmap_entries.py
+  DATABASE_URL=postgresql://... py -3.13 -u match_roadmap_entries.py
+  DATABASE_URL=postgresql://... py -3.13 -u match_roadmap_entries.py --apply
 """
 
+import argparse
 import os
 import re
 import psycopg2
-
-CONN = os.environ.get("DATABASE_URL", "postgresql://ocw:ocwpass@127.0.0.1:5432/opencourseware")
 
 def normalize(s: str) -> str:
     """Lowercase, strip punctuation for fuzzy title matching."""
@@ -32,7 +32,16 @@ def normalize(s: str) -> str:
     return s
 
 def main():
-    conn = psycopg2.connect(CONN)
+    parser = argparse.ArgumentParser(
+        description="Propose roadmap-entry course matches; default mode rolls back."
+    )
+    parser.add_argument("--apply", action="store_true")
+    args = parser.parse_args()
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url:
+        raise SystemExit("DATABASE_URL is required.")
+
+    conn = psycopg2.connect(database_url)
     cur = conn.cursor()
 
     # ── Load all courses ────────────────────────────────────────────────────
@@ -161,11 +170,15 @@ def main():
         else:
             unmatched.append((cnum, ctitle))
 
-    conn.commit()
+    if args.apply:
+        conn.commit()
+    else:
+        conn.rollback()
     cur.close()
     conn.close()
 
     print(f"Matched: {matched} / {len(entries)}")
+    print("Applied matches." if args.apply else "Dry run only. No roadmap entries changed.")
     if unmatched:
         print(f"\nUnmatched ({len(unmatched)}):")
         for cnum, ctitle in sorted(set(unmatched), key=lambda x: (x[0] or "", x[1] or "")):

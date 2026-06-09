@@ -16,7 +16,7 @@ A Netflix-style platform for browsing 9,700+ free university courses from MIT, Y
 opencourseware/
 ├── backend/          # FastAPI REST API (Python 3.12) → deployed on Render
 ├── scraper/          # Data ingestion pipeline (Python, run locally or on-demand)
-├── web/              # Next.js 14 frontend (TypeScript, Tailwind) → deployed on Netlify
+├── web/              # Next.js 15 frontend (TypeScript, Tailwind) → deployed on Netlify
 ├── mobile/           # Expo React Native app (not yet deployed)
 ├── docker-compose.yml
 └── Makefile
@@ -26,7 +26,7 @@ opencourseware/
 
 | Layer | Technology | Host |
 |-------|-----------|------|
-| Frontend | Next.js 14.2 App Router, TypeScript, Tailwind CSS | Netlify |
+| Frontend | Next.js 15.5 App Router, TypeScript, Tailwind CSS | Netlify |
 | Backend API | FastAPI 0.111, SQLAlchemy 2.0 async | Render (free tier) |
 | Database | PostgreSQL (Neon serverless) | Neon |
 | Auth | JWT via `python-jose` + `pbkdf2_sha256` | — |
@@ -100,25 +100,21 @@ Full interactive docs: https://opencourseware-api.onrender.com/docs
 | GET | `/api/v1/users/me/library` | Bearer | Saved courses list |
 | POST | `/api/v1/users/me/library` | Bearer | Bookmark a course |
 | DELETE | `/api/v1/users/me/library/{id}` | Bearer | Remove bookmark |
-| POST | `/api/v1/admin/auth/login` | — | Admin JWT login |
+| POST | `/api/v1/admin/auth/login` | — | Admin login with httpOnly cookie and transitional JWT response |
 | GET | `/api/v1/admin/stats` | Admin | Platform statistics |
 
 ---
 
-## Data Snapshot (as of May 2026)
+## Verified Data Snapshot (June 9, 2026)
 
-| Source | Courses | Has Video |
-|--------|---------|-----------|
-| MIT OCW | ~2,573 | partial |
-| NPTEL (IIT/IISc) | ~3,200 | most |
-| Harvard | ~142 | most |
-| freeCodeCamp | ~700 | all |
-| CrashCourse | ~44 | all |
-| Stanford | ~130 | most |
-| UC Berkeley | ~300 | partial |
-| Yale | ~42 | most |
-| + 10 other sources | — | — |
-| **Total** | **9,726** | **73.8% tagged** |
+The restore-verified database contains 9,741 course records, 157,384 video
+records, 433 subjects, and 27,773 approved course-subject memberships. The
+current public-catalog shadow policy identifies 4,067 catalog-ready courses.
+Unresolved records, including retained NPTEL and counter-only records, remain
+stored for recovery or review rather than being deleted.
+
+See `preservation/RESTORE_VERIFICATION.md` and
+`COMPREHENSIVE_REPAIR_ROADMAP.md` for current evidence and deployment gaps.
 
 ---
 

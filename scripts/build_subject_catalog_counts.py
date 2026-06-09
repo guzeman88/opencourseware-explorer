@@ -20,12 +20,15 @@ for path in (ROOT, BACKEND):
         sys.path.insert(0, str(path))
 
 from app.catalog_eligibility import EligibilityInput, evaluate_catalog_eligibility  # noqa: E402
-from app.subject_counts import STRICT_COUNT_POLICY_VERSION  # noqa: E402
+from app.subject_counts import (  # noqa: E402
+    MIN_SUBJECT_RELEVANCE_SCORE,
+    STRICT_COUNT_POLICY_VERSION,
+)
 from app.subject_matching import strict_subject_matches_title  # noqa: E402
 from scripts.audit_catalog_integrity import decode_copy_text_line, psycopg_url  # noqa: E402
 
 
-def load_backup(path: Path) -> tuple[list[dict], list[dict]]:
+def load_backup(path: Path) -> tuple[list[dict], list[dict], dict[str, set[str]]]:
     with zipfile.ZipFile(path) as archive:
         subjects = [
             json.loads(decode_copy_text_line(line))
@@ -52,10 +55,10 @@ def load_backup(path: Path) -> tuple[list[dict], list[dict]]:
             )
             if decision.current_catalog_ready:
                 courses.append({"id": course["id"], "title": course["title"]})
-    return courses, subjects
+    return courses, subjects, {}
 
 
-def load_database(conn) -> tuple[list[dict], list[dict]]:
+def load_database(conn) -> tuple[list[dict], list[dict], dict[str, set[str]]]:
     with conn.cursor() as cur:
         cur.execute("SELECT id::text, slug, name FROM subjects ORDER BY slug")
         subjects = [
@@ -86,19 +89,42 @@ def load_database(conn) -> tuple[list[dict], list[dict]]:
             )
             if decision.current_catalog_ready:
                 courses.append({"id": row[0], "title": row[1]})
-    return courses, subjects
+        cur.execute("SELECT to_regclass('public.course_subject_relevance')")
+        relevance_by_subject: dict[str, set[str]] = {}
+        if cur.fetchone()[0] is not None:
+            cur.execute(
+                """
+                SELECT subject_id::text, course_id::text
+                FROM course_subject_relevance
+                WHERE score >= %s
+                """,
+                (MIN_SUBJECT_RELEVANCE_SCORE,),
+            )
+            for subject_id, course_id in cur.fetchall():
+                relevance_by_subject.setdefault(subject_id, set()).add(course_id)
+    return courses, subjects, relevance_by_subject
 
 
-def build_counts(courses: list[dict], subjects: list[dict]) -> list[dict]:
+def build_counts(
+    courses: list[dict],
+    subjects: list[dict],
+    relevance_by_subject: dict[str, set[str]] | None = None,
+) -> list[dict]:
+    relevance_by_subject = relevance_by_subject or {}
+    eligible_ids = {course["id"] for course in courses}
     return [
         {
             "subject_id": subject["id"],
             "slug": subject["slug"],
             "name": subject["name"],
-            "course_count": sum(
-                1
-                for course in courses
-                if strict_subject_matches_title(course["title"], subject["slug"])
+            "course_count": (
+                len(relevance_by_subject[subject["id"]] & eligible_ids)
+                if subject["id"] in relevance_by_subject
+                else sum(
+                    1
+                    for course in courses
+                    if strict_subject_matches_title(course["title"], subject["slug"])
+                )
             ),
             "policy_version": STRICT_COUNT_POLICY_VERSION,
         }
@@ -159,14 +185,14 @@ def main() -> None:
     conn = None
     try:
         if args.backup:
-            courses, subjects = load_backup(args.backup)
+            courses, subjects, relevance_by_subject = load_backup(args.backup)
         elif args.database_url:
             conn = psycopg.connect(psycopg_url(args.database_url))
-            courses, subjects = load_database(conn)
+            courses, subjects, relevance_by_subject = load_database(conn)
         else:
             raise SystemExit("DATABASE_URL, --database-url, or --backup is required")
 
-        counts = build_counts(courses, subjects)
+        counts = build_counts(courses, subjects, relevance_by_subject)
         report = write_report(counts, args.output_dir)
         print(f"Catalog-ready courses: {len(courses):,}")
         print(f"Subjects counted: {len(counts):,}")

@@ -11,9 +11,8 @@ What this does:
   4. Publishes every course that has real video content
 
 Usage:
-  py -3.13 fix_labels_and_publish.py
-  # or with a remote DB:
-  DATABASE_URL=postgresql://user:pass@host/db py -3.13 fix_labels_and_publish.py
+  py -3.13 fix_labels_and_publish.py --help
+  DATABASE_URL=postgresql://user:pass@host/db py -3.13 fix_labels_and_publish.py --apply
 """
 from __future__ import annotations
 
@@ -24,28 +23,11 @@ import sys
 import psycopg2
 import psycopg2.extras
 
+from mutation_guard import require_explicit_apply
+
 # ── DB connection ──────────────────────────────────────────────────────────────
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
-if DATABASE_URL:
-    conn = psycopg2.connect(DATABASE_URL, sslmode="require" if "railway" in DATABASE_URL else "prefer")
-else:
-    # Use postgres superuser for DDL (ALTER TABLE), fall back to ocw for DML
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
-            user="postgres",
-            password=os.environ.get("POSTGRES_SUPERUSER_PASSWORD", "postgres"),
-        )
-    except Exception:
-        conn = psycopg2.connect(
-            host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            port=int(os.environ.get("POSTGRES_PORT", "5432")),
-            dbname=os.environ.get("POSTGRES_DB", "opencourseware"),
-            user=os.environ.get("POSTGRES_USER", "ocw"),
-            password=os.environ.get("POSTGRES_PASSWORD", ""),
-        )
+DATABASE_URL = require_explicit_apply("Fix labels and publish eligible courses.")
+conn = psycopg2.connect(DATABASE_URL)
 
 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

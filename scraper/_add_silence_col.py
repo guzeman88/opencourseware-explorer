@@ -1,8 +1,10 @@
 import psycopg2
 
-conn = psycopg2.connect(
-    "os.environ.get("DATABASE_URL") or exit("ERROR: DATABASE_URL env var is required")"
-)
+from mutation_guard import require_explicit_apply
+
+
+DATABASE_URL = require_explicit_apply("Add the legacy silence_segments column.")
+conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 cur.execute("ALTER TABLE videos ADD COLUMN IF NOT EXISTS silence_segments JSONB")
 conn.commit()

@@ -19,11 +19,13 @@ def upgrade() -> None:
     # Enable the pg_trgm extension (idempotent; requires superuser or pg_trgm privilege)
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
     # GIN index on courses.title — speeds up ILIKE '%query%' searches from O(n) to O(log n)
-    op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_courses_title_trgm "
-        "ON courses USING GIN (title gin_trgm_ops)"
-    )
+    with op.get_context().autocommit_block():
+        op.execute(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_courses_title_trgm "
+            "ON courses USING GIN (title gin_trgm_ops)"
+        )
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_courses_title_trgm")
+    with op.get_context().autocommit_block():
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_courses_title_trgm")
