@@ -63,29 +63,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Vercel deploy hook
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
+          if [ -z "${VERCEL_DEPLOY_HOOK_URL}" ]; then
+            echo "VERCEL_DEPLOY_HOOK_URL is not configured; skipping."
+            exit 0
+          fi
           curl --fail --silent --show-error --request POST \
             "${VERCEL_DEPLOY_HOOK_URL}" \
             | jq .
 
       - name: Trigger Netlify deploy hook
-        if: ${{ secrets.NETLIFY_DEPLOY_HOOK_URL != '' }}
         env:
           NETLIFY_DEPLOY_HOOK_URL: ${{ secrets.NETLIFY_DEPLOY_HOOK_URL }}
         run: |
+          if [ -z "${NETLIFY_DEPLOY_HOOK_URL}" ]; then
+            echo "NETLIFY_DEPLOY_HOOK_URL is not configured; skipping."
+            exit 0
+          fi
           curl --fail --silent --show-error --request POST \
             "${NETLIFY_DEPLOY_HOOK_URL}" \
             | jq .
 
       - name: Trigger Render deploy hook for this commit
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           DEPLOY_COMMIT: ${{ github.sha }}
         run: |
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not configured; skipping."
+            exit 0
+          fi
           curl --fail --silent --show-error --request POST \
             "${RENDER_DEPLOY_HOOK_URL}&ref=${DEPLOY_COMMIT}" \
             | jq .
