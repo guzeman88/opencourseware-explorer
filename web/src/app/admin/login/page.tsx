@@ -19,11 +19,8 @@ export default function AdminLoginPage() {
     setError("");
     setLoading(true);
     try {
-      const token = await adminLogin(email, password);
-      localStorage.setItem("ocw_token", token);
-      // Set a JS-accessible cookie so the edge middleware can gate /admin/* routes
-      const maxAge = 60 * 60 * 24 * 7; // 7 days — matches JWT expiry
-      document.cookie = `ocw_session=${token}; path=/; SameSite=Lax; max-age=${maxAge}`;
+      await adminLogin(email, password);
+      localStorage.removeItem("ocw_token");
       router.push("/admin");
     } catch {
       setError("Invalid email or password.");

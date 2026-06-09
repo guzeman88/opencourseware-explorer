@@ -1,4 +1,20 @@
 /** @type {import('next').NextConfig} */
+const contentSecurityPolicyReportOnly = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://opencourseware-api.onrender.com https://*.sentry.io https://www.google-analytics.com",
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+  "media-src 'self' https:",
+  "worker-src 'self' blob:",
+].join("; ");
+
 const nextConfig = {
   async headers() {
     return [
@@ -10,6 +26,7 @@ const nextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicyReportOnly },
         ],
       },
     ];

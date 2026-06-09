@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
 import { fetchRoadmap } from "@/lib/api";
 import Link from "next/link";
 import {
@@ -11,10 +12,6 @@ import {
   Unlock,
 } from "lucide-react";
 import type { RoadmapEntry } from "@/types";
-
-interface PageProps {
-  params: { slug: string };
-}
 
 const CATEGORY_COLORS: Record<string, string> = {
   Core: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -115,10 +112,11 @@ function EntryRow({ entry, index }: { entry: RoadmapEntry; index: number }) {
   );
 }
 
-export default function RoadmapDetailPage({ params }: PageProps) {
+export default function RoadmapDetailPage() {
+  const { slug } = useParams<{ slug: string }>();
   const { data: roadmap, isLoading } = useQuery({
-    queryKey: ["roadmap", params.slug],
-    queryFn: () => fetchRoadmap(params.slug),
+    queryKey: ["roadmap", slug],
+    queryFn: () => fetchRoadmap(slug),
   });
 
   if (isLoading) {

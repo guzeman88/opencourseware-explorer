@@ -7,17 +7,15 @@ import { CourseCardSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 
-interface PageProps {
-  params: { slug: string };
-}
-
-export default function UniversityPage({ params }: PageProps) {
-  const { data: uni, isLoading: uniLoading } = useUniversity(params.slug);
+export default function UniversityPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const { data: uni, isLoading: uniLoading } = useUniversity(slug);
   const [page, setPage] = useState(1);
   const { data: coursesData, isLoading: coursesLoading } = useUniversityCourses(
-    params.slug,
+    slug,
     { page, page_size: 24, sort_by: "view_count", sort_dir: "desc" }
   );
 

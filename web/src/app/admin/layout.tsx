@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { adminLogout, fetchStats } from "@/lib/api";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -38,18 +39,19 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("ocw_token");
-    if (!token && pathname !== "/admin/login") {
-      router.replace("/admin/login");
-    } else {
+    if (pathname === "/admin/login") {
       setAuthed(true);
+      return;
     }
+
+    fetchStats()
+      .then(() => setAuthed(true))
+      .catch(() => router.replace("/admin/login"));
   }, [pathname, router]);
 
-  function handleLogout() {
+  async function handleLogout() {
+    await adminLogout().catch(() => undefined);
     localStorage.removeItem("ocw_token");
-    // Clear the session cookie the middleware uses
-    document.cookie = "ocw_session=; path=/; max-age=0";
     router.push("/admin/login");
   }
 

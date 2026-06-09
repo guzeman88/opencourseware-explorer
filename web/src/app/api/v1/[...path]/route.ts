@@ -16,10 +16,11 @@ const UPSTREAM =
 
 async function handler(
   req: Request,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   const url = new URL(req.url);
-  const upstream = `${UPSTREAM}/api/v1/${params.path.join("/")}${url.search}`;
+  const { path } = await params;
+  const upstream = `${UPSTREAM}/api/v1/${path.join("/")}${url.search}`;
 
   const fwdHeaders = new Headers(req.headers);
   fwdHeaders.delete("host");
@@ -61,7 +62,8 @@ async function handler(
   const isPublicRead =
     req.method === "GET" &&
     upstreamRes.ok &&
-    !req.headers.get("authorization");
+    !req.headers.get("authorization") &&
+    !req.headers.get("cookie")?.includes("ocw_session=");
 
   resHeaders.set(
     "Cache-Control",

@@ -19,6 +19,17 @@ Status markers:
 - `[x]` completed and verified
 - `[!]` blocked; reason must be recorded in Evidence
 
+## Current Status Snapshot
+
+Reconciled against the implementation and available evidence on 2026-06-09:
+
+- 23 of 85 tasks completed and verified.
+- 15 tasks in progress with implementation or evidence already present.
+- 47 tasks not started or lacking sufficient evidence.
+- Weighted implementation progress is approximately 35.9% when in-progress
+  tasks count as half complete.
+- No phase has reached its full acceptance criteria yet.
+
 ## Required Gate for Every Repair
 
 1. Inventory affected code, data, APIs, screens, dependencies, and deployments.
@@ -67,7 +78,7 @@ workflow continues to operate.
 - [x] Inventory every catalog eligibility rule and consumer.
 - [x] Define one authoritative public-course invariant.
 - [x] Generate and review eligibility decisions in shadow mode.
-- [ ] Persist eligibility status and inspectable exclusion reasons.
+- [-] Persist eligibility status and inspectable exclusion reasons.
 - [ ] Migrate consumers one at a time to authoritative eligibility.
 - [x] Audit video flags, counters, playlists, and video rows.
 - [ ] Recover videos where credible evidence exists.
@@ -81,7 +92,7 @@ valid course or video is lost.
 
 ## Phase 3: Publishing, Subjects, and Tagging
 
-- [ ] Export current publication states.
+- [x] Export current publication states.
 - [-] Repair publishing while preventing invalid publication.
 - [-] Verify admin and public publishing behavior.
 - [x] Reproduce and repair unreachable subject relevance logic.
@@ -92,7 +103,7 @@ valid course or video is lost.
 - [-] Replace static counts and full-catalog runtime scans.
 - [ ] Verify every displayed subject count equals its result total.
 - [ ] Consolidate tagging into a dry-run-first controlled pipeline.
-- [ ] Block accidental production mutation by maintenance scripts.
+- [-] Block accidental production mutation by maintenance scripts.
 
 Acceptance: publishing works, and subject membership, ordering, filtering, and
 counts agree without losing valid tags or subject visibility.
@@ -101,11 +112,11 @@ counts agree without losing valid tags or subject visibility.
 
 - [x] Repair existing frontend and scraper tests without weakening assertions.
 - [x] Make lint and tests deterministic and CI-compatible.
-- [ ] Convert essential workflows into permanent regression tests.
-- [ ] Add catalog, video, subject, publishing, auth, library, roadmap, and
+- [-] Convert essential workflows into permanent regression tests.
+- [-] Add catalog, video, subject, publishing, auth, library, roadmap, and
       progress contract tests.
 - [ ] Add desktop, mobile, and accessibility browser checks.
-- [ ] Add data-count and relationship-preservation checks.
+- [x] Add data-count and relationship-preservation checks.
 - [-] Add dependency and secret scanning.
 - [x] Require passing checks before deployment.
 - [ ] Create and verify Netlify preview deployments.
@@ -117,12 +128,12 @@ design cannot automatically reach production.
 
 ## Phase 5: Authentication and Dependency Hardening
 
-- [ ] Triage reported vulnerabilities and upgrade risks.
-- [ ] Upgrade dependencies in isolated, regression-tested batches.
+- [x] Triage reported vulnerabilities and upgrade risks.
+- [-] Upgrade dependencies in isolated, regression-tested batches.
 - [x] Remove the frontend self-dependency and generated test collisions.
-- [ ] Replace JavaScript-accessible admin authentication safely.
+- [-] Replace JavaScript-accessible admin authentication safely.
 - [ ] Migrate user sessions without losing accounts, libraries, or progress.
-- [ ] Introduce CSP and security headers in report-only mode first.
+- [-] Introduce CSP and security headers in report-only mode first.
 - [ ] Verify media, analytics, Sentry, authentication, and PWA launch.
 
 Acceptance: security improves without losing access, integrations, or user
@@ -137,7 +148,7 @@ state.
 - [ ] Replace synchronous view-count writes without losing analytics.
 - [ ] Add latency, error-rate, cache-hit, and regression monitoring.
 - [ ] Document why service-worker cleanup was introduced.
-- [ ] Preserve current splash and zero-black-screen launch behavior.
+- [x] Preserve current splash and zero-black-screen launch behavior.
 - [ ] Introduce versioned cache migration and safe offline behavior.
 - [ ] Verify fresh install, upgrade, offline, reconnection, and home-screen launch.
 - [ ] Optimize images incrementally while preserving all thumbnails and fallbacks.
@@ -153,7 +164,7 @@ applications, broken launches, or degraded mobile behavior.
 - [ ] Repair nested controls, dialogs, keyboard, and mobile semantics.
 - [ ] Improve course-quality and relevance signals.
 - [ ] Replace hardcoded discovery only after equivalent coverage is proven.
-- [ ] Strengthen roadmaps without removing roadmap data or ordering.
+- [-] Strengthen roadmaps without removing roadmap data or ordering.
 - [ ] Run usability, accessibility, and preservation checks after each increment.
 
 Acceptance: users can find, evaluate, start, resume, and complete courses while
@@ -164,12 +175,12 @@ all previously valid essential workflows remain available.
 - [ ] Reconcile README and Operations claims with verified production behavior.
 - [ ] Correct stale catalog, NPTEL, deployment, and known-bug claims.
 - [ ] Correct documentation encoding problems.
-- [ ] Document the owner and source of truth for every domain.
-- [ ] Mark the Expo app as paused or define a supported parity plan.
+- [-] Document the owner and source of truth for every domain.
+- [x] Mark the Expo app as paused or define a supported parity plan.
 - [ ] Remove duplicated logic only after migration and regression checks.
 - [ ] Split large modules without changing observable behavior.
 - [ ] Remove dead code only after proving it is unused.
-- [ ] Keep this roadmap and its evidence current.
+- [-] Keep this roadmap and its evidence current.
 
 Acceptance: documentation, architecture, and production behavior agree without
 discarding useful functionality or historical knowledge.
@@ -256,3 +267,58 @@ Stop and investigate if:
 - Added Render commit fingerprints to `/health` and a guarded deploy-hook step.
   GitHub currently has no `RENDER_DEPLOY_HOOK_URL` secret, so configuring that
   external hook remains required before Render can join Git-based deployments.
+
+### 2026-06-08 - Admin session and dependency hardening
+
+- Migrated new admin logins from JavaScript-readable cookies/localStorage to
+  the backend's existing httpOnly session cookie. Existing bearer tokens remain
+  accepted temporarily so valid sessions and API clients are not abruptly lost.
+- Admin layout now verifies the real backend session; logout clears the backend
+  cookie. Cookie-authenticated API reads are explicitly excluded from CDN
+  public caching.
+- Upgraded Next.js 14.2.35 to patched 15.5.18 and Sentry 8.55.2 to 10.56.0 in
+  isolated batches. Route parameter contracts were migrated narrowly.
+- NPM audit improved from 9 high and 3 moderate findings to 0 high and 3
+  moderate findings. The remaining findings are a PostCSS version pinned inside
+  Next; an attempted override was rejected and removed because it produced an
+  invalid dependency tree.
+- Added CSP in report-only mode and migrated linting from deprecated `next lint`
+  to deterministic ESLint CLI.
+- Next 15 reports shared first-load JavaScript of 102 kB versus the prior
+  87.5 kB. The upgrade passes build/tests but remains pending mobile performance
+  verification before production acceptance.
+
+### 2026-06-09 - Roadmap status reconciliation after interrupted work
+
+- Audited every roadmap item against the current branch, dirty working tree,
+  migrations, tests, preservation reports, Git history, and recorded production
+  evidence. Statuses now distinguish implemented work from fully verified
+  production completion.
+- Catalog eligibility persistence is in progress: the additive sidecar migration
+  and dry-run/apply tooling exist, but production persistence and consumer
+  migration are not verified.
+- Maintenance-script mutation protection is in progress: selected scripts now
+  require explicit apply flags, but multiple historical mutating scripts remain
+  ungated.
+- Permanent regression coverage is in progress. Existing tests cover portions
+  of catalog eligibility, subject counts, publishing, admin auth, and roadmaps;
+  video, library, progress, full browser workflows, and accessibility coverage
+  remain incomplete.
+- Data preservation checks are in progress through baseline count and orphan
+  relationship checks, but they are not yet a complete enforced deployment gate.
+- Admin httpOnly-cookie migration and report-only CSP were changed from complete
+  to in progress because they remain in the uncommitted working tree and have
+  not passed preview and production verification.
+- Current splash behavior is preserved by deployed commit `50fc007`, including
+  branded fallback coverage for unmatched iOS screen sizes.
+- Roadmap strengthening is in progress: 36 roadmaps and 470 ordered entries were
+  restored without count loss, but all 470 entries remain unlinked to courses.
+- The verified logical backup exports every course row, including each
+  `is_published` value, so the pre-repair publication state is recoverable.
+- The read-only preservation baseline records table counts, course/video
+  integrity signals, and orphan checks for course-subject, library, and
+  watch-history relationships; these checks have been exercised against the
+  production database.
+- Operations explicitly marks the Expo app as not deployed and unsupported for
+  users. Domain ownership/source-of-truth documentation and ongoing roadmap
+  maintenance remain partial.

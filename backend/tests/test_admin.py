@@ -29,6 +29,30 @@ async def test_admin_login_fail(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_admin_login_uses_httponly_cookie(
+    client: AsyncClient, db_session: AsyncSession
+):
+    from app.config import settings
+    from app.services.auth import get_or_create_admin
+
+    await get_or_create_admin(db_session)
+    response = await client.post(
+        "/api/v1/admin/auth/login",
+        json={"email": settings.admin_email, "password": settings.admin_password},
+    )
+
+    assert response.status_code == 200
+    assert "httponly" in response.headers["set-cookie"].lower()
+
+    stats = await client.get("/api/v1/admin/stats")
+    assert stats.status_code == 200
+
+    logout = await client.post("/api/v1/admin/auth/logout")
+    assert logout.status_code == 200
+    assert "ocw_session=" in logout.headers["set-cookie"].lower()
+
+
+@pytest.mark.asyncio
 async def test_admin_requires_auth(client: AsyncClient):
     resp = await client.get("/api/v1/admin/stats")
     assert resp.status_code == 401

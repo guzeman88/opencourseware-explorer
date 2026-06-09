@@ -5,7 +5,7 @@ import { CourseDetailSkeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatDuration, cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Play,
   ExternalLink,
@@ -30,12 +30,9 @@ const ReactPlayer = dynamic(() => import("react-player/youtube"), {
   ),
 });
 
-interface CoursePageProps {
-  params: { id: string };
-}
-
-export default function CoursePage({ params }: CoursePageProps) {
-  const { data: course, isLoading, error } = useCourse(params.id);
+export default function CoursePage() {
+  const { id } = useParams<{ id: string }>();
+  const { data: course, isLoading, error } = useCourse(id);
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialIndex = Math.max(0, parseInt(searchParams.get("v") ?? "0", 10));

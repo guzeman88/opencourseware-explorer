@@ -11,10 +11,11 @@ const BASE_URL =
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   try {
-    const res = await fetch(`${BASE_URL}/api/v1/courses/${params.id}`, {
+    const { id } = await params;
+    const res = await fetch(`${BASE_URL}/api/v1/courses/${id}`, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) throw new Error("not found");

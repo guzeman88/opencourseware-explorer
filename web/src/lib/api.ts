@@ -276,12 +276,15 @@ export async function fetchWatchHistory(
 export async function adminLogin(
   email: string,
   password: string
-): Promise<string> {
-  const { data } = await apiClient.post<{ access_token: string }>(
+): Promise<void> {
+  await apiClient.post<{ access_token: string }>(
     "/admin/auth/login",
     { email, password }
   );
-  return data.access_token;
+}
+
+export async function adminLogout(): Promise<void> {
+  await apiClient.post("/admin/auth/logout");
 }
 
 export async function fetchStats(): Promise<Stats> {

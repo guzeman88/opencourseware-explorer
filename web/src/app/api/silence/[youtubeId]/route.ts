@@ -182,9 +182,9 @@ async function computeSilence(trackUrl: string): Promise<[number, number][] | nu
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { youtubeId: string } }
+  { params }: { params: Promise<{ youtubeId: string }> }
 ) {
-  const { youtubeId } = params;
+  const { youtubeId } = await params;
 
   if (!youtubeId || !/^[A-Za-z0-9_-]{6,20}$/.test(youtubeId)) {
     return NextResponse.json({ error: "Invalid video ID" }, { status: 400 });
