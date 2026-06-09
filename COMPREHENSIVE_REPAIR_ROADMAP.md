@@ -23,10 +23,10 @@ Status markers:
 
 Reconciled against the implementation and available evidence on 2026-06-09:
 
-- 35 of 85 tasks completed and verified.
+- 36 of 85 tasks completed and verified.
 - 23 tasks in progress with implementation or evidence already present.
-- 27 tasks not started or lacking sufficient evidence.
-- Weighted implementation progress is approximately 54.7% when in-progress
+- 26 tasks not started or lacking sufficient evidence.
+- Weighted implementation progress is approximately 55.9% when in-progress
   tasks count as half complete.
 - No phase has reached its full acceptance criteria yet.
 
@@ -119,7 +119,7 @@ counts agree without losing valid tags or subject visibility.
 - [x] Add data-count and relationship-preservation checks.
 - [-] Add dependency and secret scanning.
 - [x] Require passing checks before deployment.
-- [ ] Create and verify Netlify preview deployments.
+- [x] Create and verify Netlify preview deployments.
 - [ ] Deploy production only from a passing Git commit.
 - [ ] Verify production commit fingerprints and rollback procedures.
 
@@ -402,3 +402,14 @@ Stop and investigate if:
 - Verified tracked Markdown contains no mojibake markers. Code comments still
   contain historical encoding artifacts and remain separate maintainability
   work.
+- Pushed checkpoint commits `9bf1b8d` and `264fff1` to
+  `codex/preservation-first-repair`.
+- GitHub reported the first checkpoint workflow as invalid before starting any
+  job because secrets were referenced in step-level `if` expressions. Moved
+  missing-secret guards into the shell steps, parsed the repaired YAML, and
+  pushed the fix. The valid workflow remains intentionally limited to `main`.
+- Created and verified Netlify draft deploy `6a286a7d1b519d2dc270956d` from the
+  clean pushed branch:
+  `https://6a286a7d1b519d2dc270956d--opencourseware-explorer.netlify.app`.
+  Home, courses, subjects, admin login, and the API proxy return HTTP 200 with
+  report-only CSP headers. Production was not changed.
