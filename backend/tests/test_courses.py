@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -317,4 +319,23 @@ async def test_view_count_increments(client: AsyncClient, courses: list[Course])
     view1 = resp1.json()["view_count"]
     resp2 = await client.get(f"/api/v1/courses/{slug}")
     view2 = resp2.json()["view_count"]
-    assert view2 >= view1  # may be equal if rollback
+    assert view2 == view1 + 1
+
+
+@pytest.mark.asyncio
+async def test_deferred_view_count_failure_is_non_fatal(monkeypatch: pytest.MonkeyPatch):
+    from app.routers import courses as courses_router
+
+    class FailingSession:
+        async def __aenter__(self):
+            raise RuntimeError("analytics store unavailable")
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    def failing_session_factory():
+        return FailingSession()
+
+    monkeypatch.setattr(courses_router, "AsyncSessionLocal", failing_session_factory)
+
+    await courses_router._increment_view_background(uuid.uuid4())

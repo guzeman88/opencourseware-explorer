@@ -1,4 +1,4 @@
-name: Deploy to Vercel + Netlify
+name: Deploy to Vercel + Netlify + Render
 
 on:
   push:
@@ -23,6 +23,15 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt -r scraper/requirements.txt
 
+      - name: Check Python dependency consistency
+        run: pip check
+
+      - name: Compile backend, scraper, and preservation scripts
+        run: python -m compileall -q backend/app scraper scripts
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
       - name: Check tracked files for committed secrets
         run: python scripts/check_tracked_secrets.py
 
@@ -45,6 +54,10 @@ jobs:
       - name: Install web dependencies
         working-directory: web
         run: npm ci
+
+      - name: Audit web dependencies for high severity vulnerabilities
+        working-directory: web
+        run: npm audit --audit-level=high
 
       - name: Test web
         working-directory: web
@@ -98,3 +111,28 @@ jobs:
           curl --fail --silent --show-error --request POST \
             "${RENDER_DEPLOY_HOOK_URL}&ref=${DEPLOY_COMMIT}" \
             | jq .
+
+      - name: Verify Render serves this commit
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          DEPLOY_COMMIT: ${{ github.sha }}
+          RENDER_HEALTH_URL: https://opencourseware-api.onrender.com/health
+        run: |
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not configured; skipping fingerprint verification."
+            exit 0
+          fi
+
+          for attempt in $(seq 1 30); do
+            body="$(curl --fail --silent --show-error "${RENDER_HEALTH_URL}" || true)"
+            served_commit="$(printf '%s' "${body}" | jq -r '.git_commit // "unknown"' 2>/dev/null || echo unknown)"
+            if [ "${served_commit}" = "${DEPLOY_COMMIT}" ]; then
+              echo "Render is serving ${DEPLOY_COMMIT}."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: Render reports ${served_commit}; waiting for ${DEPLOY_COMMIT}."
+            sleep 20
+          done
+
+          echo "Render did not report the deployed commit ${DEPLOY_COMMIT}." >&2
+          exit 1

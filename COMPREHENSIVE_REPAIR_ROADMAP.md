@@ -21,12 +21,12 @@ Status markers:
 
 ## Current Status Snapshot
 
-Reconciled against the implementation and available evidence on 2026-06-09:
+Reconciled against the implementation and available evidence on 2026-06-16:
 
-- 36 of 85 tasks completed and verified.
-- 23 tasks in progress with implementation or evidence already present.
-- 26 tasks not started or lacking sufficient evidence.
-- Weighted implementation progress is approximately 55.9% when in-progress
+- 37 of 85 tasks completed and verified.
+- 24 tasks in progress with implementation or evidence already present.
+- 24 tasks not started or lacking sufficient evidence.
+- Weighted implementation progress is approximately 57.6% when in-progress
   tasks count as half complete.
 - No phase has reached its full acceptance criteria yet.
 
@@ -117,11 +117,11 @@ counts agree without losing valid tags or subject visibility.
       progress contract tests.
 - [-] Add desktop, mobile, and accessibility browser checks.
 - [x] Add data-count and relationship-preservation checks.
-- [-] Add dependency and secret scanning.
+- [x] Add dependency and secret scanning.
 - [x] Require passing checks before deployment.
 - [x] Create and verify Netlify preview deployments.
 - [ ] Deploy production only from a passing Git commit.
-- [ ] Verify production commit fingerprints and rollback procedures.
+- [-] Verify production commit fingerprints and rollback procedures.
 
 Acceptance: a change that loses essential data, features, functionality, or
 design cannot automatically reach production.
@@ -145,7 +145,7 @@ state.
 - [ ] Replace exhaustive fetching incrementally with pagination or cursors.
 - [ ] Preserve ordering, filters, visible content, and scroll behavior.
 - [ ] Route cacheable requests consistently through the intended cache.
-- [ ] Replace synchronous view-count writes without losing analytics.
+- [-] Replace synchronous view-count writes without losing analytics.
 - [ ] Add latency, error-rate, cache-hit, and regression monitoring.
 - [x] Document why service-worker cleanup was introduced.
 - [x] Preserve current splash and zero-black-screen launch behavior.
@@ -413,3 +413,30 @@ Stop and investigate if:
   `https://6a286a7d1b519d2dc270956d--opencourseware-explorer.netlify.app`.
   Home, courses, subjects, admin login, and the API proxy return HTTP 200 with
   report-only CSP headers. Production was not changed.
+
+### 2026-06-16 - Local roadmap completion pass
+
+- Re-ran the start-of-task source-control check: branch
+  `codex/preservation-first-repair` was clean and aligned with
+  `origin/codex/preservation-first-repair` before edits.
+- Deferred course-detail view-count writes into a background task backed by a
+  fresh database session. Course detail responses no longer wait for the
+  analytics write, and failures remain non-fatal.
+- Added regression coverage for deferred view-count behavior and isolated the
+  backend test suite from developer-local `backend/.env` admin credentials.
+- Strengthened the deployment workflow with `pip check`, Python compile checks,
+  Docker Compose config validation, current-tree secret scanning, web high
+  severity `npm audit`, and Render `/health.git_commit` polling when the Render
+  deploy hook is configured.
+- Ran `npm audit fix` without force. High-severity web findings were removed;
+  remaining moderate advisories require upstream/breaking dependency changes
+  and stay tracked under dependency hardening.
+- Verification results: backend 32 passed; scraper and preservation scripts 65
+  passed; web 20 passed; web lint passed; web production build passed; `pip
+  check`, `python -m compileall -q backend/app scraper scripts`, `docker compose
+  config --quiet`, `git diff --check`, `scripts/check_tracked_secrets.py
+  --working-tree`, and `npm audit --audit-level=high` passed.
+- Production was not deployed. Render hook configuration, live commit
+  fingerprint verification, credential rotation, production database mutation,
+  phone/PWA checks, and full browser/accessibility verification remain external
+  or production-gated.

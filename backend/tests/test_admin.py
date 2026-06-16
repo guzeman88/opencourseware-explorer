@@ -41,7 +41,7 @@ async def test_admin_login_uses_httponly_cookie(
         json={"email": settings.admin_email, "password": settings.admin_password},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert "httponly" in response.headers["set-cookie"].lower()
 
     stats = await client.get("/api/v1/admin/stats")

@@ -29,8 +29,13 @@ def event_loop_policy():
 
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session(monkeypatch) -> AsyncGenerator[AsyncSession, None]:
     """Fresh in-memory SQLite DB for every test function."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "admin_email", "admin@example.com")
+    monkeypatch.setattr(settings, "admin_password", "changeme")
+
     engine = create_async_engine(_next_db_url(), echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -45,7 +50,22 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession, monkeypatch) -> AsyncGenerator[AsyncClient, None]:
+    from app.models.course import Course
+    from app.routers import courses as courses_router
+
+    async def increment_view_in_test_db(course_id):
+        course = await db_session.get(Course, course_id)
+        if course is not None:
+            course.view_count += 1
+            await db_session.commit()
+
+    monkeypatch.setattr(
+        courses_router,
+        "_increment_view_background",
+        increment_view_in_test_db,
+    )
+
     async def override_db():
         yield db_session
 
@@ -58,9 +78,23 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture
-async def auth_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def auth_client(db_session: AsyncSession, monkeypatch) -> AsyncGenerator[AsyncClient, None]:
     """Client pre-authenticated as admin."""
     from app.services.auth import get_or_create_admin, create_access_token
+    from app.models.course import Course
+    from app.routers import courses as courses_router
+
+    async def increment_view_in_test_db(course_id):
+        course = await db_session.get(Course, course_id)
+        if course is not None:
+            course.view_count += 1
+            await db_session.commit()
+
+    monkeypatch.setattr(
+        courses_router,
+        "_increment_view_background",
+        increment_view_in_test_db,
+    )
 
     admin = await get_or_create_admin(db_session)
     token = create_access_token({"sub": admin.email})

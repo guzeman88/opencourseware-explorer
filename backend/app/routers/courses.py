@@ -1,10 +1,10 @@
 
-import json
 import logging
 import math
+import uuid
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import inspect as sa_inspect
@@ -17,8 +17,8 @@ from app.crud import (
     list_courses,
     increment_view,
 )
-from app.database import get_db
-from app.models.course import CourseLevel
+from app.database import AsyncSessionLocal, get_db
+from app.models.course import Course, CourseLevel
 from app.schemas.course import (
     CourseFilters,
     CourseList,
@@ -85,6 +85,17 @@ async def _set_cached(key: str, val: CourseList) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+async def _increment_view_background(course_id: uuid.UUID) -> None:
+    try:
+        async with AsyncSessionLocal() as db:
+            course = await db.get(Course, course_id)
+            if course is None:
+                return
+            await increment_view(db, course)
+    except Exception as exc:
+        logger.debug("Deferred view-count increment failed for %s: %s", course_id, exc)
 
 
 def _safe_col_dict(orm_obj) -> dict:
@@ -203,12 +214,15 @@ async def featured_courses(
 
 @router.get("/{slug_or_id}", response_model=CourseRead)
 @limiter.limit("60/minute")
-async def get_course(request: Request, slug_or_id: str, db: AsyncSession = Depends(get_db)):
-    import uuid as _uuid
-
+async def get_course(
+    request: Request,
+    slug_or_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     course = None
     try:
-        uid = _uuid.UUID(slug_or_id)
+        uid = uuid.UUID(slug_or_id)
         course = await get_course_by_id(db, uid)
     except ValueError:
         course = await get_course_by_slug(db, slug_or_id)
@@ -216,11 +230,7 @@ async def get_course(request: Request, slug_or_id: str, db: AsyncSession = Depen
     if course is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    # Fire-and-forget view increment (best effort)
-    try:
-        await increment_view(db, course)
-    except Exception:
-        pass
+    background_tasks.add_task(_increment_view_background, course.id)
 
     return _build_course_read(course)
 
