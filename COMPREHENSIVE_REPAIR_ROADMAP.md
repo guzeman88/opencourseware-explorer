@@ -24,9 +24,9 @@ Status markers:
 Reconciled against the implementation and available evidence on 2026-06-16:
 
 - 37 of 85 tasks completed and verified.
-- 24 tasks in progress with implementation or evidence already present.
-- 24 tasks not started or lacking sufficient evidence.
-- Weighted implementation progress is approximately 57.6% when in-progress
+- 25 tasks in progress with implementation or evidence already present.
+- 23 tasks not started or lacking sufficient evidence.
+- Weighted implementation progress is approximately 58.2% when in-progress
   tasks count as half complete.
 - No phase has reached its full acceptance criteria yet.
 
@@ -65,7 +65,7 @@ functionality, or visual behavior before functional repairs begin.
 - [-] Verify exposed credentials and every authorized consumer.
 - [x] Capture working connectivity checks before rotation.
 - [ ] Rotate exposed Neon and YouTube credentials one service at a time.
-- [ ] Update authorized environments before revoking old credentials.
+- [-] Update authorized environments before revoking old credentials.
 - [x] Remove hardcoded credentials and require environment configuration.
 - [x] Scan the current tree and Git history for remaining secrets.
 - [ ] Re-run connectivity, scraper, API, and deployment checks.
@@ -440,3 +440,30 @@ Stop and investigate if:
   fingerprint verification, credential rotation, production database mutation,
   phone/PWA checks, and full browser/accessibility verification remain external
   or production-gated.
+
+### 2026-06-16 - External deploy and production blocker pass
+
+- Re-ran `git fetch --all --prune`; branch
+  `codex/preservation-first-repair` was clean and aligned with origin before
+  external work.
+- Verified available CLIs: GitHub, Netlify, and Vercel are authenticated; no
+  Render CLI or Render token/hook is available in the current shell.
+- GitHub Actions secrets were empty at the start of this pass. Registered the
+  existing main-branch Netlify build hook as `NETLIFY_DEPLOY_HOOK_URL` and an
+  existing main-branch Vercel deploy hook as `VERCEL_DEPLOY_HOOK_URL`.
+- Confirmed Netlify production is Git-backed to repo
+  `guzeman88/opencourseware-explorer`, branch `main`, base `web`, and has
+  non-Git production deploys prevented.
+- Confirmed live production is still stale relative to this repair branch:
+  Render `/health` returns no `git_commit`, Render OpenAPI still lacks
+  `catalog_ready` and `strict_counts`, and the Netlify API proxy still reports
+  9,741 public courses.
+- Attempted a fresh read-only logical backup using available local env files.
+  `../.env.production` has blank database and YouTube entries. The local
+  `backend/.env` database URL is set but fails to connect in both tested SSL
+  modes, so production backup, dry-run data checks, and any database mutation
+  are blocked.
+- No production deploy, credential revocation, database mutation, or YouTube
+  recovery was performed. Stop conditions remain active until a Render deploy
+  hook, usable production DB credentials, replacement Neon/YouTube credentials,
+  and dashboard verification are available.

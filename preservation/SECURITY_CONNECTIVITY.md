@@ -34,17 +34,29 @@ It never prints credential values.
 - Netlify `/api/v1/courses?page_size=1` proxy returns HTTP 200.
 - Render `/health` and `/openapi.json` return HTTP 200.
 
+## 2026-06-16 Deploy Secret Update
+
+- GitHub Actions secrets now include `NETLIFY_DEPLOY_HOOK_URL` and
+  `VERCEL_DEPLOY_HOOK_URL`.
+- Netlify is Git-backed to `guzeman88/opencourseware-explorer`, production
+  branch `main`, base `web`, and has `prevent_non_git_prod_deploys` enabled.
+- A main-branch Netlify build hook already existed and was registered in
+  GitHub Actions without printing the hook URL in tracked files.
+- Vercel main-branch deploy hooks already existed and one was registered in
+  GitHub Actions without printing the hook URL in tracked files.
+- `RENDER_DEPLOY_HOOK_URL` is still not configured in GitHub Actions.
+
 ## Known Gaps and Stop Conditions
 
-- GitHub currently has no Actions secrets configured. The Netlify, Vercel, and
-  Render deploy-hook secrets must be configured before Git-based deployment can
-  be accepted.
+- Render deploy-hook configuration remains required before Git-based backend
+  deployment can be accepted.
 - Render `/health` does not currently expose a Git commit fingerprint.
 - Render OpenAPI does not expose the checked-in `catalog_ready` or
   `strict_counts` parameters, confirming that production Render does not match
   the repair branch.
-- Database and YouTube connectivity cannot be re-verified from the current
-  shell because authorized production credentials are intentionally unavailable.
+- Database and YouTube connectivity cannot be fully re-verified from the
+  current shell. `../.env.production` has blank DB/YouTube entries, and the
+  local `backend/.env` database URL is not usable for a read-only backup.
 - External credential rotation and revocation must be performed in Neon, GCP,
   Netlify, Vercel, Render, and GitHub dashboards. Do not revoke an old
   credential until its replacement consumer has passed.
