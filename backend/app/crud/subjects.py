@@ -11,30 +11,45 @@ from app.models.course import Course, CourseSubject
 from app.models.catalog_eligibility import SubjectCatalogCount
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
-from app.subject_counts import STRICT_COUNT_POLICY_VERSION
-from app.subject_matching import strict_subject_matches_title
+from app.subject_counts import MIN_SUBJECT_RELEVANCE_SCORE, STRICT_COUNT_POLICY_VERSION
 
 
-_HAS_SUBJECT_COUNT_TABLE: bool | None = None
+_HAS_COUNTS_TABLE: bool | None = None
+_HAS_RELEVANCE_TABLE: bool | None = None
 
 
 async def _has_subject_count_table(db: AsyncSession) -> bool:
-    global _HAS_SUBJECT_COUNT_TABLE
-    if _HAS_SUBJECT_COUNT_TABLE is not None:
-        return _HAS_SUBJECT_COUNT_TABLE
+    global _HAS_COUNTS_TABLE
+    if _HAS_COUNTS_TABLE is not None:
+        return _HAS_COUNTS_TABLE
 
     def check(sync_session) -> bool:
         return sa_inspect(sync_session.get_bind()).has_table("subject_catalog_counts")
 
     try:
-        _HAS_SUBJECT_COUNT_TABLE = await db.run_sync(check)
+        _HAS_COUNTS_TABLE = await db.run_sync(check)
     except Exception:
-        _HAS_SUBJECT_COUNT_TABLE = False
-    return _HAS_SUBJECT_COUNT_TABLE
+        _HAS_COUNTS_TABLE = False
+    return _HAS_COUNTS_TABLE
+
+
+async def _has_relevance_table(db: AsyncSession) -> bool:
+    global _HAS_RELEVANCE_TABLE
+    if _HAS_RELEVANCE_TABLE is not None:
+        return _HAS_RELEVANCE_TABLE
+
+    def check(sync_session) -> bool:
+        return sa_inspect(sync_session.get_bind()).has_table("course_subject_relevance")
+
+    try:
+        _HAS_RELEVANCE_TABLE = await db.run_sync(check)
+    except Exception:
+        _HAS_RELEVANCE_TABLE = False
+    return _HAS_RELEVANCE_TABLE
 
 
 async def get_subject_by_slug(db: AsyncSession, slug: str) -> Subject | None:
-    ccsq = _course_count_subq()
+    ccsq = await _build_count_subq(db)
     result = await db.execute(
         select(Subject, func.coalesce(ccsq.c.course_count, 0).label("course_count"))
         .outerjoin(ccsq, Subject.id == ccsq.c.subject_id)
@@ -49,7 +64,8 @@ async def get_subject_by_slug(db: AsyncSession, slug: str) -> Subject | None:
     return subj
 
 
-def _course_count_subq():
+def _course_count_from_tags():
+    """Count catalog-ready courses per subject from explicit course_subjects tags."""
     return (
         select(
             CourseSubject.subject_id,
@@ -62,6 +78,75 @@ def _course_count_subq():
     )
 
 
+def _course_count_from_tags_and_relevance():
+    """Count catalog-ready courses per subject from both course_subjects
+    (explicit tags) and course_subject_relevance (scored associations)."""
+    from app.models.course import CourseSubjectRelevance
+
+    tagged = (
+        select(
+            CourseSubject.subject_id,
+            CourseSubject.course_id,
+        )
+        .join(Course, Course.id == CourseSubject.course_id)
+        .where(catalog_ready_condition(Course))
+    )
+
+    scored = (
+        select(
+            CourseSubjectRelevance.subject_id,
+            CourseSubjectRelevance.course_id,
+        )
+        .join(Course, Course.id == CourseSubjectRelevance.course_id)
+        .where(
+            CourseSubjectRelevance.score >= MIN_SUBJECT_RELEVANCE_SCORE,
+            catalog_ready_condition(Course),
+        )
+    )
+
+    combined = tagged.union(scored).subquery()
+
+    return (
+        select(
+            combined.c.subject_id,
+            func.count(func.distinct(combined.c.course_id)).label("course_count"),
+        )
+        .group_by(combined.c.subject_id)
+        .subquery()
+    )
+
+
+async def _build_count_subq(db: AsyncSession):
+    """Choose the best available count source automatically.
+
+    Uses the combined (course_subjects ∪ course_subject_relevance) subquery
+    when the relevance table exists, otherwise falls back to course_subjects alone.
+    Both produce counts consistent with the subject detail page
+    (catalog_ready_condition via course-to-subject associations).
+    """
+    if await _has_relevance_table(db):
+        return _course_count_from_tags_and_relevance()
+    return _course_count_from_tags()
+
+
+async def _load_persisted_counts(
+    db: AsyncSession, subject_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Load pre-computed title-matched counts from subject_catalog_counts."""
+    rows = (
+        await db.execute(
+            select(
+                SubjectCatalogCount.subject_id,
+                SubjectCatalogCount.course_count,
+            ).where(
+                SubjectCatalogCount.subject_id.in_(subject_ids),
+                SubjectCatalogCount.policy_version == STRICT_COUNT_POLICY_VERSION,
+            )
+        )
+    ).all()
+    return {subject_id: course_count for subject_id, course_count in rows}
+
+
 async def list_subjects(
     db: AsyncSession,
     page: int = 1,
@@ -70,7 +155,11 @@ async def list_subjects(
     top_level_only: bool = False,
     strict_counts: bool = False,
 ) -> tuple[list[Subject], int]:
-    ccsq = _course_count_subq()
+    # Build the count subquery — auto-selects the best source available
+    # (tags + relevance if the relevance table exists, tags alone otherwise).
+    # These counts are consistent with the subject detail page because both
+    # use catalog_ready_condition + course_subjects-based filtering.
+    ccsq = await _build_count_subq(db)
 
     query = (
         select(Subject, func.coalesce(ccsq.c.course_count, 0).label("course_count"))
@@ -92,53 +181,25 @@ async def list_subjects(
     total = (await db.execute(count_q)).scalar_one()
     rows = list((await db.execute(query)).all())
 
-    # Attach course_count to Subject instances so model_validate can read it
-    subjects = []
+    subjects: list[Subject] = []
     for row in rows:
         subj = row[0]
         subj.course_count = row[1]
         subjects.append(subj)
 
-    if strict_counts and subjects:
-        persisted_counts: dict[uuid.UUID, int] = {}
-        if await _has_subject_count_table(db):
-            persisted_counts = {
-                subject_id: course_count
-                for subject_id, course_count in (
-                    await db.execute(
-                        select(
-                            SubjectCatalogCount.subject_id,
-                            SubjectCatalogCount.course_count,
-                        ).where(
-                            SubjectCatalogCount.subject_id.in_(
-                                [subject.id for subject in subjects]
-                            ),
-                            SubjectCatalogCount.policy_version
-                            == STRICT_COUNT_POLICY_VERSION,
-                        )
-                    )
-                )
-            }
-
-        if persisted_counts:
+    # When strict_counts is requested AND the persisted table exists with
+    # matching policy version, override with title-matched counts. These are
+    # more restrictive (require the subject name in the course title) and may
+    # differ from the subject detail page. Use only when this tighter match
+    # is explicitly desired.
+    if strict_counts and subjects and await _has_subject_count_table(db):
+        persisted = await _load_persisted_counts(
+            db, [s.id for s in subjects]
+        )
+        if persisted:
             for subj in subjects:
-                subj.course_count = persisted_counts.get(subj.id, 0)
-        else:
-            titles = list(
-                (
-                    await db.execute(
-                        select(Course.title).where(catalog_ready_condition(Course))
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            for subj in subjects:
-                subj.course_count = sum(
-                    1
-                    for title in titles
-                    if strict_subject_matches_title(title, subj.slug)
-                )
+                if subj.id in persisted:
+                    subj.course_count = persisted[subj.id]
 
     return subjects, total
 
