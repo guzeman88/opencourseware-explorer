@@ -12,6 +12,7 @@ from app.models.catalog_eligibility import SubjectCatalogCount
 from app.models.subject import Subject
 from app.schemas.subject import SubjectCreate, SubjectUpdate
 from app.subject_counts import MIN_SUBJECT_RELEVANCE_SCORE, STRICT_COUNT_POLICY_VERSION
+from app.subject_matching import strict_subject_matches_title
 
 
 _HAS_COUNTS_TABLE: bool | None = None
@@ -187,19 +188,36 @@ async def list_subjects(
         subj.course_count = row[1]
         subjects.append(subj)
 
-    # When strict_counts is requested AND the persisted table exists with
-    # matching policy version, override with title-matched counts. These are
-    # more restrictive (require the subject name in the course title) and may
-    # differ from the subject detail page. Use only when this tighter match
-    # is explicitly desired.
-    if strict_counts and subjects and await _has_subject_count_table(db):
-        persisted = await _load_persisted_counts(
-            db, [s.id for s in subjects]
-        )
+    # When strict_counts is requested, use title-matched counts. Prefer
+    # pre-computed counts from subject_catalog_counts when available;
+    # otherwise fall back to runtime strict_subject_matches_title.
+    if strict_counts and subjects:
+        persisted = {}
+        if await _has_subject_count_table(db):
+            persisted = await _load_persisted_counts(
+                db, [s.id for s in subjects]
+            )
+
         if persisted:
             for subj in subjects:
                 if subj.id in persisted:
                     subj.course_count = persisted[subj.id]
+        else:
+            titles = list(
+                (
+                    await db.execute(
+                        select(Course.title).where(catalog_ready_condition(Course))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for subj in subjects:
+                subj.course_count = sum(
+                    1
+                    for title in titles
+                    if strict_subject_matches_title(title, subj.slug)
+                )
 
     return subjects, total
 
